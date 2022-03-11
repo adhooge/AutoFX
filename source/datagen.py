@@ -58,8 +58,8 @@ if __name__ == '__main__':
     parser.add_argument('--distortion', action='store_true')
     parser.add_argument('--reverb', action='store_true')
     parser.add_argument('--in-path', '-i', default=pathlib.PurePath('.'), type=pathlib.PurePath,
-                                    help="Path to the dry sounds. Defaults to current directory.")
+                        help="Path to the dry sounds. Defaults to current directory.")
     parser.add_argument('--out-path', '-o', default=pathlib.PurePath('./out'), type=pathlib.PurePath,
-                                    help="Where to store the processed files. Defaults to ./out")
+                        help="Where to store the processed files. Defaults to ./out")
     parser.add_argument('--force', '-f', action='store_true')
     sys.exit(main(parser))
