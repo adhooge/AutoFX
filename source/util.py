@@ -26,14 +26,20 @@ def apply_fx(audio, rate: float, board: pdb.Pedalboard):
     return board.process(audio, rate)
 
 
-def read_audio(path: str, **kwargs) -> Tuple[np.ndarray, float]:
+def read_audio(path: str, normalize: bool = True, add_noise: bool = False, **kwargs) -> Tuple[np.ndarray, float]:
     """
     Wrapper function to read an audio file using soundfile.read
     :param path: Path to audio file to read;
+    :param normalize: Should the output file be normalized in loudness. Default is True.
+    :param add_noise: add white noise to the signal to avoid division by zero. Default is False.
     :param kwargs: Keyword arguments to pass to soundfile.read;
     :return audio, rate: Read audio and the corresponding sample rate.
     """
     audio, rate = sf.read(path, **kwargs)
+    if normalize:
+        audio = audio/np.max(np.abs(audio))
+    if add_noise:
+        audio += np.random.normal(0, 1e-9, len(audio))
     return audio, rate
 
 
@@ -220,9 +226,7 @@ def f0_spectral_product(mag: np.ndarray, freq: np.ndarray, rate: float, decim_fa
         bin_max = sp_max
     sp_mag = np.ones(sp_max)
     for dec in range(1, decim_factor + 1):
-        # multiply by decimated spectrum
         sp_mag *= mag[::dec][:sp_max]
-    sp_freq = freq[:sp_max]  # limiting frequencies to the ones in the spectral product
-    # fundamental frequency is where the spectral product maximum is found
+    sp_freq = freq[:sp_max]
     f0 = sp_freq[np.argmax(sp_mag[bin_min:bin_max]) + bin_min]
     return f0, sp_mag, sp_freq
