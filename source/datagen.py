@@ -10,7 +10,7 @@ from tqdm import tqdm
 import util
 
 
-def main(parser):
+def main(parser: argparse.ArgumentParser) -> int:
     args = vars(parser.parse_args())
     transforms = ''
     fx = []

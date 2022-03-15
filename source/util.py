@@ -1,12 +1,18 @@
 """
 Utility functions for data processing.
+[1] Stein et al., Automatic detection of audio effects, AES 2010.
 """
 from typing import Tuple, Any
 
+import scipy.fftpack
 import pedalboard as pdb
 import soundfile as sf
 import numpy as np
 import librosa
+
+NUM_COEFF_CEPSTRUM = 10
+GUITAR_MIN_FREQUENCY = 80
+GUITAR_MAX_FREQUENCY = 1200
 
 
 def apply_fx(audio, rate: float, board: pdb.Pedalboard):
@@ -32,7 +38,7 @@ def read_audio(path: str, **kwargs) -> Tuple[np.ndarray, float]:
 
 
 def energy_envelope(audio: np.ndarray, rate: float, window_size: float = 100, method: str = 'rms') -> Tuple[
-    np.ndarray, np.ndarray]:
+                    np.ndarray, np.ndarray]:
     """
     Compute the energy envelope of a signal according to the selected method. A default window size
     of 100ms is used for a 5Hz low-pass filtering (see Peeters' Cuidado Project report, 2003).
@@ -117,3 +123,106 @@ def get_stft(audio: np.ndarray, rate: float, fft_size: int, hop_size: int = None
     stft = librosa.stft(audio, n_fft=fft_size, hop_length=hop_size, win_length=window_size, window=window)
     freq = librosa.fft_frequencies(sr=rate, n_fft=fft_size)
     return stft, freq
+
+
+def hi_pass(arr: np.ndarray, method: str = 'simple'):
+    """
+    Simple High-pass filtering function.
+
+    :param arr: Signal to filter;
+    :param method: type of filtering to apply. Default is simply subtracting previous value to the current one.
+    :return: High-passed version of input signal
+    """
+    out = np.zeros_like(arr)
+    if method == 'simple':
+        out[1:] = arr[1:] - arr[:-1]
+        return out
+    else:
+        return NotImplemented
+
+
+def derivative(arr: np.ndarray, step: float,  method: str = 'newton'):
+    """
+    Returns the derivative of arr.
+
+    :param arr: Signal to differentiate;
+    :param step: step between samples;
+    :param method: type of derivation algorithm to use. Default is Newton's difference quotient;
+    :return:
+    """
+    out = np.zeros_like(arr)
+    if method == 'newton':
+        out[1:] = (arr[:-1] - arr[1:]) / step
+        return out
+    else:
+        return NotImplemented
+
+
+def mean(arr: np.ndarray):
+    """
+    Wrapper function to compute the mean value of a signal.
+
+    :param arr: Input signal.
+    :return: Mean value of the input signal
+    """
+    return np.mean(arr)
+
+
+def std(arr: np.ndarray):
+    """
+    Wrapper function to compute the standard deviation of a signal.
+
+    :param arr: input signal
+    :return: Standard deviation of the input signal
+    """
+    return np.std(arr)
+
+
+def get_cepstrum(mag: np.ndarray, full: bool = False, num_coeff: int = NUM_COEFF_CEPSTRUM):
+    """
+    Obtain cepstrum as explained in [1].
+
+    :param mag: matrix of the frame-by-frame magnitude spectra of the input signal;
+    :param full: defines if the function returns the complete cepstrum of simply the first coeff. Default is False.
+    :param num_coeff: defines the number of coefficients to keep from the cepstrum.
+    :return: First coefficients of the cepstrum of full cepstrum.
+    """
+    log_sq_mag = np.log(np.square(mag))
+    dct = scipy.fftpack.dct(log_sq_mag)
+    if full:
+        return dct
+    return dct[:num_coeff]
+
+
+def f0_spectral_product(mag: np.ndarray, freq: np.ndarray, rate: float, decim_factor: int,
+                        f_min: float = 0.75*GUITAR_MIN_FREQUENCY, f_max: float = 1.5*GUITAR_MAX_FREQUENCY,
+                        fft_size: int = None) -> Tuple[float, np.ndarray, np.ndarray]:
+    """
+    Obtain the fundamental frequency of a signal using the spectral product technique.
+
+
+    :param mag: Array of the real spectrum magnitudes;
+    :param freq: array of the frequencies in Hertz for the corresponding fft bins;
+    :param rate: sampling rate of the signal in Hertz;
+    :param decim_factor: number of times the spectrum is decimated;
+    :param f_min: Minimum frequency in Hz to look for f0. Default is 0.75*GUITAR_MIN_FREQUENCY;
+    :param f_max: Maximum frequency in Hz to look for f0. Default is 1.5*GUITAR_MAX_FREQUENCY;
+    :param fft_size: Size of the fft. If None, inferred for freq's shape. Default is None.
+    :return (f0, sp_mag, sp_freq):  fundamental frequency and the accompanying magnitude and frequencies
+            of the spectral product.
+    """
+    if fft_size is None:
+        fft_size = (len(freq) - 1) * 2
+    bin_min = int(f_min / rate * (fft_size / 2 + 1))
+    bin_max = int(f_max / rate * (fft_size / 2 + 1))
+    sp_max = int(fft_size / (2 * decim_factor))
+    if bin_max > sp_max:
+        bin_max = sp_max
+    sp_mag = np.ones(sp_max)
+    for dec in range(1, decim_factor + 1):
+        # multiply by decimated spectrum
+        sp_mag *= mag[::dec][:sp_max]
+    sp_freq = freq[:sp_max]  # limiting frequencies to the ones in the spectral product
+    # fundamental frequency is where the spectral product maximum is found
+    f0 = sp_freq[np.argmax(sp_mag[bin_min:bin_max]) + bin_min]
+    return f0, sp_mag, sp_freq
