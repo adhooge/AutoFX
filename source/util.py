@@ -8,7 +8,8 @@ import scipy.fftpack
 import pedalboard as pdb
 import soundfile as sf
 import numpy as np
-import librosa
+from scipy import signal
+from numpy.typing import ArrayLike
 
 NUM_COEFF_CEPSTRUM = 10
 GUITAR_MIN_FREQUENCY = 80
@@ -26,7 +27,7 @@ def apply_fx(audio, rate: float, board: pdb.Pedalboard):
     return board.process(audio, rate)
 
 
-def read_audio(path: str, normalize: bool = True, add_noise: bool = False, **kwargs) -> Tuple[np.ndarray, float]:
+def read_audio(path: str, normalize: bool = True, add_noise: bool = False, **kwargs) -> Tuple[ArrayLike, float]:
     """
     Wrapper function to read an audio file using soundfile.read
     :param path: Path to audio file to read;
@@ -43,8 +44,8 @@ def read_audio(path: str, normalize: bool = True, add_noise: bool = False, **kwa
     return audio, rate
 
 
-def energy_envelope(audio: np.ndarray, rate: float, window_size: float = 100, method: str = 'rms') -> Tuple[
-                    np.ndarray, np.ndarray]:
+def energy_envelope(audio: ArrayLike, rate: float, window_size: float = 100, method: str = 'rms') -> Tuple[
+                    ArrayLike, ArrayLike]:
     """
     Compute the energy envelope of a signal according to the selected method. A default window size
     of 100ms is used for a 5Hz low-pass filtering (see Peeters' Cuidado Project report, 2003).
@@ -73,16 +74,16 @@ def energy_envelope(audio: np.ndarray, rate: float, window_size: float = 100, me
         raise NotImplementedError
 
 
-def find_attack(energy: np.ndarray, method: str,
+def find_attack(energy: ArrayLike, method: str,
                 start_threshold: float = None, end_threshold: float = None,
-                times: np.ndarray = None) -> Tuple[float, float]:
+                times: ArrayLike = None) -> Tuple[float, float]:
     """
     Find beginning and end of attack from energy envelope using a fixed or adaptive threshold method.
 
     See: Geoffroy Peeters, A large set of audio features for sound description in the CUIDADO project, 2003.
 
 
-    :param energy: np.ndarray of the energy envelope;
+    :param energy: ArrayLike of the energy envelope;
     :param method: 'adaptive' or 'fixed';
     :param end_threshold: max energy ratio to detect end of attack in 'fixed' method;
     :param start_threshold: max energy ratio to detect start of attack in 'fixed' method;
@@ -112,12 +113,12 @@ def find_attack(energy: np.ndarray, method: str,
         raise NotImplementedError("method should be 'fixed' or 'adaptive'")
 
 
-def get_stft(audio: np.ndarray, rate: float, fft_size: int, hop_size: int = None, window: Any = 'hann',
-             window_size: int = None) -> Tuple[np.ndarray, np.ndarray]:
+def get_stft(audio: ArrayLike, rate: float, fft_size: int, hop_size: int = None, window: Any = 'hann',
+             window_size: int = None) -> Tuple[ArrayLike, ArrayLike, ArrayLike]:
     """
-    Wrapper function to obtain the Short Time Fourier Transform of a sound. As of now, simply calls Librosa.
+    Wrapper function to obtain the Short Time Fourier Transform of a sound. As of now, simply calls scipy.signal.
 
-    :param audio: np.ndarray of the sound to analyse;
+    :param audio: ArrayLike of the sound to analyse;
     :param rate: sampling rate of the audio signal. Necessary to return the correct frequencies;
     :param fft_size: Size of the fft frames in samples. If fft_size > window_size, the windowed signal is zero padded;
     :param hop_size: hop size between frames in samples;
@@ -126,12 +127,12 @@ def get_stft(audio: np.ndarray, rate: float, fft_size: int, hop_size: int = None
     :return stft: Complex-valued matrix of short-term Fourier transform coefficients.
     :return freq: array of the frequency bins values in Hertz.
     """
-    stft = librosa.stft(audio, n_fft=fft_size, hop_length=hop_size, win_length=window_size, window=window)
-    freq = librosa.fft_frequencies(sr=rate, n_fft=fft_size)
-    return stft, freq
+    freq, times, stft = signal.stft(audio, fs=rate, nfft=fft_size, noverlap=window_size - hop_size,
+                                    nperseg=window_size, window=window)
+    return stft, freq, times
 
 
-def hi_pass(arr: np.ndarray, method: str = 'simple'):
+def hi_pass(arr: ArrayLike, method: str = 'simple'):
     """
     Simple High-pass filtering function.
 
@@ -147,7 +148,7 @@ def hi_pass(arr: np.ndarray, method: str = 'simple'):
         return NotImplemented
 
 
-def derivative(arr: np.ndarray, step: float,  method: str = 'newton'):
+def derivative(arr: ArrayLike, step: float,  method: str = 'newton'):
     """
     Returns the derivative of arr.
 
@@ -164,7 +165,7 @@ def derivative(arr: np.ndarray, step: float,  method: str = 'newton'):
         return NotImplemented
 
 
-def mean(arr: np.ndarray):
+def mean(arr: ArrayLike):
     """
     Wrapper function to compute the mean value of a signal.
 
@@ -174,7 +175,7 @@ def mean(arr: np.ndarray):
     return np.mean(arr)
 
 
-def std(arr: np.ndarray):
+def std(arr: ArrayLike):
     """
     Wrapper function to compute the standard deviation of a signal.
 
@@ -184,7 +185,7 @@ def std(arr: np.ndarray):
     return np.std(arr)
 
 
-def get_cepstrum(mag: np.ndarray, full: bool = False, num_coeff: int = NUM_COEFF_CEPSTRUM):
+def get_cepstrum(mag: ArrayLike, full: bool = False, num_coeff: int = NUM_COEFF_CEPSTRUM):
     """
     Obtain cepstrum as explained in [1].
 
@@ -200,9 +201,9 @@ def get_cepstrum(mag: np.ndarray, full: bool = False, num_coeff: int = NUM_COEFF
     return dct[:num_coeff]
 
 
-def f0_spectral_product(mag: np.ndarray, freq: np.ndarray, rate: float, decim_factor: int,
+def f0_spectral_product(mag: ArrayLike, freq: ArrayLike, rate: float, decim_factor: int,
                         f_min: float = 0.75*GUITAR_MIN_FREQUENCY, f_max: float = 1.5*GUITAR_MAX_FREQUENCY,
-                        fft_size: int = None) -> Tuple[float, np.ndarray, np.ndarray]:
+                        fft_size: int = None) -> Tuple[float, ArrayLike, ArrayLike]:
     """
     Obtain the fundamental frequency of a signal using the spectral product technique.
 

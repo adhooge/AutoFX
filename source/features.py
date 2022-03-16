@@ -6,7 +6,6 @@ References:
     [2]: Tae Hong Park, Towards automatic musical instrument timbre recognition, 2004 (PhD thesis)
 """
 
-import librosa
 import numpy as np
 
 
@@ -49,7 +48,7 @@ def spectral_spread(*, mag: np.ndarray = None, stft: np.ndarray = None,
     :return spread: spectral spread of each input frame.
     """
     if mag is None:
-        mag, _ = librosa.magphase(stft)
+        mag = np.abs(stft)
     if cent is None:
         cent = spectral_centroid(mag=mag, freq=freq)
     if mag.ndim == 1:
@@ -76,7 +75,7 @@ def spectral_skewness(*, mag: np.ndarray = None, stft: np.ndarray = None,
     :return skew: spectral skewness of each input frame.
     """
     if mag is None:
-        mag, _ = librosa.magphase(stft)
+        mag = np.abs(stft)
     if cent is None:
         cent = spectral_centroid(mag=mag, freq=freq)
     if mag.ndim == 1:
@@ -103,7 +102,7 @@ def spectral_kurtosis(*, mag: np.ndarray = None, stft: np.ndarray = None,
     :return kurt: spectral kurtosis of each input frame.
     """
     if mag is None:
-        mag, _ = librosa.magphase(stft)
+        mag = np.abs(stft)
     if cent is None:
         cent = spectral_centroid(mag=mag, freq=freq)
     if mag.ndim == 1:
@@ -173,7 +172,7 @@ def spectral_slope(mag: np.ndarray, freq: np.ndarray = None):
 
     :param mag: (num_frames, N_fft) matrix of the frame_by_frame magnitude;
     :param freq: array of the frequency in Hertz of each frequency bin. If None, result is given in bins;
-    :return slope: (num_frames, 1) array of the framewise specral slope, in Hz or bins depending on freq.
+    :return slope: (num_frames, 1) array of the frame-wise spectral slope, in Hz or bins depending on freq.
     """
     if mag.ndim == 1:
         mag = np.expand_dims(mag, axis=1)
