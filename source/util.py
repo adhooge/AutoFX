@@ -6,6 +6,7 @@ from typing import Tuple, Any
 
 import scipy.fftpack
 import pedalboard as pdb
+from pedalboard.io import AudioFile
 import soundfile as sf
 import numpy as np
 from scipy import signal
@@ -29,14 +30,16 @@ def apply_fx(audio, rate: float, board: pdb.Pedalboard):
 
 def read_audio(path: str, normalize: bool = True, add_noise: bool = False, **kwargs) -> Tuple[ArrayLike, float]:
     """
-    Wrapper function to read an audio file using soundfile.read
+    Wrapper function to read an audio file using pedalboard.io
     :param path: Path to audio file to read;
     :param normalize: Should the output file be normalized in loudness. Default is True.
     :param add_noise: add white noise to the signal to avoid division by zero. Default is False.
     :param kwargs: Keyword arguments to pass to soundfile.read;
     :return audio, rate: Read audio and the corresponding sample rate.
     """
-    audio, rate = sf.read(path, **kwargs)
+    with AudioFile(path, 'r') as f:
+        audio = f.read(f.frames)
+        rate = f.samplerate
     if normalize:
         audio = audio/np.max(np.abs(audio))
     if add_noise:
