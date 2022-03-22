@@ -159,7 +159,7 @@ class SoundSample:
         dic['string'] = SoundSample._idmt_string(info[1][2])
         dic['fret'] = SoundSample._idmt_fret(info[1][3:])
         dic['fx_type'] = SoundSample._idmt_fx_type(info[2][0])
-        dic['fx'] = SoundSample._idmt_fx(info[2][1:2])
+        dic['fx'] = SoundSample._idmt_fx(info[2][1:3])
         dic['setting'] = SoundSample._idmt_setting(info[2][3])
         dic['id'] = SoundSample._idmt_id(info[3])
         return dic
@@ -186,7 +186,7 @@ class SoundSample:
                 self.file = None
         if data is not None and isinstance(data, (str, pathlib.Path)):
             self.file = pathlib.Path(data)
-            self.data, self.rate = soundfile.read(self.file)
+            self.data, self.rate = util.read_audio(str(self.file), add_noise=idmt)
         if data is None:
             self.file = pathlib.Path(filename)
             self.data, self.rate = soundfile.read(self.file)

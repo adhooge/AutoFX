@@ -14,8 +14,8 @@ import pickle
 
 def main(parser: argparse.ArgumentParser):
     args = vars(parser.parse_args())
-    in_path = args['in_path']
-    out_path = args['out_path']
+    in_path = pathlib.Path(args['input_path'])
+    out_path = pathlib.Path(args['output_path'])
     if not in_path.is_absolute():
         in_path = pathlib.Path.cwd() / in_path
     if not out_path.is_absolute():
@@ -41,7 +41,7 @@ def main(parser: argparse.ArgumentParser):
                     sample = SoundSample(file, idmt=True)
                     sample.set_stft(fft_size=args['fft_size'])
                     sample.set_spectral_features(flux_q_norm=args['q_norm'])
-                    with open(child_out / sample.file.name + '.pkl', 'wb') as f:
+                    with open(pathlib.Path(child_out / sample.file.name).with_suffix('.pkl'), 'wb') as f:
                         pickle.dump(sample.spectral_features, f)
     return 0
 

@@ -130,9 +130,13 @@ def get_stft(audio: ArrayLike, rate: float, fft_size: int, hop_size: int = None,
     :return stft: Complex-valued matrix of short-term Fourier transform coefficients.
     :return freq: array of the frequency bins values in Hertz.
     """
+    if window_size is None:
+        window_size = fft_size
+    if hop_size is None:
+        hop_size = max(window_size // 16, 1)
     freq, times, stft = signal.stft(audio, fs=rate, nfft=fft_size, noverlap=window_size - hop_size,
                                     nperseg=window_size, window=window)
-    return stft, freq, times
+    return stft[0], freq, times
 
 
 def hi_pass(arr: ArrayLike, method: str = 'simple'):
@@ -234,3 +238,73 @@ def f0_spectral_product(mag: ArrayLike, freq: ArrayLike, rate: float, decim_fact
     sp_freq = freq[:sp_max]
     f0 = sp_freq[np.argmax(sp_mag[bin_min:bin_max]) + bin_min]
     return f0, sp_mag, sp_freq
+
+
+def midi2hertz(midi_pitch: int) -> float:
+    return 440 * 2**((midi_pitch - 69) / 12)
+
+
+def hertz2midi(freq: float) -> int:
+    return 69 + 12*np.log2(freq/440)
+
+
+def idmt_fx2one_hot_vector(fx: str) -> np.ndarray:
+    vector = np.zeros(11)
+    match fx:
+        case 'Dry':
+            vector[0] = 1
+        case 'Amp sim':
+            vector[0] = 1
+        case 'Feedback delay':
+            vector[1] = 1
+        case 'Slapback delay':
+            vector[2] = 1
+        case 'Reverb':
+            vector[3] = 1
+        case 'Chorus':
+            vector[4] = 1
+        case 'Flanger':
+            vector[5] = 1
+        case 'Phaser':
+            vector[6] = 1
+        case 'Tremolo':
+            vector[7] = 1
+        case 'Vibrato':
+            vector[8] = 1
+        case 'Distortion':
+            vector[9] = 1
+        case 'Overdrive':
+            vector[10] = 1
+        case _:
+            raise ValueError("Unknown FX")
+    return vector
+
+
+def idmt_fx2class_number(fx: str) -> np.ndarray:
+    match fx:
+        case 'Dry':
+            return 0
+        case 'Amp sim':
+            return 0
+        case 'Feedback delay':
+            return 1
+        case 'Slapback delay':
+            return 2
+        case 'Reverb':
+            return 3
+        case 'Chorus':
+            return 4
+        case 'Flanger':
+            return 5
+        case 'Phaser':
+            return 6
+        case 'Tremolo':
+            return 7
+        case 'Vibrato':
+            return 8
+        case 'Distortion':
+            return 9
+        case 'Overdrive':
+            return 10
+        case _:
+            raise ValueError("Unknown FX")
