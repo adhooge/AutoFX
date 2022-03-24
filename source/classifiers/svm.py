@@ -13,7 +13,7 @@ CLASSES = ['Dry', 'Feedback Delay', 'Slapback Delay', 'Reverb', 'Chorus', 'Flang
            'Tremolo', 'Vibrato', 'Distortion', 'Overdrive']
 
 
-dataset = pd.read_csv('/home/alexandre/dataset/dataset.csv')
+dataset = pd.read_csv('/home/alexandre/dataset/guitar_mono.csv')
 dataset.drop(columns=['flux_min'])
 subset = dataset
 target = []
@@ -43,4 +43,4 @@ print("Recall: ", metrics.recall_score(y_test, y_pred, average=None))
 print(metrics.confusion_matrix(y_test, y_pred))
 print(CLASSES)
 with open("svm_linear_optimized.pkl", 'wb') as f:
-    pickle.dump(clf, f)
+    pickle.dump((clf, scaler), f)

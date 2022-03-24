@@ -183,7 +183,7 @@ def spectral_slope(mag: np.ndarray, freq: np.ndarray = None):
     for fr in range(num_frames):
         num = (n_fft * np.sum(np.multiply(freq, mag[:, fr])) - np.sum(freq)*np.sum(mag[:, fr]))
         denom = n_fft * np.sum(np.power(freq, 2)) - np.sum(freq)**2
-        slope[fr] = num/(denom * np.sum(mag[:, fr]))
+        slope[fr] = num/denom
     return slope
 
 

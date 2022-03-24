@@ -64,12 +64,50 @@ class SoundSample:
                 return 'Finger hard'
             case '3':
                 return 'Plectrum'
+            case '4':
+                return 'Plectrum, intervals'
+            case '5':
+                return 'Plectrum, chords'
             case _:
                 return None
 
     @staticmethod
     def _idmt_pitch_midi(char: str):
         return int(char)
+
+    @staticmethod
+    def _idmt_poly_type(char: str):
+        match char:
+            case '11':
+                return 'm3'
+            case '12':
+                return 'M3'
+            case '13':
+                return 'P4'
+            case '14':
+                return 'P5'
+            case '15':
+                return 'm7'
+            case '16':
+                return 'M7'
+            case '17':
+                return 'Octave'
+            case '21':
+                return 'Major Triad'
+            case '22':
+                return 'Minor triad'
+            case '23':
+                return 'sus4 triad'
+            case '24':
+                return 'Power Chord'
+            case '25':
+                return 'Big M7 chord'
+            case '26':
+                return 'small M7 chord'
+            case '27':
+                return 'small m7 chord'
+            case _:
+                return None
 
     @staticmethod
     def _idmt_string(char: str):
@@ -146,26 +184,38 @@ class SoundSample:
         return int(char)
 
     @staticmethod
-    def idmt_parsing(name: str) -> dict:
+    def idmt_parsing(name: str, subset: str = 'mono') -> dict:
         """
         Returns a dictionary with the information contained in the input string according to [1] specification.
         """
         dic = {}
         info = name.split('-')
-        dic['instrument'] = SoundSample._idmt_instrument(info[0][0])
-        dic['model'] = SoundSample._idmt_model(info[0][1])
-        dic['playing'] = SoundSample._idmt_playing(info[0][2])
-        dic['midi_pitch'] = SoundSample._idmt_pitch_midi(info[1][:1])
-        dic['string'] = SoundSample._idmt_string(info[1][2])
-        dic['fret'] = SoundSample._idmt_fret(info[1][3:])
-        dic['fx_type'] = SoundSample._idmt_fx_type(info[2][0])
-        dic['fx'] = SoundSample._idmt_fx(info[2][1:3])
-        dic['setting'] = SoundSample._idmt_setting(info[2][3])
-        dic['id'] = SoundSample._idmt_id(info[3])
+        if subset == 'mono':
+            dic['instrument'] = SoundSample._idmt_instrument(info[0][0])
+            dic['model'] = SoundSample._idmt_model(info[0][1])
+            dic['playing'] = SoundSample._idmt_playing(info[0][2])
+            dic['midi_pitch'] = SoundSample._idmt_pitch_midi(info[1][:2])    # Correction might break results
+            dic['string'] = SoundSample._idmt_string(info[1][2])
+            dic['fret'] = SoundSample._idmt_fret(info[1][3:])
+            dic['fx_type'] = SoundSample._idmt_fx_type(info[2][0])
+            dic['fx'] = SoundSample._idmt_fx(info[2][1:3])
+            dic['setting'] = SoundSample._idmt_setting(info[2][3])
+            dic['id'] = SoundSample._idmt_id(info[3])
+        elif subset == 'poly':
+            dic['instrument'] = 'Guitar'
+            dic['model'] = SoundSample._idmt_model(info[0][1])
+            dic['playing'] = SoundSample._idmt_playing(info[0][2])
+            dic['midi_pitch'] = SoundSample._idmt_pitch_midi(info[1][:2])
+            dic['poly_type'] = SoundSample._idmt_poly_type(info[1][2:4])
+            dic['string'] = None
+            dic['fx_type'] = SoundSample._idmt_fx_type(info[2][0])
+            dic['fx'] = SoundSample._idmt_fx(info[2][1:3])
+            dic['setting'] = SoundSample._idmt_setting(info[2][3])
+            dic['id'] = SoundSample._idmt_id(info[3])
         return dic
 
     def __init__(self, data: str or pathlib.Path or ArrayLike = None, filename: str or pathlib.Path = None,
-                 rate: float = None, idmt: bool = False) -> None:
+                 rate: float = None, idmt: bool = False, poly: bool = False) -> None:
         """
         :param data: string, pathlib.Path or float array representing either where to find the audio file or directly
                      the audio samples. If array, rate must be set.
@@ -195,19 +245,23 @@ class SoundSample:
             if self.file is None:
                 raise UserWarning("IDMT dataset information cannot be retrieved if no filename is given.")
             else:
-                self.set_idmt_info()
+                if poly:
+                    subset = 'poly'
+                else:
+                    subset = 'mono'
+                self.set_idmt_info(subset=subset)
         self.spectral_features = {}
         self.stft = None
         self.stft_freq, self.stft_times = None, None
         self.mag, self.phase = None, None
         return
 
-    def set_idmt_info(self) -> None:
+    def set_idmt_info(self, subset: str) -> None:
         """
         Extract information from IDMT-SMT filename
         """
         name = self.file.name.split('.')[0]
-        self.idmt_info = SoundSample.idmt_parsing(name)
+        self.idmt_info = SoundSample.idmt_parsing(name, subset=subset)
         return
 
     def write(self, path: str or pathlib.Path = './sound.wav', overwrite: bool = False) -> None:

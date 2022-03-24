@@ -210,7 +210,7 @@ def get_cepstrum(mag: ArrayLike, full: bool = False, num_coeff: int = NUM_COEFF_
 
 def f0_spectral_product(mag: ArrayLike, freq: ArrayLike, rate: float, decim_factor: int,
                         f_min: float = 0.75*GUITAR_MIN_FREQUENCY, f_max: float = 1.5*GUITAR_MAX_FREQUENCY,
-                        fft_size: int = None) -> Tuple[float, ArrayLike, ArrayLike]:
+                        fft_size: int = None) -> Tuple[float, np.ndarray, np.ndarray]:
     """
     Obtain the fundamental frequency of a signal using the spectral product technique.
 
@@ -280,7 +280,7 @@ def idmt_fx2one_hot_vector(fx: str) -> np.ndarray:
     return vector
 
 
-def idmt_fx2class_number(fx: str) -> np.ndarray:
+def idmt_fx2class_number(fx: str) -> int:
     match fx:
         case 'Dry':
             return 0
@@ -306,5 +306,33 @@ def idmt_fx2class_number(fx: str) -> np.ndarray:
             return 9
         case 'Overdrive':
             return 10
+        case _:
+            raise ValueError("Unknown FX")
+
+
+def class_number2idmt_fx(cls: int) -> str:
+    match cls:
+        case 0:
+            return 'Dry or Amp sim'
+        case 1:
+            return 'Feedback delay'
+        case 2:
+            return 'Slapback delay'
+        case 3:
+            return 'Reverb'
+        case 4:
+            return 'Chorus'
+        case 5:
+            return 'Flanger'
+        case 6:
+            return 'Phaser'
+        case 7:
+            return 'Tremolo'
+        case 8:
+            return 'Vibrato'
+        case 9:
+            return 'Distortion'
+        case 10:
+            return 'Overdrive'
         case _:
             raise ValueError("Unknown FX")
