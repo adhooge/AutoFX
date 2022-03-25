@@ -6,9 +6,12 @@ from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn import metrics
 import pandas as pd
-import util
 from time import time
 import pickle
+import sys
+sys.path.append('..')
+
+import util
 
 CLASSES = ['Dry', 'Feedback Delay', 'Slapback Delay', 'Reverb', 'Chorus', 'Flanger', 'Phaser',
            'Tremolo', 'Vibrato', 'Distortion', 'Overdrive']
