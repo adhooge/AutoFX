@@ -184,6 +184,38 @@ class SoundSample:
         return int(char)
 
     @staticmethod
+    def _phil_pitch_midi(char: str):
+        octave = int(char[-1])
+        note = char[:-1]
+        match note:
+            case 'C':
+                note = 1
+            case 'Cs':
+                note = 2
+            case 'D':
+                note = 3
+            case 'Ds':
+                note = 4
+            case 'E':
+                note = 5
+            case 'F':
+                note = 6
+            case 'Fs':
+                note = 7
+            case 'G':
+                note = 8
+            case 'Gs':
+                note = 9
+            case 'A':
+                note = 10
+            case 'As':
+                note = 11
+            case 'B':
+                note = 12
+        midi_pitch = (octave - 4)*12 + 69 + (note - 10)
+        return int(midi_pitch)
+
+    @staticmethod
     def idmt_parsing(name: str, subset: str = 'mono') -> dict:
         """
         Returns a dictionary with the information contained in the input string according to [1] specification.
@@ -214,14 +246,27 @@ class SoundSample:
             dic['id'] = SoundSample._idmt_id(info[3])
         return dic
 
+    @staticmethod
+    def phil_parsing(name: str):
+        dic = {}
+        info = name.split('.')[0].split('_')
+        dic['instrument'] = info[0]
+        dic['midi_pitch'] = SoundSample._phil_pitch_midi(info[1])
+        dic['duration'] = info[2]
+        dic['loudness'] = info[3]
+        dic['playing'] = info[4]
+        dic['id'] = None
+        return dic
+
     def __init__(self, data: str or pathlib.Path or ArrayLike = None, filename: str or pathlib.Path = None,
-                 rate: float = None, idmt: bool = False, poly: bool = False) -> None:
+                 rate: float = None, idmt: bool = False, poly: bool = False, phil: bool = False) -> None:
         """
         :param data: string, pathlib.Path or float array representing either where to find the audio file or directly
                      the audio samples. If array, rate must be set.
         :param filename: Path to audio file.
         :param rate: Sampling rate of the audio signal. Mandatory if data is already the audio waveform.
         :param idmt: Is the file from the IDMT-SMT dataset? Default is False.
+        :param phil: Is the file from the Philarmonia dataset? Default is False.
         """
         if data is None and filename is None:
             raise ValueError("Cannot instantiate an empty SoundSample. Audio data must be given.")
@@ -240,6 +285,7 @@ class SoundSample:
         if data is None:
             self.file = pathlib.Path(filename)
             self.data, self.rate = soundfile.read(self.file)
+        self.info = None
         self.idmt_info = None
         if idmt:
             if self.file is None:
@@ -250,11 +296,24 @@ class SoundSample:
                 else:
                     subset = 'mono'
                 self.set_idmt_info(subset=subset)
+        if phil:
+            if self.file is None:
+                raise UserWarning("IDMT dataset information cannot be retrieved if no filename is given.")
+            else:
+                self.set_phil_info()
         self.spectral_features = {}
         self.stft = None
         self.stft_freq, self.stft_times = None, None
         self.mag, self.phase = None, None
         return
+
+    def set_phil_info(self):
+        """
+        Extract information from Philarmonia filename.
+        """
+        name = self.file.name.split('.')[0]
+        self.info = SoundSample.phil_parsing(name)
+
 
     def set_idmt_info(self, subset: str) -> None:
         """
@@ -400,7 +459,7 @@ class SoundSample:
 
     @property
     def midi_pitch(self) -> int:
-        return self.idmt_info['midi_pitch']
+        return self.info['midi_pitch']
 
     @property
     def string(self) -> str:
@@ -424,7 +483,7 @@ class SoundSample:
 
     @property
     def id(self) -> int:
-        return self.idmt_info['id']
+        return self.info['id']
 
     @property
     def pitch(self) -> float:
