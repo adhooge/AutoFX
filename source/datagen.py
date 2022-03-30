@@ -5,6 +5,7 @@ import argparse
 import pathlib
 import sys
 import pedalboard
+from pedalboard.io import AudioFile
 import soundfile
 from tqdm import tqdm
 import util
@@ -33,13 +34,13 @@ def main(parser: argparse.ArgumentParser) -> int:
         fx.append(pedalboard.Reverb(room_size=room, damping=damping, wet_level=wet, dry_level=dry))
     if len(fx) == 0 and 'board_path' not in args:
         raise ValueError("Choose at least one effect to apply to the dry audio.")
-    if 'board_path' in args:
+    if args['board_path'] is not None:
         with open(args['board_path'], 'rb') as f:
             board = pickle.load(f)
     else:
         board = pedalboard.Pedalboard(fx)
-    in_path = args['in_path']
-    out_path = args['out_path']
+    in_path = pathlib.Path(args['in_path'])
+    out_path = pathlib.Path(args['out_path'])
     if not in_path.is_absolute():
         in_path = pathlib.Path.cwd() / in_path
     if not out_path.is_absolute():
@@ -60,7 +61,7 @@ def main(parser: argparse.ArgumentParser) -> int:
             audio, rate = util.read_audio(file)
             audio = util.apply_fx(audio, rate, board)
             out_name = file.stem + '.wav'
-            soundfile.write(out_path / out_name, audio, rate)
+            soundfile.write(out_path / out_name, audio.T, int(rate))
         with open(out_path / 'fx.pkl', 'wb') as f:
             pickle.dump(board, f)
     return 0
@@ -97,12 +98,12 @@ if __name__ == '__main__':
                         help="Wet signal level between 0 and 1. Default is 0.33.")
     parser.add_argument('--reverb-dry', type=float, default=0.4,
                         help="Dry signal level between 0 and 1. Default is 0.4.")
-    parser.add_argument('--board-path', type=pathlib.Path or str,
+    parser.add_argument('--board-path', type=pathlib.Path or str, default=None,
                         help="Path to a file representing the Pedalboard.board to use. "
                              "As of now, only pickle files are supported.")
-    parser.add_argument('--in-path', '-i', default=pathlib.PurePath('.'), type=pathlib.PurePath,
+    parser.add_argument('--in-path', '-i', default=pathlib.Path('.'), type=pathlib.Path,
                         help="Path to the dry sounds. Defaults to current directory.")
-    parser.add_argument('--out-path', '-o', default=pathlib.PurePath('./out'), type=pathlib.PurePath,
+    parser.add_argument('--out-path', '-o', default=pathlib.Path('./out'), type=pathlib.Path,
                         help="Where to store the processed files. Defaults to ./out")
     parser.add_argument('--force', '-f', action='store_true')
     sys.exit(main(parser))

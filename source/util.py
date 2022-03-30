@@ -8,6 +8,7 @@ import scipy.fftpack
 import pedalboard as pdb
 from pedalboard.io import AudioFile
 import soundfile as sf
+import pickle
 import numpy as np
 from scipy import signal
 from numpy.typing import ArrayLike
@@ -37,18 +38,18 @@ def read_audio(path: str, normalize: bool = True, add_noise: bool = False, **kwa
     :param kwargs: Keyword arguments to pass to soundfile.read;
     :return audio, rate: Read audio and the corresponding sample rate.
     """
-    with AudioFile(path, 'r') as f:
+    with AudioFile(str(path), 'r') as f:
         audio = f.read(f.frames)
         rate = f.samplerate
     if normalize:
-        audio = audio/np.max(np.abs(audio))
+        audio = audio / np.max(np.abs(audio))
     if add_noise:
         audio += np.random.normal(0, 1e-9, len(audio))
     return audio, rate
 
 
 def energy_envelope(audio: ArrayLike, rate: float, window_size: float = 100, method: str = 'rms') -> Tuple[
-                    ArrayLike, ArrayLike]:
+    ArrayLike, ArrayLike]:
     """
     Compute the energy envelope of a signal according to the selected method. A default window size
     of 100ms is used for a 5Hz low-pass filtering (see Peeters' Cuidado Project report, 2003).
@@ -155,7 +156,7 @@ def hi_pass(arr: ArrayLike, method: str = 'simple'):
         return NotImplemented
 
 
-def derivative(arr: ArrayLike, step: float,  method: str = 'newton'):
+def derivative(arr: ArrayLike, step: float, method: str = 'newton'):
     """
     Returns the derivative of arr.
 
@@ -209,7 +210,7 @@ def get_cepstrum(mag: ArrayLike, full: bool = False, num_coeff: int = NUM_COEFF_
 
 
 def f0_spectral_product(mag: ArrayLike, freq: ArrayLike, rate: float, decim_factor: int,
-                        f_min: float = 0.75*GUITAR_MIN_FREQUENCY, f_max: float = 1.5*GUITAR_MAX_FREQUENCY,
+                        f_min: float = 0.75 * GUITAR_MIN_FREQUENCY, f_max: float = 1.5 * GUITAR_MAX_FREQUENCY,
                         fft_size: int = None) -> Tuple[float, np.ndarray, np.ndarray]:
     """
     Obtain the fundamental frequency of a signal using the spectral product technique.
@@ -241,11 +242,11 @@ def f0_spectral_product(mag: ArrayLike, freq: ArrayLike, rate: float, decim_fact
 
 
 def midi2hertz(midi_pitch: int) -> float:
-    return 440 * 2**((midi_pitch - 69) / 12)
+    return 440 * 2 ** ((midi_pitch - 69) / 12)
 
 
 def hertz2midi(freq: float) -> int:
-    return 69 + 12*np.log2(freq/440)
+    return 69 + 12 * np.log2(freq / 440)
 
 
 def idmt_fx2one_hot_vector(fx: str) -> np.ndarray:
