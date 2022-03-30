@@ -17,7 +17,7 @@ import pickle
 CLASSES = ['Dry', 'Feedback Delay', 'Slapback Delay', 'Reverb', 'Chorus', 'Flanger', 'Phaser',
            'Tremolo', 'Vibrato', 'Distortion', 'Overdrive']
 
-dataset = pd.read_csv('/home/alexandre/dataset/dataset.csv')
+dataset = pd.read_csv('/home/alexandre/dataset/full_dataset.csv')
 dataset.drop(columns=['flux_min'])
 subset = dataset
 target = []
@@ -40,9 +40,7 @@ scaler = preprocessing.StandardScaler().fit(X_train)
 X_train = scaler.transform(X_train)
 X_test = scaler.transform(X_test)
 tuned_parameters = [
-    {'activation': ['identity'], 'solver': ['adam'], 'hidden_layer_sizes': [100],
-     'alpha': [1e-5], 'max_iter': [200], 'learning_rate_init': [1e-3],
-     'beta_1': [0.8, 0.85, 0.9, 0.95, 0.99], 'beta_2': [0.8, 0.9, 0.99, 0.999, 0.9999]}
+    {'activation': ['logistic'], 'solver': ['adam'], 'max_iter':[500], 'alpha': [1e-4]}
     ]
 
 scores = ["precision", "recall"]
@@ -51,7 +49,7 @@ scores = ["precision", "recall"]
 for score in scores:
     print("# Tuning hyper-parameters for %s" % score)
     print()
-    knn_clf = GridSearchCV(MLPClassifier(), tuned_parameters, scoring="%s_macro" % score, n_jobs=-1)
+    knn_clf = GridSearchCV(MLPClassifier(), tuned_parameters, scoring="%s_macro" % score, n_jobs=-1, verbose=2)
     knn_clf.fit(X_train, y_train)
 
     print("Best parameters set found on development set:")

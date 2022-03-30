@@ -17,9 +17,8 @@ import pickle
 CLASSES = ['Dry', 'Feedback Delay', 'Slapback Delay', 'Reverb', 'Chorus', 'Flanger', 'Phaser',
            'Tremolo', 'Vibrato', 'Distortion', 'Overdrive']
 
-dataset = pd.read_csv('/home/alexandre/dataset/dataset.csv')
-dataset.drop(columns=['flux_min'])
-subset = dataset
+dataset = pd.read_csv('/home/alexandre/dataset/full_dataset.csv', index_col=0)
+subset = dataset.drop(columns=['flux_min'])
 target = []
 for fx in subset['target_name']:
     target.append(util.idmt_fx2class_number(fx))
@@ -40,9 +39,8 @@ scaler = preprocessing.StandardScaler().fit(X_train)
 X_train = scaler.transform(X_train)
 X_test = scaler.transform(X_test)
 tuned_parameters = [
-    {'kernel': ['linear'], 'C': [1, 10, 100, 1000, 10000]},
-    {'kernel': ['poly'], 'C': [1, 10, 100, 1000, 10000], 'degree': [2, 3, 4]},
-    {'kernel': ['rbf'], 'C': [1, 10, 100, 1000, 10000], 'gamma': [1e-3, 1e-4, 1e-5]}
+    {'kernel': ['linear'], 'C': [0.1, 1, 10]},
+    {'kernel': ['rbf'], 'gamma': [1e-2, 1e-3, 1e-4], 'C': [0.1, 1, 10]}
 ]
 
 scores = ["precision", "recall"]
@@ -51,7 +49,7 @@ scores = ["precision", "recall"]
 for score in scores:
     print("# Tuning hyper-parameters for %s" % score)
     print()
-    knn_clf = GridSearchCV(svm.SVC(), tuned_parameters, scoring="%s_macro" % score, n_jobs=-1)
+    knn_clf = GridSearchCV(svm.SVC(), tuned_parameters, scoring="%s_macro" % score, n_jobs=-1, verbose=2)
     knn_clf.fit(X_train, y_train)
 
     print("Best parameters set found on development set:")
