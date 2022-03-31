@@ -268,6 +268,10 @@ class SoundSample:
         :param idmt: Is the file from the IDMT-SMT dataset? Default is False.
         :param phil: Is the file from the Philarmonia dataset? Default is False.
         """
+        if idmt:
+            cut_beginning = 0.45
+        else:
+            cut_beginning = None
         if data is None and filename is None:
             raise ValueError("Cannot instantiate an empty SoundSample. Audio data must be given.")
         if data is not None and isinstance(data, (np.ndarray, list)):
@@ -281,7 +285,7 @@ class SoundSample:
                 self.file = None
         if data is not None and isinstance(data, (str, pathlib.Path)):
             self.file = pathlib.Path(data)
-            self.data, self.rate = util.read_audio(str(self.file), add_noise=idmt)
+            self.data, self.rate = util.read_audio(str(self.file), add_noise=idmt, cut_beginning=cut_beginning)
         if data is None:
             self.file = pathlib.Path(filename)
             self.data, self.rate = soundfile.read(self.file)
@@ -314,13 +318,13 @@ class SoundSample:
         name = self.file.name.split('.')[0]
         self.info = SoundSample.phil_parsing(name)
 
-
     def set_idmt_info(self, subset: str) -> None:
         """
         Extract information from IDMT-SMT filename
         """
         name = self.file.name.split('.')[0]
         self.idmt_info = SoundSample.idmt_parsing(name, subset=subset)
+        self.info = SoundSample.idmt_parsing(name, subset=subset)
         return
 
     def write(self, path: str or pathlib.Path = './sound.wav', overwrite: bool = False) -> None:
