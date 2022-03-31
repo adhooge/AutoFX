@@ -29,12 +29,13 @@ def apply_fx(audio, rate: float, board: pdb.Pedalboard):
     return board.process(audio, rate)
 
 
-def read_audio(path: str, normalize: bool = True, add_noise: bool = False, **kwargs) -> Tuple[ArrayLike, float]:
+def read_audio(path: str, normalize: bool = True, add_noise: bool = False, cut_beginning: float = None, **kwargs) -> Tuple[ArrayLike, float]:
     """
     Wrapper function to read an audio file using pedalboard.io
     :param path: Path to audio file to read;
     :param normalize: Should the output file be normalized in loudness. Default is True.
     :param add_noise: add white noise to the signal to avoid division by zero. Default is False.
+    :param cut_beginning: time to cut from the sample in seconds.
     :param kwargs: Keyword arguments to pass to soundfile.read;
     :return audio, rate: Read audio and the corresponding sample rate.
     """
@@ -45,6 +46,8 @@ def read_audio(path: str, normalize: bool = True, add_noise: bool = False, **kwa
         audio = audio / np.max(np.abs(audio))
     if add_noise:
         audio += np.random.normal(0, 1e-9, len(audio))
+    if cut_beginning is not None:
+        audio = audio[:, int(cut_beginning*rate):]
     return audio, rate
 
 
