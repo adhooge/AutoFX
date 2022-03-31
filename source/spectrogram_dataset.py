@@ -7,14 +7,20 @@ import pandas as pd
 from torch import nn
 from torch.utils.data import Dataset
 
+import util
+
 
 class SpectroDataset(Dataset):
     def __init__(self, labels_file: str or pathlib.Path,
-                 snd_dir: str or pathlib.Path, idmt: bool = False, **kwargs):
+                 snd_dir: str or pathlib.Path, rate: int,
+                 idmt: bool = False, resampling_rate: int = 16000, **kwargs):
         self.snd_labels = pd.read_csv(labels_file)
         self.snd_dir = pathlib.Path(snd_dir)
         self.idmt = idmt
-        self.transform = torchaudio.transforms.Spectrogram(**kwargs)
+        self.transform = nn.Sequential(
+                            torchaudio.transforms.Resample(rate, resampling_rate),
+                            torchaudio.transforms.Spectrogram(**kwargs)
+                            )
 
     def __len__(self):
         return len(self.snd_labels)
@@ -24,7 +30,7 @@ class SpectroDataset(Dataset):
         sound, rate = torchaudio.load(snd_path, normalize=True)
         label = self.snd_labels.iloc[item, 1]
         if self.idmt:
-            sound = sound[:, int(0.45*rate):]
-        sound = torchaudio.transforms.Resample(rate, 16000)
+            sound = sound[:, int(0.45 * rate):]
+            label = util.idmt_fx2class_number(label)
         spectro = self.transform(sound)
         return spectro, label
