@@ -22,6 +22,19 @@ CLASSES = ['Dry', 'Feedback Delay', 'Slapback Delay', 'Reverb', 'Chorus', 'Flang
            'Tremolo', 'Vibrato', 'Distortion', 'Overdrive']
 
 
+def plot_response(fs, w, h, title):
+    "Utility function to plot response functions"
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(0.5 * fs * w / np.pi, 20 * np.log10(np.abs(h)))
+    ax.set_ylim(-40, 5)
+    ax.set_xlim(0, 0.5 * fs)
+    ax.grid(True)
+    ax.set_xlabel('Frequency (Hz)')
+    ax.set_ylabel('Gain (dB)')
+    ax.set_title(title)
+
+
 def make_confusion_matrix(cf,
                           group_names=None,
                           categories='auto',
@@ -130,7 +143,7 @@ def apply_fx(audio, rate: float, board: pdb.Pedalboard):
 
 
 def read_audio(path: str, normalize: bool = True, add_noise: bool = False, cut_beginning: float = None, **kwargs) -> \
-Tuple[ArrayLike, float]:
+        Tuple[ArrayLike, float]:
     """
     Wrapper function to read an audio file using pedalboard.io
     :param path: Path to audio file to read;
