@@ -40,3 +40,5 @@ class Regressor:
     def predict(self, data):
         y_pred = self.model.predict(data)
         return y_pred
+
+
