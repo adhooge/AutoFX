@@ -13,7 +13,7 @@ REMEZ_MAX_ITER = 100
 
 class PseudoQmfBank():
     @staticmethod
-    def _error_function(proto, num_bands: int, weights: list[float] = None, num_points: int = 2048):
+    def _error_function(proto, num_bands: int, weights: list[float] = None, num_points: int = 2**15):
         _, h = signal.freqz(proto, [1], worN=num_points)
         if weights is None:
             weights = [1, 1]
@@ -23,7 +23,7 @@ class PseudoQmfBank():
         return err
 
     @staticmethod
-    def design_prototype(num_bands: int, tol: float = 1e-12, width: float = None, order: int = None,
+    def design_prototype(num_bands: int, tol: float = 1e-16, width: float = None, order: int = None,
                          max_count: int = 10000, init_step_size: float = None, weights=None):
         """
         Optimization process from Creusere & Mitra, 1995
@@ -41,12 +41,10 @@ class PseudoQmfBank():
             order = int(2 ** (np.log2(num_bands) + 4))
         if width is None:
             width = 1 / (4 * num_bands)
-        if weights is None:
-            weights = [10, 1]
         if init_step_size is None:
             init_step_size = width / 4
-        wp = 1 / (4 * num_bands)
-        ws = wp + width
+        ws = 1 / (2 * num_bands)
+        wp = ws - width
         proto = signal.remez(order, [0, wp, ws, 0.5], [1, 0], fs=1, maxiter=REMEZ_MAX_ITER)
         cnt = 0
         step = init_step_size
@@ -94,6 +92,22 @@ class PseudoQmfBank():
         self.num_bands = num_bands
         self.analysis_bank = self._init_analysis_bank()
         self.synthesis_bank = self._init_synthesis_bank()
+
+    def analyse(self, sig: np.ndarray):
+        out = np.empty((self.num_bands, sig.shape[1]))
+        for (b, filt) in enumerate(self.analysis_bank):
+            filt_signal = signal.lfilter(filt, [1], sig)
+            out[b] = filt_signal
+        return out
+
+    def synthesize(self, sig):
+        out = signal.lfilter(self.synthesis_bank[0], [1], sig[0])
+        for (b, filt) in enumerate(self.synthesis_bank[1:]):
+            out += signal.lfilter(filt, [1], sig[b])
+        return out
+
+    def anasynth_pipeline(self, sig):
+        return self.synthesize(self.analyse(sig))
 
     def _init_analysis_bank(self, flat: bool = True, zero_endpoints: bool = False):
         ana_bank = np.empty((self.num_bands, len(self.prototype)))
