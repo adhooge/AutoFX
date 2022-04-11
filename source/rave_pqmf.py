@@ -99,6 +99,8 @@ def polyphase_forward(x, hk, rearrange_filter=True):
     hk: torch.Tensor
         filter bank ( M x T )
     """
+    if x.shape[-1] % hk.shape[0] != 0:
+        x = x[:, :, :-(x.shape[-1] % hk.shape[0])]
     x = rearrange(x, "b c (t m) -> b (c m) t", m=hk.shape[0])
     if rearrange_filter:
         hk = rearrange(hk, "c (t m) -> c m t", m=hk.shape[0])
