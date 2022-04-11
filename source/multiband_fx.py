@@ -46,7 +46,7 @@ class MultiBandFX:
         else:
             raise TypeError("Cannot create frequency bands. Check argument.")
         self.mbfx = [fx for i in range(self.num_bands)]
-        self.settings = [{}] * self.num_bands
+        self.settings = [{}] * self.num_bands  # TODO : Make settings a property that dynamically fetch parameters
         self._init_settings(fx)
         self.filter_bank = PseudoQmfBank(self.num_bands)
 
@@ -59,11 +59,25 @@ class MultiBandFX:
         for b in range(self.num_bands):
             self.settings[b] = settings
 
-    def process(self, *args, **kwargs):
+    def process(self, audio, rate, *args, **kwargs):
         """
         TODO
+        :param audio:
+        :param rate:
         :param args:
         :param kwargs:
         :return:
         """
-        return NotImplemented
+        audio_bands = self.filter_bank.analyse(audio)
+        low_rate = int(rate / self.num_bands)
+        downsampled = np.zeros((self.num_bands, len(audio_bands[0, ::self.num_bands])))
+        for (b, band) in enumerate(audio_bands):
+            downsampled[b] = band[::self.num_bands]
+        processed = []
+        for (b, fx) in enumerate(self.mbfx):
+            processed.append(fx.process(downsampled[b], low_rate))
+        upsampled = np.zeros((self.num_bands, audio_bands.shape[1]))
+        for (b, band) in enumerate(processed):
+            upsampled[b, ::self.num_bands] = band
+        out = self.filter_bank.synthesize(upsampled)
+        return out
