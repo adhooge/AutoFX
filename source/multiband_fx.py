@@ -6,9 +6,10 @@ from typing import Tuple
 
 import pedalboard as pdb
 import numpy as np
+from pseudo_qmf import PseudoQmfBank
 
 
-class MultiBandFX(pdb.Plugin):
+class MultiBandFX:
     def __init__(self, fx: pdb.Plugin, bands: int | list[float] | list[Tuple]):
         """
         :param fx: An effect from Pedalboard to use in a multiband fashion
@@ -19,13 +20,12 @@ class MultiBandFX(pdb.Plugin):
                       Bands can also be directly specified as [(0, 0.25), (0.25, 0.5)]. They should always start at 0
                       and finish at 0.5.
         """
-        super().__init__()
         if isinstance(bands, int):
             self.num_bands = bands
             self.bands = []
             freq = np.linspace(0, 0.5, self.num_bands + 1)
             for f in range(self.num_bands):
-                self.bands.append((freq[2*f], freq[2*f + 1]))
+                self.bands.append((freq[f], freq[f + 1]))
         elif isinstance(bands, list):
             if isinstance(bands[0], float):
                 self.num_bands = len(bands) + 1
@@ -48,13 +48,14 @@ class MultiBandFX(pdb.Plugin):
         self.mbfx = [fx for i in range(self.num_bands)]
         self.settings = [{}] * self.num_bands
         self._init_settings(fx)
+        self.filter_bank = PseudoQmfBank(self.num_bands)
 
     def _init_settings(self, fx: pdb.Plugin):
         items = list(fx.__class__.__dict__.items())
         settings = {}
         for item in items:
             if isinstance(item[1], property):
-                settings[item[0]] = item[1].__get__(fx, fx.__classs__)
+                settings[item[0]] = item[1].__get__(fx, fx.__class__)
         for b in range(self.num_bands):
             self.settings[b] = settings
 
@@ -66,4 +67,3 @@ class MultiBandFX(pdb.Plugin):
         :return:
         """
         return NotImplemented
-
