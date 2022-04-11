@@ -20,6 +20,8 @@ class MultiBandFX:
                       Bands can also be directly specified as [(0, 0.25), (0.25, 0.5)]. They should always start at 0
                       and finish at 0.5.
         """
+        if isinstance(fx, pdb.Plugin):
+            fx = fx.__class__
         if isinstance(bands, int):
             self.num_bands = bands
             self.bands = []
@@ -45,8 +47,10 @@ class MultiBandFX:
                 raise TypeError("Format not recognized for bands.")
         else:
             raise TypeError("Cannot create frequency bands. Check argument.")
-        self.mbfx = [fx for i in range(self.num_bands)]
-        self.settings = [{}] * self.num_bands  # TODO : Make settings a property that dynamically fetch parameters
+        self.mbfx = []
+        for i in range(self.num_bands):
+            self.mbfx.append(fx())
+        self._settings = [{}] * self.num_bands  # TODO : Make settings a property that dynamically fetch parameters
         self._init_settings(fx)
         self.filter_bank = PseudoQmfBank(self.num_bands)
 
@@ -57,7 +61,7 @@ class MultiBandFX:
             if isinstance(item[1], property):
                 settings[item[0]] = item[1].__get__(fx, fx.__class__)
         for b in range(self.num_bands):
-            self.settings[b] = settings
+            self._settings[b] = settings
 
     def process(self, audio, rate, *args, **kwargs):
         """
