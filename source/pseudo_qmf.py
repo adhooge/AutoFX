@@ -94,6 +94,8 @@ class PseudoQmfBank():
         self.synthesis_bank = self._init_synthesis_bank()
 
     def analyse(self, sig: np.ndarray):
+        if sig.ndim == 1:
+            sig = sig[np.newaxis, :]
         out = np.empty((self.num_bands, sig.shape[1]))
         for (b, filt) in enumerate(self.analysis_bank):
             filt_signal = signal.lfilter(filt, [1], sig)
