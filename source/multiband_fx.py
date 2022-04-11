@@ -6,15 +6,19 @@ from typing import Tuple
 
 import pedalboard as pdb
 import numpy as np
-from pseudo_qmf import PseudoQmfBank
+import torch
+from torch import double
+
+from rave_pqmf import PQMF
 
 
 class MultiBandFX:
     def __call__(self, audio, rate, *args, **kwargs):
         return self.process(audio, rate, args, kwargs)
 
-    def __init__(self, fx: pdb.Plugin, bands: int | list[float] | list[Tuple]):
+    def __init__(self, fx: pdb.Plugin, bands: int | list[float] | list[Tuple], attenuation: int = 100):
         """
+        TODO: Currently, parameters of FX are not transferred to MBFX so MBFX is always initialized to default
         :param fx: An effect from Pedalboard to use in a multiband fashion
         :param bands: If integer: number of frequency bands to use.
                       If list: normalized frequencies separating bands. Number of bands is len(list) + 1.
@@ -22,6 +26,7 @@ class MultiBandFX:
                       One from 0 to 0.25, one from 0.25 to 0.4 and one from 0.4 to 0.5.
                       Bands can also be directly specified as [(0, 0.25), (0.25, 0.5)]. They should always start at 0
                       and finish at 0.5.
+        :param attenuation: attenuation of the filter bank. Should be an int from between 80 and 120.
         """
         if isinstance(fx, pdb.Plugin):
             fx = fx.__class__
@@ -53,7 +58,10 @@ class MultiBandFX:
         self.mbfx = []
         for i in range(self.num_bands):
             self.mbfx.append(fx())
-        self.filter_bank = PseudoQmfBank(self.num_bands)
+        if int(np.log2(self.num_bands)) == np.log2(self.num_bands):
+            self.filter_bank = PQMF(attenuation, self.num_bands, polyphase=True)
+        else:
+            self.filter_bank = PQMF(attenuation, self.num_bands, polyphase=False)
 
     @property
     def settings(self):
@@ -69,23 +77,19 @@ class MultiBandFX:
 
     def process(self, audio, rate, *args, **kwargs):
         """
-        TODO
+        TODO: Make it cleaner between Torch and numpy. Managing Batch sizes properly
         :param audio:
         :param rate:
         :param args:
         :param kwargs:
         :return:
         """
-        audio_bands = self.filter_bank.analyse(audio)
-        low_rate = int(rate / self.num_bands)
-        downsampled = np.zeros((self.num_bands, len(audio_bands[0, ::self.num_bands])))
-        for (b, band) in enumerate(audio_bands):
-            downsampled[b] = band[::self.num_bands]
-        processed = []
+        if isinstance(audio, np.ndarray):
+            audio = torch.from_numpy(audio)
+        if audio.dim() == 2:
+            audio = audio[None, :]
+        audio_bands = self.filter_bank.forward(audio)[0]
         for (b, fx) in enumerate(self.mbfx):
-            processed.append(fx.process(downsampled[b], low_rate))
-        upsampled = np.zeros((self.num_bands, audio_bands.shape[1]))
-        for (b, band) in enumerate(processed):
-            upsampled[b, ::self.num_bands] = band
-        out = self.filter_bank.synthesize(upsampled)
-        return out
+            audio_bands[b] = torch.from_numpy(fx(audio_bands[b], rate))
+        out = self.filter_bank.inverse(audio_bands[None, :, :])
+        return out[0]
