@@ -10,6 +10,9 @@ from pseudo_qmf import PseudoQmfBank
 
 
 class MultiBandFX:
+    def __call__(self, audio, rate, *args, **kwargs):
+        return self.process(audio, rate, args, kwargs)
+
     def __init__(self, fx: pdb.Plugin, bands: int | list[float] | list[Tuple]):
         """
         :param fx: An effect from Pedalboard to use in a multiband fashion
