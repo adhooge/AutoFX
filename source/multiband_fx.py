@@ -50,18 +50,19 @@ class MultiBandFX:
         self.mbfx = []
         for i in range(self.num_bands):
             self.mbfx.append(fx())
-        self._settings = [{}] * self.num_bands  # TODO : Make settings a property that dynamically fetch parameters
-        self._init_settings(fx)
         self.filter_bank = PseudoQmfBank(self.num_bands)
 
-    def _init_settings(self, fx: pdb.Plugin):
-        items = list(fx.__class__.__dict__.items())
-        settings = {}
-        for item in items:
-            if isinstance(item[1], property):
-                settings[item[0]] = item[1].__get__(fx, fx.__class__)
-        for b in range(self.num_bands):
-            self._settings[b] = settings
+    @property
+    def settings(self):
+        settings = []
+        for (b, fx) in enumerate(self.mbfx):
+            fx_settings = {}
+            items = list(fx.__class__.__dict__.items())
+            for item in items:
+                if isinstance(item[1], property):
+                    fx_settings[item[0]] = item[1].__get__(fx, fx.__class__)
+            settings.append(fx_settings)
+        return settings
 
     def process(self, audio, rate, *args, **kwargs):
         """
