@@ -24,10 +24,7 @@ import sys
 import util
 
 sys.path.append('..')
-from mbfx_dataset import MBFXDataset
 
-DATASET_PATH = pathlib.Path("/home/alexandre/dataset/mbfx_disto")
-NUM_EPOCHS = 400
 
 
 class AutoFX(pl.LightningModule):
@@ -44,12 +41,13 @@ class AutoFX(pl.LightningModule):
         self.tracker = tracker
 
     def forward(self, x, *args, **kwargs) -> Any:
+        batch_size, audio_channels, fft_size, num_frames = x.shape
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
-        x = x.view(64, 85, 32, 501)
-        x = x.view(64, 85, -1)
-        x, _ = self.gru(x, torch.zeros(1, 64, 512, device=x.device))
+        x = x.view(batch_size, 85, 32, 501)
+        x = x.view(batch_size, 85, -1)
+        x, _ = self.gru(x, torch.zeros(1, batch_size, 512, device=x.device))
         x = self.fcl(x)
         x = torch.mean(x, 1)
         x = self.activation(x)
@@ -81,14 +79,3 @@ class AutoFX(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
         return optimizer
-
-
-logger = TensorBoardLogger("lightning_logs")
-tracker = CarbonTracker(epochs=400, epochs_before_pred=10, monitor_epochs=10, log_dir=logger.log_dir, verbose=2)
-# tracker = None
-dataset = MBFXDataset(DATASET_PATH / 'params.csv', DATASET_PATH, rate=44100)
-train, test = random_split(dataset, [15000, 5016])
-
-cnn = AutoFX(tracker=tracker)
-trainer = pl.Trainer(gpus=1, logger=logger, max_epochs=NUM_EPOCHS)
-trainer.fit(cnn, DataLoader(train, batch_size=64, num_workers=4), DataLoader(test, batch_size=64, num_workers=4))
