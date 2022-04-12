@@ -45,8 +45,8 @@ class AutoFX(pl.LightningModule):
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
-        x = x.view(batch_size, 85, 32, 501)
-        x = x.view(batch_size, 85, -1)
+        x = x.view(batch_size, 114, 32, 501)        # TODO: Remove hardcoded values
+        x = x.view(batch_size, 114, -1)
         x, _ = self.gru(x, torch.zeros(1, batch_size, 512, device=x.device))
         x = self.fcl(x)
         x = torch.mean(x, 1)
@@ -75,6 +75,10 @@ class AutoFX(pl.LightningModule):
     def on_train_epoch_start(self) -> None:
         if self.tracker is not None:
             self.tracker.epoch_start()
+
+    def on_train_epoch_end(self) -> None:
+        if self.tracker is not None:
+            self.tracker.epoch_end()
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
