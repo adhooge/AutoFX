@@ -16,7 +16,7 @@ class MultiBandFX:
     def __call__(self, audio, rate, *args, **kwargs):
         return self.process(audio, rate, args, kwargs)
 
-    def __init__(self, fx: pdb.Plugin, bands: int | list[float] | list[Tuple], attenuation: int = 100):
+    def __init__(self, fx: pdb.Plugin or list[pdb.Plugin], bands: int | list[float] | list[Tuple], attenuation: int = 100):
         """
         TODO: Currently, parameters of FX are not transferred to MBFX so MBFX is always initialized to default
         :param fx: An effect from Pedalboard to use in a multiband fashion
@@ -29,6 +29,7 @@ class MultiBandFX:
         :param attenuation: attenuation of the filter bank. Should be an int from between 80 and 120.
         """
         if isinstance(fx, pdb.Plugin):
+            # TODO: retrieve parameters of fx for initialization
             fx = fx.__class__
         if isinstance(bands, int):
             self.num_bands = bands
@@ -57,7 +58,11 @@ class MultiBandFX:
             raise TypeError("Cannot create frequency bands. Check argument.")
         self.mbfx = []
         for i in range(self.num_bands):
-            self.mbfx.append(fx())
+            if isinstance(fx, pdb.Plugin):
+                self.mbfx.append(fx())
+            elif isinstance(fx, list):
+                board = pdb.Pedalboard([plug() for plug in fx])
+                self.mbfx.append(board)
         if int(np.log2(self.num_bands)) == np.log2(self.num_bands):
             self.filter_bank = PQMF(attenuation, self.num_bands, polyphase=True)
         else:
