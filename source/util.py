@@ -2,6 +2,7 @@
 Utility functions for data processing.
 [1] Stein et al., Automatic detection of audio effects, AES 2010.
 """
+import pathlib
 from typing import Tuple, Any
 
 import scipy.fftpack
@@ -142,7 +143,7 @@ def apply_fx(audio, rate: float, board: pdb.Pedalboard):
     return board.process(audio, rate)
 
 
-def read_audio(path: str, normalize: bool = True, add_noise: bool = False, cut_beginning: float = None, **kwargs) -> \
+def read_audio(path: str or pathlib.Path, normalize: bool = True, add_noise: bool = False, cut_beginning: float = None, **kwargs) -> \
         Tuple[ArrayLike, float]:
     """
     Wrapper function to read an audio file using pedalboard.io
