@@ -1,6 +1,8 @@
 import pathlib
 import warnings
 
+import numpy as np
+
 from multiband_fx import MultiBandFX
 import util
 import random
@@ -27,15 +29,15 @@ dataframe = pd.DataFrame(columns=['drive_level0', 'drive_level1', 'drive_level2'
 mbfx = MultiBandFX(FX, NUM_BANDS)
 for i in tqdm(range(NUM_RUNS), position=1):
     for file in tqdm(DATA_PATH.iterdir(), total=5004, position=0, leave=True):
-        drive_levels = [random.uniform(DRIVE_MIN, DRIVE_MAX) for b in range(NUM_BANDS)]
-        gain_levels = [random.uniform(GAIN_MIN, GAIN_MAX) for b in range(NUM_BANDS)]
-        drive_levels.extend(gain_levels)
+        drive_levels = np.array([random.uniform(DRIVE_MIN, DRIVE_MAX) for b in range(NUM_BANDS)])
+        gain_levels = np.array([random.uniform(GAIN_MIN, GAIN_MAX) for b in range(NUM_BANDS)])
+        ground_truth = np.hstack(((drive_levels - 10)/50, (gain_levels/20 + 0.5)))
         for b in range(NUM_BANDS):
             mbfx.mbfx[b][0].drive_db = drive_levels[b]
             mbfx.mbfx[b][1].gain_db = gain_levels[b]
         audio, rate = util.read_audio(file, normalize=True, cut_beginning=0.45, add_noise=True)
         audio = mbfx.process(audio, rate)
-        dataframe.loc[file.stem + '_' + str(i)] = drive_levels
+        dataframe.loc[file.stem + '_' + str(i)] = ground_truth
         sf.write(OUT_PATH / (file.stem + '_' + str(i) + file.suffix), audio.T, int(rate))
     dataframe.to_csv(OUT_PATH / "params.csv")
     dataframe.to_pickle(OUT_PATH / "params.pkl")
