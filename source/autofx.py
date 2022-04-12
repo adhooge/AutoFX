@@ -1,5 +1,5 @@
 """
-Convolutional Neural Network classifier on spectrograms for comparison.
+Convolutional Neural Network for parameter estimation
 """
 
 import os
@@ -24,78 +24,71 @@ import sys
 import util
 
 sys.path.append('..')
-from spectrogram_dataset import SpectroDataset
+from mbfx_dataset import MBFXDataset
 
-DATASET_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_one_folder")
+DATASET_PATH = pathlib.Path("/home/alexandre/dataset/mbfx_disto")
+NUM_EPOCHS = 400
 
 
-class CnnClassifier(pl.LightningModule):
-    def __init__(self, tracker: CarbonTracker=None):
+class AutoFX(pl.LightningModule):
+    def __init__(self, tracker: CarbonTracker = None):
+        # TODO: Make attributes changeable from arguments
         super().__init__()
-        self.model = nn.Sequential(nn.Conv2d(1, 6, 5),
-                                   nn.ReLU(),
-                                   nn.MaxPool2d(2, 2),
-                                   nn.Conv2d(6, 16, 5),
-                                   nn.ReLU(),
-                                   nn.MaxPool2d(2, 2),
-                                   nn.Flatten(1),
-                                   nn.Linear(21056, 120),
-                                   nn.ReLU(),
-                                   nn.Linear(120, 84),
-                                   nn.ReLU(),
-                                   nn.Linear(84, 11))
-        self.loss = nn.CrossEntropyLoss()
+        self.conv1 = nn.Sequential(nn.Conv2d(1, 6, 5), nn.BatchNorm2d(6), nn.ReLU())
+        self.conv2 = nn.Sequential(nn.Conv2d(6, 16, 5), nn.BatchNorm2d(16), nn.ReLU())
+        self.conv3 = nn.Sequential(nn.Conv2d(16, 32, 5), nn.BatchNorm2d(32), nn.ReLU())
+        self.gru = nn.GRU(16032, 512, batch_first=True)
+        self.fcl = nn.Linear(512, 8)
+        self.activation = nn.Sigmoid()
+        self.loss = nn.L1Loss()
         self.tracker = tracker
 
     def forward(self, x, *args, **kwargs) -> Any:
-        return self.model(x)
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.conv3(x)
+        x = x.view(64, 85, 32, 501)
+        x = x.view(64, 85, -1)
+        x, _ = self.gru(x, torch.zeros(1, 64, 512, device=x.device))
+        x = self.fcl(x)
+        x = torch.mean(x, 1)
+        x = self.activation(x)
+        return x
 
     def training_step(self, batch, batch_idx, *args, **kwargs) -> STEP_OUTPUT:
         data, label = batch
-        pred = self.model(data)
+        pred = self.forward(data)
         loss = self.loss(pred, label)
         self.log("train_loss", loss)
         return loss
 
     def validation_step(self, batch, batch_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
         data, label = batch
-        pred = self.model(data)
-        self.log("Accuracy", torchmetrics.functional.accuracy(pred, label))
-        self.log("Precision", torchmetrics.functional.precision(pred, label))
-        self.log("Recall", torchmetrics.functional.recall(pred, label))
+        pred = self.forward(data)
+        loss = self.loss(pred, label)
+        self.log("validation_loss", loss)
+        return loss
 
     def on_train_start(self) -> None:
         dataiter = iter(self.trainer.val_dataloaders[0])
         spectro, labels = dataiter.next()
         self.logger.experiment.add_images("Input spectrograms", spectro)
-        self.logger.experiment.add_text('Classes:', str(labels))
 
     def on_train_epoch_start(self) -> None:
         if self.tracker is not None:
             self.tracker.epoch_start()
 
-    def on_train_epoch_end(self) -> None:
-        if self.tracker is not None:
-            self.tracker.epoch_end()
-        dataiter = iter(self.trainer.val_dataloaders[0])
-        spectro, labels = dataiter.next()
-        pred = self.model(spectro.cuda())  # TODO: Send to correct device in a cleaner way
-        cm = torchmetrics.functional.confusion_matrix(pred, labels.cuda(), len(util.CLASSES))  # TODO: idem
-        self.logger.experiment.add_figure("Confusion Matrix",
-                                          util.make_confusion_matrix(cm.cpu().detach().numpy(),
-                                                                     categories=util.CLASSES, percent=False),
-                                          global_step=self.global_step)
-
     def configure_optimizers(self):
-        optimizer = torch.optim.SGD(self.parameters(), lr=0.001, momentum=0.9)
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
         return optimizer
 
 
 logger = TensorBoardLogger("lightning_logs")
-tracker = CarbonTracker(epochs=1000, epochs_before_pred=10, monitor_epochs=10, log_dir=logger.log_dir, verbose=2)
-dataset = SpectroDataset(DATASET_PATH / 'labels.csv', DATASET_PATH, idmt=True, rate=44100)
-train, test = random_split(dataset, [15000, 5592])
+tracker = CarbonTracker(epochs=400, epochs_before_pred=10, monitor_epochs=10, log_dir=logger.log_dir, verbose=2)
+# tracker = None
+dataset = MBFXDataset(DATASET_PATH / 'params.csv', DATASET_PATH, rate=44100)
+train, test = random_split(dataset, [15000, 5016])
 
-cnn = CnnClassifier(tracker=tracker)
-trainer = pl.Trainer(gpus=1, logger=logger)
-trainer.fit(cnn, DataLoader(train, batch_size=32, num_workers=4), DataLoader(test, batch_size=256, num_workers=8))
+cnn = AutoFX(tracker=tracker)
+trainer = pl.Trainer(gpus=1, logger=logger, max_epochs=NUM_EPOCHS)
+trainer.fit(cnn, DataLoader(train, batch_size=64, num_workers=4), DataLoader(test, batch_size=64, num_workers=4))
