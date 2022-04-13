@@ -28,7 +28,7 @@ def make_odd(x):
     return x
 
 
-def get_qmf_bank(h, n_band):
+def get_qmf_bank(h, n_band, device=None):
     """
     Modulates an input protoype filter into a bank of
     cosine modulated filters
@@ -39,14 +39,18 @@ def get_qmf_bank(h, n_band):
     n_band: int
         number of sub-bands
     """
-    k = torch.arange(n_band).reshape(-1, 1)
+    if device is None:
+        device = torch.device('cpu')
+    else:
+        device = torch.device(device)
+    k = torch.arange(n_band, device=device).reshape(-1, 1)
     N = h.shape[-1]
-    t = torch.arange(-(N // 2), N // 2 + 1)
+    t = torch.arange(-(N // 2), N // 2 + 1, device=device)
 
     p = (-1) ** k * math.pi / 4
 
     mod = torch.cos((2 * k + 1) * math.pi / (2 * n_band) * t + p)
-    hk = 2 * h * mod
+    hk = 2 * h.to(device) * mod
 
     return hk
 
@@ -189,7 +193,7 @@ class PQMF(nn.Module):
         is needed
     """
 
-    def __init__(self, attenuation, n_band, polyphase=True):
+    def __init__(self, attenuation, n_band, polyphase=True, device=None):
         super().__init__()
         h = get_prototype(attenuation, n_band)
 
@@ -200,7 +204,7 @@ class PQMF(nn.Module):
             ), "when using the polyphase algorithm, n_band must be a power of 2"
 
         h = torch.from_numpy(h).float()
-        hk = get_qmf_bank(h, n_band)
+        hk = get_qmf_bank(h, n_band, device)
         hk = center_pad_next_pow_2(hk)
 
         self.register_buffer("hk", hk)
