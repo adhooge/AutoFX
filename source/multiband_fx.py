@@ -64,9 +64,9 @@ class MultiBandFX:
             else:
                 self.mbfx.append(fx())
         if int(np.log2(self.num_bands)) == np.log2(self.num_bands):
-            self.filter_bank = PQMF(attenuation, self.num_bands, polyphase=True)
+            self.filter_bank = PQMF(attenuation, self.num_bands, polyphase=True, device='cpu')     # TODO: Fix hardcoded device
         else:
-            self.filter_bank = PQMF(attenuation, self.num_bands, polyphase=False)
+            self.filter_bank = PQMF(attenuation, self.num_bands, polyphase=False, device='cpu')
 
     @property
     def settings(self):
