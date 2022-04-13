@@ -58,11 +58,11 @@ class MultiBandFX:
             raise TypeError("Cannot create frequency bands. Check argument.")
         self.mbfx = []
         for i in range(self.num_bands):
-            if isinstance(fx, pdb.Plugin):
-                self.mbfx.append(fx())
-            elif isinstance(fx, list):
+            if isinstance(fx, list):
                 board = pdb.Pedalboard([plug() for plug in fx])
                 self.mbfx.append(board)
+            else:
+                self.mbfx.append(fx())
         if int(np.log2(self.num_bands)) == np.log2(self.num_bands):
             self.filter_bank = PQMF(attenuation, self.num_bands, polyphase=True)
         else:
