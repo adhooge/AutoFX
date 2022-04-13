@@ -96,11 +96,15 @@ class AutoFX(pl.LightningModule):
                 # TODO: Make it fx agnostic
                 self.mbfx.mbfx[b][0].drive_db = pred[i][b]
                 self.mbfx.mbfx[b][1].gain_db = pred[i][self.num_bands + b]
-            rec[i] = self.mbfx(snd.to(torch.device('cpu')), self.rate)
+            rec[i] = self.mbfx(snd.to(torch.device('cpu')), self.rate)      # TODO: Je réapplique l'effet sur l'audio déjà avec effet donc forcément ça se ressemble
         self.log("Test: Spectral loss", self.mrstft(rec.to(torch.device("cpu")), data.to(torch.device("cpu"))))    # TODO: Fix device management
         loss = self.loss(pred, label)
         self.log("validation_loss", loss)
-        # for l in range(self.audiologs):
+        for l in range(self.audiologs):
+            self.logger.experiment.add_audio(f"Audio/{l}/Original", data[l],
+                                             sample_rate=self.rate, global_step=self.global_step)
+            self.logger.experiment.add_audio(f"Audio/{l}/Matched", rec[l],
+                                             sample_rate=self.rate, global_step=self.global_step)
         for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
             self.log("Test: Param {} distance".format(i), val)
         return loss
