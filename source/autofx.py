@@ -4,10 +4,12 @@ Convolutional Neural Network for parameter estimation
 
 import os
 import pathlib
+import pedalboard as pdb
 from typing import Any, Optional
 
+import torchaudio.transforms
 from carbontracker.tracker import CarbonTracker
-
+import auraloss
 import numpy as np
 import torch
 import torchmetrics
@@ -20,7 +22,7 @@ from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
 import pytorch_lightning as pl
 import sys
-
+from multiband_fx import MultiBandFX
 import util
 
 sys.path.append('..')
@@ -28,7 +30,8 @@ sys.path.append('..')
 
 
 class AutoFX(pl.LightningModule):
-    def __init__(self, tracker: bool = False):
+    def __init__(self, fx: pdb.Plugin, num_bands: int, tracker: bool = False, rate: int = 16000,
+                 fft_size: int = 1024, hop_size: int = 256, audiologs: int = 8):
         # TODO: Make attributes changeable from arguments
         super().__init__()
         self.conv1 = nn.Sequential(nn.Conv2d(1, 6, 5), nn.BatchNorm2d(6), nn.ReLU())
@@ -40,8 +43,19 @@ class AutoFX(pl.LightningModule):
         self.loss = nn.L1Loss()
         self.tracker_flag = tracker
         self.tracker = None
+        self.mrstft = auraloss.freq.MultiResolutionSTFTLoss([64, 128, 256, 512, 1024, 2048],
+                                                            [16, 32, 64, 128, 256, 512],
+                                                            [64, 128, 256, 512, 1024, 2048],
+                                                            device="cpu")
+        self.num_bands = num_bands
+        self.mbfx = MultiBandFX(fx, num_bands)
+        self.rate = rate
+        self.spectro = torchaudio.transforms.Spectrogram(n_fft=fft_size, hop_length=hop_size, power=2)
+        self.inv_spectro = torchaudio.transforms.InverseSpectrogram(n_fft=fft_size, hop_length=hop_size)
+        self.audiologs = audiologs
 
     def forward(self, x, *args, **kwargs) -> Any:
+        x = self.spectro(x)
         batch_size, audio_channels, fft_size, num_frames = x.shape
         x = self.conv1(x)
         x = self.conv2(x)
@@ -56,7 +70,16 @@ class AutoFX(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, *args, **kwargs) -> STEP_OUTPUT:
         data, label = batch
+        batch_size = data.shape[0]
         pred = self.forward(data)
+        rec = torch.zeros(batch_size, 32000)
+        for (i, snd) in enumerate(data):
+            for b in range(self.num_bands):
+                # TODO: Make it fx agnostic
+                self.mbfx.mbfx[b][0].drive_db = pred[i][b]
+                self.mbfx.mbfx[b][1].gain_db = pred[i][self.num_bands + b]
+            rec[i] = self.mbfx(snd.to(torch.device('cpu')), self.rate)
+        self.log("Train: Spectral loss", self.mrstft(rec.to(torch.device('cpu')), data.to(torch.device('cpu'))))        # TODO: fix device management
         loss = self.loss(pred, label)
         self.log("train_loss", loss)
         for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
@@ -65,17 +88,22 @@ class AutoFX(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
         data, label = batch
+        batch_size = data.shape[0]
         pred = self.forward(data)
+        rec = torch.zeros(batch_size, 32000)        # TODO: fix hardcoded value
+        for (i, snd) in enumerate(data):
+            for b in range(self.num_bands):
+                # TODO: Make it fx agnostic
+                self.mbfx.mbfx[b][0].drive_db = pred[i][b]
+                self.mbfx.mbfx[b][1].gain_db = pred[i][self.num_bands + b]
+            rec[i] = self.mbfx(snd.to(torch.device('cpu')), self.rate)
+        self.log("Test: Spectral loss", self.mrstft(rec.to(torch.device("cpu")), data.to(torch.device("cpu"))))    # TODO: Fix device management
         loss = self.loss(pred, label)
         self.log("validation_loss", loss)
+        # for l in range(self.audiologs):
         for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
             self.log("Test: Param {} distance".format(i), val)
         return loss
-
-    def on_train_start(self) -> None:
-        dataiter = iter(self.trainer.val_dataloaders[0])
-        spectro, labels = dataiter.next()
-        self.logger.experiment.add_images("Input spectrograms", spectro)
 
     def on_train_epoch_start(self) -> None:
         if self.tracker_flag and self.tracker is None:
