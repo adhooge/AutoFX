@@ -28,7 +28,7 @@ sys.path.append('..')
 
 
 class AutoFX(pl.LightningModule):
-    def __init__(self, tracker: CarbonTracker = None):
+    def __init__(self, tracker: bool = False):
         # TODO: Make attributes changeable from arguments
         super().__init__()
         self.conv1 = nn.Sequential(nn.Conv2d(1, 6, 5), nn.BatchNorm2d(6), nn.ReLU())
@@ -38,7 +38,8 @@ class AutoFX(pl.LightningModule):
         self.fcl = nn.Linear(512, 8)
         self.activation = nn.Sigmoid()
         self.loss = nn.L1Loss()
-        self.tracker = tracker
+        self.tracker_flag = tracker
+        self.tracker = None
 
     def forward(self, x, *args, **kwargs) -> Any:
         batch_size, audio_channels, fft_size, num_frames = x.shape
@@ -58,6 +59,8 @@ class AutoFX(pl.LightningModule):
         pred = self.forward(data)
         loss = self.loss(pred, label)
         self.log("train_loss", loss)
+        for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
+            self.log("Train: Param {} distance".format(i), val)
         return loss
 
     def validation_step(self, batch, batch_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
@@ -65,6 +68,8 @@ class AutoFX(pl.LightningModule):
         pred = self.forward(data)
         loss = self.loss(pred, label)
         self.log("validation_loss", loss)
+        for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
+            self.log("Test: Param {} distance".format(i), val)
         return loss
 
     def on_train_start(self) -> None:
@@ -73,11 +78,14 @@ class AutoFX(pl.LightningModule):
         self.logger.experiment.add_images("Input spectrograms", spectro)
 
     def on_train_epoch_start(self) -> None:
-        if self.tracker is not None:
+        if self.tracker_flag and self.tracker is None:
+            self.tracker = CarbonTracker(epochs=400, epochs_before_pred=10, monitor_epochs=10,
+                                         log_dir=self.logger.log_dir, verbose=2)
+        if self.tracker_flag:
             self.tracker.epoch_start()
 
     def on_train_epoch_end(self) -> None:
-        if self.tracker is not None:
+        if self.tracker_flag:
             self.tracker.epoch_end()
 
     def configure_optimizers(self):
