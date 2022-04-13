@@ -19,8 +19,7 @@ class MBFXDataset(Dataset):
         self.snd_labels = pd.read_csv(labels_file)
         self.snd_dir = pathlib.Path(snd_dir)
         self.transform = nn.Sequential(
-                            torchaudio.transforms.Resample(rate, resampling_rate),
-                            torchaudio.transforms.Spectrogram(n_fft=1024, hop_length=256, **kwargs)
+                            torchaudio.transforms.Resample(rate, resampling_rate)
                             )
 
     def __len__(self):
