@@ -65,11 +65,11 @@ class AutoFX(pl.LightningModule):
 
     def forward(self, x, *args, **kwargs) -> Any:
         x = self.spectro(x)
-        batch_size, audio_channels, fft_size, num_frames = x.shape
         for conv in self.conv:
             x = conv(x)
-        x = x.view(batch_size, 114, 32, 501)  # TODO: Remove hardcoded values
-        x = x.view(batch_size, 114, -1)
+        batch_size, channels, h_out, w_out = x.shape
+        x = x.view(batch_size, w_out, channels, h_out)
+        x = x.view(batch_size, w_out, -1)
         x, _ = self.gru(x, torch.zeros(1, batch_size, 512, device=x.device))
         x = self.fcl(x)
         x = torch.mean(x, 1)
