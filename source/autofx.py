@@ -21,6 +21,21 @@ sys.path.append('..')
 
 
 class AutoFX(pl.LightningModule):
+    def _shape_after_conv(self, x):
+        """
+        Return shape after Conv2D according to https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html
+        :param x:
+        :return:
+        """
+        batch_size, c_in, h_in, w_in = x.shape
+        for conv in self.conv:
+            h_out = torch.floor((h_in + 2*conv.padding[0] - conv.dilation[0]*(conv.kernel_size[0] - 1) - 1)/conv.stride[0] + 1)
+            w_out = torch.floor((w_in + 2*conv.padding[1] - conv.dilation[1]*(conv.kernel_size[1] - 1) - 1)/conv.stride[1] + 1)
+            h_in = h_out
+            w_in = w_out
+        c_out = self.conv[-1].out_channels
+        return batch_size, c_out, h_out, w_out
+
     def __init__(self, fx: pdb.Plugin, num_bands: int, tracker: bool = False, rate: int = 16000,
                  conv_ch: list[int] = [6, 16, 32], conv_k: list[int] = [5, 5, 5],
                  fft_size: int = 1024, hop_size: int = 256, audiologs: int = 8,
@@ -51,9 +66,8 @@ class AutoFX(pl.LightningModule):
     def forward(self, x, *args, **kwargs) -> Any:
         x = self.spectro(x)
         batch_size, audio_channels, fft_size, num_frames = x.shape
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.conv3(x)
+        for conv in self.conv:
+            x = conv(x)
         x = x.view(batch_size, 114, 32, 501)  # TODO: Remove hardcoded values
         x = x.view(batch_size, 114, -1)
         x, _ = self.gru(x, torch.zeros(1, batch_size, 512, device=x.device))
