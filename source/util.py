@@ -3,6 +3,7 @@ Utility functions for data processing.
 [1] Stein et al., Automatic detection of audio effects, AES 2010.
 """
 import pathlib
+import warnings
 from typing import Tuple, Any
 
 import scipy.fftpack
@@ -22,6 +23,25 @@ GUITAR_MAX_FREQUENCY = 1200
 CLASSES = ['Dry', 'Feedback Delay', 'Slapback Delay', 'Reverb', 'Chorus', 'Flanger', 'Phaser',
            'Tremolo', 'Vibrato', 'Distortion', 'Overdrive']
 
+
+def get_fx_params(fx: pdb.Plugin):
+    fx_settings = {}
+    items = list(fx.__class__.__dict__.items())
+    for item in items:
+        if isinstance(item[1], property):
+            fx_settings[item[0]] = item[1].__get__(fx, fx.__class__)
+    return fx_settings
+
+
+def set_fx_params(fx: pdb.Plugin, params: dict):
+    items = list(fx.__class__.__dict__.items())
+    for item in items:
+        if isinstance(item[1], property):
+            if item[0] not in params.keys():
+                warnings.warn(f'{item[0]} not found in params. Keeping previous value.', UserWarning)
+            else:
+                item[1].__set__(fx, params[item[0]])
+    return fx
 
 def plot_response(fs, w, h, title):
     "Utility function to plot response functions"
