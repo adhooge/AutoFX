@@ -4,7 +4,7 @@ Utility functions for data processing.
 """
 import pathlib
 import warnings
-from typing import Tuple, Any
+from typing import Tuple, Any, List
 
 import scipy.fftpack
 import pedalboard as pdb
@@ -24,23 +24,38 @@ CLASSES = ['Dry', 'Feedback Delay', 'Slapback Delay', 'Reverb', 'Chorus', 'Flang
            'Tremolo', 'Vibrato', 'Distortion', 'Overdrive']
 
 
-def get_fx_params(fx: pdb.Plugin):
-    fx_settings = {}
-    items = list(fx.__class__.__dict__.items())
-    for item in items:
-        if isinstance(item[1], property):
-            fx_settings[item[0]] = item[1].__get__(fx, fx.__class__)
-    return fx_settings
+def get_fx_params(fx: pdb.Plugin or List[pdb.Plugin] or pdb.Pedalboard):
+    if isinstance(fx, list | pdb.Pedalboard):
+        settings = []
+    else:
+        fx = [fx]
+    for f in fx:
+        fx_settings = {}
+        items = list(f.__class__.__dict__.items())
+        for item in items:
+            if isinstance(item[1], property):
+                fx_settings[item[0]] = item[1].__get__(f, f.__class__)
+        settings.append(fx_settings)
+    return settings
 
 
-def set_fx_params(fx: pdb.Plugin, params: dict):
-    items = list(fx.__class__.__dict__.items())
-    for item in items:
-        if isinstance(item[1], property):
-            if item[0] not in params.keys():
-                warnings.warn(f'{item[0]} not found in params. Keeping previous value.', UserWarning)
-            else:
-                item[1].__set__(fx, params[item[0]])
+def set_fx_params(fx: pdb.Plugin or List[pdb.Plugin] or pdb.Pedalboard, params: dict or List[dict]):
+    if isinstance(fx, List | pdb.Pedalboard) and isinstance(params, List):
+        if len(fx) != len(params):
+            raise TypeError("Fx Board and Parameters list must have the same length.")
+    if not isinstance(fx, List | pdb.Pedalboard):
+        print("I'm here")
+        fx = [fx]
+    if not isinstance(params, List):
+        params = [params]
+    for i in range(len(params)):
+        items = list(fx[i].__class__.__dict__.items())
+        for item in items:
+            if isinstance(item[1], property):
+                if item[0] not in params[i].keys():
+                    warnings.warn(f'{item[0]} not found in params. Keeping previous value.', UserWarning)
+                else:
+                    item[1].__set__(fx[i], params[i][item[0]])
     return fx
 
 
