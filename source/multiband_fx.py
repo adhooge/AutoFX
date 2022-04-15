@@ -8,6 +8,7 @@ import pedalboard as pdb
 import numpy as np
 import torch
 from torch import double
+import util
 
 from rave_pqmf import PQMF
 
@@ -72,12 +73,7 @@ class MultiBandFX:
     def settings(self):
         settings = []
         for (b, fx) in enumerate(self.mbfx):
-            fx_settings = {}
-            items = list(fx.__class__.__dict__.items())
-            for item in items:
-                if isinstance(item[1], property):
-                    fx_settings[item[0]] = item[1].__get__(fx, fx.__class__)
-            settings.append(fx_settings)
+            settings.append(util.get_fx_params(fx))
         return settings
 
     def process(self, audio, rate, *args, **kwargs):
