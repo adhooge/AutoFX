@@ -46,13 +46,15 @@ class AutoFX(pl.LightningModule):
                  mrstft_fft: list[int] = [64, 128, 256, 512, 1024, 2048],
                  mrstft_hop: list[int] = [16, 32, 64, 128, 256, 512],
                  spectro_power: int = 2, hidden_size: int = 512):
-        # TODO: Make attributes changeable from arguments
         super().__init__()
-        self.conv = []
+        self.conv = nn.ModuleList([])
         self.mbfx = MultiBandFX(fx, num_bands)
         self.num_params = num_bands * len(self.mbfx.settings[0])
         for c in range(len(conv_ch)):
-            self.conv.append(nn.Sequential(nn.Conv2d(1, conv_ch[c], conv_k[c]), nn.BatchNorm2d(conv_ch[c]), nn.ReLU()))
+            if c == 0:
+                self.conv.append(nn.Sequential(nn.Conv2d(1, conv_ch[c], conv_k[c]), nn.BatchNorm2d(conv_ch[c]), nn.ReLU()))
+            else:
+                self.conv.append(nn.Sequential(nn.Conv2d(conv_ch[c-1], conv_ch[c], conv_k[c]), nn.BatchNorm2d(conv_ch[c]), nn.ReLU()))
         _, _, h_out, _ = self._shape_after_conv((None, None, fft_size//2 + 1, 0))
         self.gru = nn.GRU(h_out * conv_ch[-1], hidden_size, batch_first=True)
         self.hidden_size = hidden_size
@@ -85,18 +87,18 @@ class AutoFX(pl.LightningModule):
         return x
 
     def training_step(self, batch, batch_idx, *args, **kwargs) -> STEP_OUTPUT:
-        data, label = batch
-        batch_size = data.shape[0]
-        pred = self.forward(data)
+        clean, processed, label = batch
+        batch_size = processed.shape[0]
+        pred = self.forward(processed)
         rec = torch.zeros(batch_size, 32000)        # TODO: Remove hardcoded values
-        for (i, snd) in enumerate(data):
+        for (i, snd) in enumerate(clean):
             for b in range(self.num_bands):
                 # TODO: Make it fx agnostic
                 self.mbfx.mbfx[b][0].drive_db = pred[i][b]
                 self.mbfx.mbfx[b][1].gain_db = pred[i][self.num_bands + b]
             rec[i] = self.mbfx(snd.to(torch.device('cpu')), self.rate)
         self.log("Train: Spectral loss",
-                 self.mrstft(rec.to(torch.device('cpu')), data.to(torch.device('cpu'))))  # TODO: fix device management
+                 self.mrstft(rec.to(torch.device('cpu')), processed.to(torch.device('cpu'))))  # TODO: fix device management
         loss = self.loss(pred, label)
         self.log("train_loss", loss)
         for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
@@ -104,23 +106,23 @@ class AutoFX(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
-        data, label = batch
-        batch_size = data.shape[0]
-        pred = self.forward(data)
+        clean, processed, label = batch
+        batch_size = processed.shape[0]
+        pred = self.forward(processed)
         rec = torch.zeros(batch_size, 32000)  # TODO: fix hardcoded value
-        for (i, snd) in enumerate(data):
+        for (i, snd) in enumerate(clean):
             for b in range(self.num_bands):
                 # TODO: Make it fx agnostic
                 self.mbfx.mbfx[b][0].drive_db = pred[i][b]
                 self.mbfx.mbfx[b][1].gain_db = pred[i][self.num_bands + b]
             rec[i] = self.mbfx(snd.to(torch.device('cpu')),
-                               self.rate)  # TODO: Je réapplique l'effet sur l'audio déjà avec effet donc forcément ça se ressemble
+                               self.rate)
         self.log("Test: Spectral loss",
-                 self.mrstft(rec.to(torch.device("cpu")), data.to(torch.device("cpu"))))  # TODO: Fix device management
+                 self.mrstft(rec.to(torch.device("cpu")), processed.to(torch.device("cpu"))))  # TODO: Fix device management
         loss = self.loss(pred, label)
         self.log("validation_loss", loss)
         for l in range(self.audiologs):
-            self.logger.experiment.add_audio(f"Audio/{l}/Original", data[l],
+            self.logger.experiment.add_audio(f"Audio/{l}/Original", processed[l],
                                              sample_rate=self.rate, global_step=self.global_step)
             self.logger.experiment.add_audio(f"Audio/{l}/Matched", rec[l],
                                              sample_rate=self.rate, global_step=self.global_step)
