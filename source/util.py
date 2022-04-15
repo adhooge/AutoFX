@@ -43,8 +43,9 @@ def set_fx_params(fx: pdb.Plugin, params: dict):
                 item[1].__set__(fx, params[item[0]])
     return fx
 
+
 def plot_response(fs, w, h, title):
-    "Utility function to plot response functions"
+    """Utility function to plot response functions"""
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.plot(0.5 * fs * w / np.pi, 20 * np.log10(np.abs(h)))
@@ -68,7 +69,7 @@ def make_confusion_matrix(cf,
                           figsize=None,
                           cmap='Blues',
                           title=None):
-    '''
+    """
     This function will make a pretty plot of an sklearn Confusion Matrix cm using a Seaborn heatmap visualization.
     Arguments
     ---------
@@ -76,7 +77,6 @@ def make_confusion_matrix(cf,
     group_names:   List of strings that represent the labels row by row to be shown in each square.
     categories:    List of strings containing the categories to be displayed on the x,y axis. Default is 'auto'
     count:         If True, show the raw number in the confusion matrix. Default is True.
-    normalize:     If True, show the proportions for each category. Default is True.
     cbar:          If True, show the color bar. The cbar values are based off the values in the confusion matrix.
                    Default is True.
     xyticks:       If True, show x and y ticks. Default is True.
@@ -87,7 +87,7 @@ def make_confusion_matrix(cf,
                    See http://matplotlib.org/examples/color/colormaps_reference.html
 
     title:         Title for the heatmap. Default is None.
-    '''
+    """
 
     # CODE TO GENERATE TEXT INSIDE EACH SQUARE
     blanks = ['' for i in range(cf.size)]
@@ -129,11 +129,11 @@ def make_confusion_matrix(cf,
         stats_text = ""
 
     # SET FIGURE PARAMETERS ACCORDING TO OTHER ARGUMENTS
-    if figsize == None:
+    if figsize is None:
         # Get default figure size if not set
         figsize = plt.rcParams.get('figure.figsize')
 
-    if xyticks == False:
+    if not xyticks:
         # Do not show categories if xyticks is False
         categories = False
 
@@ -163,7 +163,8 @@ def apply_fx(audio, rate: float, board: pdb.Pedalboard):
     return board.process(audio, rate)
 
 
-def read_audio(path: str or pathlib.Path, normalize: bool = True, add_noise: bool = False, cut_beginning: float = None, **kwargs) -> \
+def read_audio(path: str or pathlib.Path, normalize: bool = True, add_noise: bool = False, cut_beginning: float = None,
+               **kwargs) -> \
         Tuple[ArrayLike, float]:
     """
     Wrapper function to read an audio file using pedalboard.io
@@ -186,8 +187,8 @@ def read_audio(path: str or pathlib.Path, normalize: bool = True, add_noise: boo
     return audio, rate
 
 
-def energy_envelope(audio: ArrayLike, rate: float, window_size: float = 100, method: str = 'rms') -> Tuple[
-    ArrayLike, ArrayLike]:
+def energy_envelope(audio: ArrayLike, rate: float,
+                    window_size: float = 100, method: str = 'rms') -> Tuple[ArrayLike, ArrayLike]:
     """
     Compute the energy envelope of a signal according to the selected method. A default window size
     of 100ms is used for a 5Hz low-pass filtering (see Peeters' Cuidado Project report, 2003).
