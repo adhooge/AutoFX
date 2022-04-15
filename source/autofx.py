@@ -42,7 +42,7 @@ class AutoFX(pl.LightningModule):
 
     def __init__(self, fx: pdb.Plugin, num_bands: int, tracker: bool = False, rate: int = 16000,
                  conv_ch: list[int] = [6, 16, 32], conv_k: list[int] = [5, 5, 5],
-                 fft_size: int = 1024, hop_size: int = 256, audiologs: int = 8,
+                 fft_size: int = 1024, hop_size: int = 256, audiologs: int = 4,
                  mrstft_fft: list[int] = [64, 128, 256, 512, 1024, 2048],
                  mrstft_hop: list[int] = [16, 32, 64, 128, 256, 512],
                  spectro_power: int = 2, hidden_size: int = 512):
@@ -94,15 +94,17 @@ class AutoFX(pl.LightningModule):
         for (i, snd) in enumerate(clean):
             for b in range(self.num_bands):
                 # TODO: Make it fx agnostic
-                self.mbfx.mbfx[b][0].drive_db = pred[i][b]
-                self.mbfx.mbfx[b][1].gain_db = pred[i][self.num_bands + b]
+                self.mbfx.mbfx[b][0].drive_db = pred[i][b] * 50 + 10                        # TODO: how to remove hardcoded values?
+                self.mbfx.mbfx[b][1].gain_db = (pred[i][self.num_bands + b] - 0.5) * 20
             rec[i] = self.mbfx(snd.to(torch.device('cpu')), self.rate)
         self.log("Train: Spectral loss",
                  self.mrstft(rec.to(torch.device('cpu')), processed.to(torch.device('cpu'))))  # TODO: fix device management
         loss = self.loss(pred, label)
         self.log("train_loss", loss)
+        scalars = {}
         for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
-            self.log("Train: Param {} distance".format(i), val)
+            scalars[f'{i}'] = val
+        self.logger.experiment.add_scalars("Train_Parameter_distance", scalars, global_step=self.global_step)
         return loss
 
     def validation_step(self, batch, batch_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
@@ -113,8 +115,8 @@ class AutoFX(pl.LightningModule):
         for (i, snd) in enumerate(clean):
             for b in range(self.num_bands):
                 # TODO: Make it fx agnostic
-                self.mbfx.mbfx[b][0].drive_db = pred[i][b]
-                self.mbfx.mbfx[b][1].gain_db = pred[i][self.num_bands + b]
+                self.mbfx.mbfx[b][0].drive_db = pred[i][b] * 50 + 10                    # TODO: How to remove hardcoded values?
+                self.mbfx.mbfx[b][1].gain_db = (pred[i][self.num_bands + b] - 0.5) * 20
             rec[i] = self.mbfx(snd.to(torch.device('cpu')),
                                self.rate)
         self.log("Test: Spectral loss",
@@ -124,10 +126,15 @@ class AutoFX(pl.LightningModule):
         for l in range(self.audiologs):
             self.logger.experiment.add_audio(f"Audio/{l}/Original", processed[l],
                                              sample_rate=self.rate, global_step=self.global_step)
+            self.logger.experiment.add_text(f"Audio/{l}/Original_params", str(label[l]), global_step=self.global_step)
             self.logger.experiment.add_audio(f"Audio/{l}/Matched", rec[l],
                                              sample_rate=self.rate, global_step=self.global_step)
+            self.logger.experiment.add_text(f"Audio/{l}/Matched_params", str(pred[l]), global_step=self.global_step)
+
+        scalars = {}
         for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
-            self.log("Test: Param {} distance".format(i), val)
+            scalars[f'{i}'] = val
+        self.logger.experiment.add_scalars("Test_Parameter_distance", scalars, global_step=self.global_step)
         return loss
 
     def on_train_epoch_start(self) -> None:
