@@ -40,8 +40,8 @@ class AutoFX(pl.LightningModule):
         c_out = self.conv[-1][0].out_channels
         return batch_size, c_out, h_out, w_out
 
-    def __init__(self, fx: pdb.Plugin, num_bands: int, tracker: bool = False, rate: int = 22050,
-                 conv_ch: list[int] = [64, 64, 64], conv_k: list[int] = [5, 5, 5],
+    def __init__(self, fx: pdb.Plugin, num_bands: int, tracker: bool = False, rate: int = 22050, file_size: int = 44100,
+                 conv_ch: list[int] = [64, 64, 64], conv_k: list[int] = [5, 5, 5], conv_stride: list[int] = [2, 2, 2],
                  fft_size: int = 1024, hop_size: int = 256, audiologs: int = 4,
                  mrstft_fft: list[int] = [64, 128, 256, 512, 1024, 2048],
                  mrstft_hop: list[int] = [16, 32, 64, 128, 256, 512],
@@ -52,13 +52,15 @@ class AutoFX(pl.LightningModule):
         self.num_params = num_bands * len(self.mbfx.settings[0])
         for c in range(len(conv_ch)):
             if c == 0:
-                self.conv.append(nn.Sequential(nn.Conv2d(1, conv_ch[c], conv_k[c]), nn.BatchNorm2d(conv_ch[c]), nn.ReLU()))
+                self.conv.append(nn.Sequential(nn.Conv2d(1, conv_ch[c], conv_k[c],
+                                                         padding=int(conv_k[c]/2), stride=conv_stride[c]),
+                                               nn.BatchNorm2d(conv_ch[c]), nn.ReLU()))
             else:
-                self.conv.append(nn.Sequential(nn.Conv2d(conv_ch[c-1], conv_ch[c], conv_k[c]), nn.BatchNorm2d(conv_ch[c]), nn.ReLU()))
-        _, _, h_out, _ = self._shape_after_conv((None, None, fft_size//2 + 1, 0))
-        self.gru = nn.GRU(h_out * conv_ch[-1], hidden_size, batch_first=True)
-        self.hidden_size = hidden_size
-        self.fcl = nn.Linear(hidden_size, self.num_params)
+                self.conv.append(nn.Sequential(nn.Conv2d(conv_ch[c-1], conv_ch[c], conv_k[c],
+                                                         stride=conv_stride[c], padding=int(conv_k[c]/2)),
+                                               nn.BatchNorm2d(conv_ch[c]), nn.ReLU()))
+        _, c_out, h_out, w_out = self._shape_after_conv(torch.empty(1, 1, fft_size//2 + 1, file_size//hop_size))
+        self.fcl = nn.Linear(c_out * h_out * w_out, self.num_params)
         self.activation = nn.Sigmoid()
         self.loss = nn.L1Loss()
         self.tracker_flag = tracker
@@ -78,11 +80,8 @@ class AutoFX(pl.LightningModule):
         for conv in self.conv:
             x = conv(x)
         batch_size, channels, h_out, w_out = x.shape
-        x = x.view(batch_size, w_out, channels, h_out)
-        x = x.view(batch_size, w_out, -1)
-        x, _ = self.gru(x, torch.zeros(1, batch_size, self.hidden_size, device=x.device))
+        x = torch.flatten(x, start_dim=1)
         x = self.fcl(x)
-        x = torch.mean(x, 1)
         x = self.activation(x)
         return x
 
@@ -97,14 +96,14 @@ class AutoFX(pl.LightningModule):
                 self.mbfx.mbfx[b][0].drive_db = pred[i][b] * 50 + 10                        # TODO: how to remove hardcoded values?
                 self.mbfx.mbfx[b][1].gain_db = (pred[i][self.num_bands + b] - 0.5) * 20
             rec[i] = self.mbfx(snd.to(torch.device('cpu')), self.rate)
-        self.log("Train: Spectral loss",
+        self.log("Spectral_loss/Train",
                  self.mrstft(rec.to(torch.device('cpu')), processed.to(torch.device('cpu'))))  # TODO: fix device management
         loss = self.loss(pred, label)
-        self.log("train_loss", loss)
+        self.log("Total_loss/train", loss)
         scalars = {}
         for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
             scalars[f'{i}'] = val
-        self.logger.experiment.add_scalars("Train_Parameter_distance", scalars, global_step=self.global_step)
+        self.logger.experiment.add_scalars("Param_distance/Train", scalars, global_step=self.global_step)
         return loss
 
     def validation_step(self, batch, batch_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
@@ -119,10 +118,10 @@ class AutoFX(pl.LightningModule):
                 self.mbfx.mbfx[b][1].gain_db = (pred[i][self.num_bands + b] - 0.5) * 20
             rec[i] = self.mbfx(snd.to(torch.device('cpu')),                             # TODO: Could MBFX be applied on GPU?
                                self.rate)
-        self.log("Test: Spectral loss",
+        self.log("Spectral_loss/test",
                  self.mrstft(rec.to(torch.device("cpu")), processed.to(torch.device("cpu"))))  # TODO: Fix device management
         loss = self.loss(pred, label)
-        self.log("validation_loss", loss)
+        self.log("Total_loss/test", loss)
         for l in range(self.audiologs):
             self.logger.experiment.add_audio(f"Audio/{l}/Original", processed[l],
                                              sample_rate=self.rate, global_step=self.global_step)
@@ -134,7 +133,7 @@ class AutoFX(pl.LightningModule):
         scalars = {}
         for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
             scalars[f'{i}'] = val
-        self.logger.experiment.add_scalars("Test_Parameter_distance", scalars, global_step=self.global_step)
+        self.logger.experiment.add_scalars("Param_distance/Test", scalars, global_step=self.global_step)
         return loss
 
     def on_train_epoch_start(self) -> None:
