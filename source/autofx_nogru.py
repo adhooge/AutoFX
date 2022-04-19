@@ -68,7 +68,9 @@ class AutoFX(pl.LightningModule):
         self.mrstft = auraloss.freq.MultiResolutionSTFTLoss(mrstft_fft,
                                                             mrstft_hop,
                                                             mrstft_fft,
-                                                            device="cpu")       # TODO: Manage device properly
+                                                            device=self.device)    # TODO: Manage device properly
+        # for stft_loss in self.mrstft.stft_losses:
+        #    stft_loss = stft_loss.cuda()
         self.num_bands = num_bands
         self.rate = rate
         self.spectro = torchaudio.transforms.Spectrogram(n_fft=fft_size, hop_length=hop_size, power=spectro_power)
@@ -89,7 +91,7 @@ class AutoFX(pl.LightningModule):
         clean, processed, label = batch
         batch_size = processed.shape[0]
         pred = self.forward(processed)
-        rec = torch.zeros(batch_size, clean.shape[-1] - 1)        # TODO: Remove hardcoded values
+        rec = torch.zeros(batch_size, clean.shape[-1] - 1, device=self.device)        # TODO: Remove hardcoded values
         for (i, snd) in enumerate(clean):
             for b in range(self.num_bands):
                 # TODO: Make it fx agnostic
@@ -97,7 +99,7 @@ class AutoFX(pl.LightningModule):
                 self.mbfx.mbfx[b][1].gain_db = (pred[i][self.num_bands + b] - 0.5) * 20
             rec[i] = self.mbfx(snd.to(torch.device('cpu')), self.rate)
         self.log("Spectral_loss/Train",
-                 self.mrstft(rec.to(torch.device('cpu')), processed.to(torch.device('cpu'))))  # TODO: fix device management
+                 self.mrstft(rec, processed))  # TODO: fix device management
         loss = self.loss(pred, label)
         self.log("Total_loss/train", loss)
         scalars = {}
@@ -110,7 +112,7 @@ class AutoFX(pl.LightningModule):
         clean, processed, label = batch
         batch_size = processed.shape[0]
         pred = self.forward(processed)
-        rec = torch.zeros(batch_size, clean.shape[-1] - 1)  # TODO: fix hardcoded value
+        rec = torch.zeros(batch_size, clean.shape[-1] - 1, device=self.device)  # TODO: fix hardcoded value
         for (i, snd) in enumerate(clean):
             for b in range(self.num_bands):
                 # TODO: Make it fx agnostic
@@ -119,7 +121,7 @@ class AutoFX(pl.LightningModule):
             rec[i] = self.mbfx(snd.to(torch.device('cpu')),                             # TODO: Could MBFX be applied on GPU?
                                self.rate)
         self.log("Spectral_loss/test",
-                 self.mrstft(rec.to(torch.device("cpu")), processed.to(torch.device("cpu"))))  # TODO: Fix device management
+                 self.mrstft(rec, processed))  # TODO: Fix device management
         loss = self.loss(pred, label)
         self.log("Total_loss/test", loss)
         for l in range(self.audiologs):
