@@ -7,6 +7,7 @@ import pathlib
 import pedalboard as pdb
 from typing import Any, Optional, Tuple
 
+from torch.autograd import Variable
 import torchaudio.transforms
 from carbontracker.tracker import CarbonTracker
 import auraloss
@@ -45,7 +46,7 @@ class AutoFX(pl.LightningModule):
                  fft_size: int = 1024, hop_size: int = 256, audiologs: int = 4, loss_weights: list[float] = [1, 1],
                  mrstft_fft: list[int] = [64, 128, 256, 512, 1024, 2048],
                  mrstft_hop: list[int] = [16, 32, 64, 128, 256, 512],
-                 learning_rate: int = 0.001,
+                 learning_rate: int = 0.001, out_of_domain: bool = False,
                  spectro_power: int = 2, mel_spectro: bool = True, mel_num_bands: int = 128, device = torch.device('cuda')):        # TODO: change
         super().__init__()
         self.conv = nn.ModuleList([])
@@ -73,6 +74,7 @@ class AutoFX(pl.LightningModule):
         #    stft_loss = stft_loss.cuda()
         self.num_bands = num_bands
         self.rate = rate
+        self.out_of_domain = out_of_domain
         self.loss_weights = loss_weights
         if mel_spectro:
             self.spectro = torchaudio.transforms.MelSpectrogram(n_fft=fft_size, hop_length=hop_size, sample_rate=self.rate,
@@ -89,14 +91,16 @@ class AutoFX(pl.LightningModule):
         x = self.spectro(x)
         for conv in self.conv:
             x = conv(x)
-        batch_size, channels, h_out, w_out = x.shape
         x = torch.flatten(x, start_dim=1)
         x = self.fcl(x)
         x = self.activation(x)
         return x
 
     def training_step(self, batch, batch_idx, *args, **kwargs) -> STEP_OUTPUT:
-        clean, processed, label = batch
+        if not self.out_of_domain:
+            clean, processed, label = batch
+        else:
+            clean, processed = batch
         batch_size = processed.shape[0]
         pred = self.forward(processed)
         rec = torch.zeros(batch_size, clean.shape[-1] - 1, device=self.device)        # TODO: Remove hardcoded values
@@ -109,25 +113,31 @@ class AutoFX(pl.LightningModule):
         spectral_loss = self.mrstft(rec, processed)
         self.logger.experiment.add_scalar("Spectral_loss/Train",
                                           spectral_loss, global_step=self.global_step)
-        loss = self.loss(pred, label)
-        self.logger.experiment.add_scalar("Param_loss/Train", loss, global_step=self.global_step)
-        scalars = {}
-        for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
-            scalars[f'{i}'] = val
-        self.logger.experiment.add_scalars("Param_distance/Train", scalars, global_step=self.global_step)
-        if self.trainer.current_epoch < 25:
-            self.loss_weights = [1, 0]
-        elif self.trainer.current_epoch < 50:
-            weight = (self.trainer.current_epoch - 25)/25
-            self.loss_weights = [1 - weight, weight]
-        elif self.trainer.current_epoch >= 50:
-            self.loss_weights = [0, 1]
-        total_loss = 10*loss*self.loss_weights[0] + spectral_loss*self.loss_weights[1]
+        if not self.out_of_domain:
+            loss = self.loss(pred, label)
+            self.logger.experiment.add_scalar("Param_loss/Train", loss, global_step=self.global_step)
+            scalars = {}
+            for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
+                scalars[f'{i}'] = val
+            self.logger.experiment.add_scalars("Param_distance/Train", scalars, global_step=self.global_step)
+            if self.trainer.current_epoch < 25:
+                self.loss_weights = [1, 0]
+            elif self.trainer.current_epoch < 50:
+                weight = (self.trainer.current_epoch - 25)/25
+                self.loss_weights = [1 - weight, weight]
+            elif self.trainer.current_epoch >= 50:
+                self.loss_weights = [0, 1]
+            total_loss = 10*loss*self.loss_weights[0] + spectral_loss*self.loss_weights[1]
+        else:
+            total_loss = Variable(spectral_loss, requires_grad=True)
         self.logger.experiment.add_scalar("Total_loss/Train", total_loss, global_step=self.global_step)
         return total_loss
 
     def validation_step(self, batch, batch_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
-        clean, processed, label = batch
+        if not self.out_of_domain:
+            clean, processed, label = batch
+        else:
+            clean, processed = batch
         batch_size = processed.shape[0]
         pred = self.forward(processed)
         rec = torch.zeros(batch_size, clean.shape[-1] - 1, device=self.device)  # TODO: fix hardcoded value
@@ -140,27 +150,31 @@ class AutoFX(pl.LightningModule):
         spectral_loss = self.mrstft(rec, processed)
         self.logger.experiment.add_scalar("Spectral_loss/test",
                                           spectral_loss, global_step=self.global_step)
-        loss = self.loss(pred, label)
-        self.logger.experiment.add_scalar("Param_loss/test", loss, global_step=self.global_step)
+        if not self.out_of_domain:
+            loss = self.loss(pred, label)
+            self.logger.experiment.add_scalar("Param_loss/test", loss, global_step=self.global_step)
         for l in range(self.audiologs):
-            self.logger.experiment.add_audio(f"Audio/{l}/Original", processed[l],
+            self.logger.experiment.add_audio(f"Audio/{l}/Original", processed[l]/torch.max(torch.abs(processed(l))),
                                              sample_rate=self.rate, global_step=self.global_step)
-            self.logger.experiment.add_text(f"Audio/{l}/Original_params", str(label[l]), global_step=self.global_step)
-            self.logger.experiment.add_audio(f"Audio/{l}/Matched", rec[l],
+            self.logger.experiment.add_audio(f"Audio/{l}/Matched", rec[l]/torch.max(torch.abs(rec[l])),
                                              sample_rate=self.rate, global_step=self.global_step)
-            self.logger.experiment.add_text(f"Audio/{l}/Matched_params", str(pred[l]), global_step=self.global_step)
-
-        scalars = {}
-        for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
-            scalars[f'{i}'] = val
-        self.logger.experiment.add_scalars("Param_distance/test", scalars, global_step=self.global_step)
-        total_loss = 10*loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
+            if not self.out_of_domain:
+                self.logger.experiment.add_text(f"Audio/{l}/Matched_params", str(pred[l]), global_step=self.global_step)
+                self.logger.experiment.add_text(f"Audio/{l}/Original_params", str(label[l]), global_step=self.global_step)
+        if not self.out_of_domain:
+            scalars = {}
+            for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
+                scalars[f'{i}'] = val
+            self.logger.experiment.add_scalars("Param_distance/test", scalars, global_step=self.global_step)
+            total_loss = 10*loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
+        else:
+            total_loss = Variable(spectral_loss, requires_grad=True)
         self.logger.experiment.add_scalar("Total_loss/test", total_loss, global_step=self.global_step)
         return total_loss
 
     def on_train_epoch_start(self) -> None:
         if self.tracker_flag and self.tracker is None:
-            self.tracker = CarbonTracker(epochs=400, epochs_before_pred=10, monitor_epochs=10,
+            self.tracker = CarbonTracker(epochs=self.trainer.max_epochs, epochs_before_pred=10, monitor_epochs=10,
                                          log_dir=self.logger.log_dir, verbose=2)            # TODO: Remove hardcoded values
         if self.tracker_flag:
             self.tracker.epoch_start()
