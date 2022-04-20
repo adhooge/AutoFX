@@ -45,6 +45,7 @@ class AutoFX(pl.LightningModule):
                  fft_size: int = 1024, hop_size: int = 256, audiologs: int = 4, loss_weights: list[float] = [1, 1],
                  mrstft_fft: list[int] = [64, 128, 256, 512, 1024, 2048],
                  mrstft_hop: list[int] = [16, 32, 64, 128, 256, 512],
+                 learning_rate: int = 0.001,
                  spectro_power: int = 2, mel_spectro: bool = True, mel_num_bands: int = 128, device = torch.device('cuda')):        # TODO: change
         super().__init__()
         self.conv = nn.ModuleList([])
@@ -60,6 +61,7 @@ class AutoFX(pl.LightningModule):
                                                          stride=conv_stride[c], padding=int(conv_k[c]/2)),
                                                nn.BatchNorm2d(conv_ch[c]), nn.ReLU()))
         self.activation = nn.Sigmoid()
+        self.learning_rate = learning_rate
         self.loss = nn.L1Loss()
         self.tracker_flag = tracker
         self.tracker = None
@@ -113,7 +115,14 @@ class AutoFX(pl.LightningModule):
         for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
             scalars[f'{i}'] = val
         self.logger.experiment.add_scalars("Param_distance/Train", scalars, global_step=self.global_step)
-        total_loss = loss*self.loss_weights[0] + spectral_loss*self.loss_weights[1]
+        if self.trainer.current_epoch < 25:
+            self.loss_weights = [1, 0]
+        elif self.trainer.current_epoch < 50:
+            weight = (self.trainer.current_epoch - 25)/25
+            self.loss_weights = [1 - weight, weight]
+        elif self.trainer.current_epoch >= 50:
+            self.loss_weights = [0, 1]
+        total_loss = 10*loss*self.loss_weights[0] + spectral_loss*self.loss_weights[1]
         self.logger.experiment.add_scalar("Total_loss/Train", total_loss, global_step=self.global_step)
         return total_loss
 
@@ -145,7 +154,7 @@ class AutoFX(pl.LightningModule):
         for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
             scalars[f'{i}'] = val
         self.logger.experiment.add_scalars("Param_distance/test", scalars, global_step=self.global_step)
-        total_loss = loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
+        total_loss = 10*loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
         self.logger.experiment.add_scalar("Total_loss/test", total_loss, global_step=self.global_step)
         return total_loss
 
@@ -161,5 +170,7 @@ class AutoFX(pl.LightningModule):
             self.tracker.epoch_end()
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=0.001)           # TODO: Remove hardcoded values
-        return optimizer
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)           # TODO: Remove hardcoded values
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
+        lr_schedulers = {"scheduler": scheduler, "interval": "epoch"}
+        return {"optimizer": optimizer,"lr_scheduler": lr_schedulers}
