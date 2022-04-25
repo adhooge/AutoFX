@@ -39,12 +39,12 @@ def get_fx_params(fx: pdb.Plugin or List[pdb.Plugin] or pdb.Pedalboard):
 
 
 def set_fx_params(fx: pdb.Plugin or List[pdb.Plugin] or pdb.Pedalboard, params: dict or List[dict]):
-    if isinstance(fx, List | pdb.Pedalboard) and isinstance(params, List):
+    if isinstance(fx, List | pdb.Pedalboard) and isinstance(params, List | np.ndarray):
         if len(fx) != len(params):
             raise TypeError("Fx Board and Parameters list must have the same length.")
     if not isinstance(fx, List | pdb.Pedalboard):
         fx = [fx]
-    if not isinstance(params, List):
+    if not isinstance(params, List | np.ndarray):
         params = [params]
     for i in range(len(params)):
         items = list(fx[i].__class__.__dict__.items())

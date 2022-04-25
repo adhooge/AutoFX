@@ -15,6 +15,17 @@ from numba import jit, cuda
 from rave_pqmf import PQMF
 
 
+def _settings_list2dict(settings_list, fx: pdb.Plugin):
+    settings_dict = {}
+    items = list(fx.__dict__.items())
+    cnt = 0
+    for item in items:
+        if isinstance(item[1], property):
+            settings_dict[item[0]] = settings_list[cnt]
+            cnt += 1
+    return settings_dict
+
+
 class MultiBandFX:
     def __call__(self, audio, rate, *args, **kwargs):
         return self.process(audio, rate, args, kwargs)
@@ -82,21 +93,37 @@ class MultiBandFX:
                 self.mbfx.append(tmp)
         self.device = device
         if int(np.log2(self.num_bands)) == np.log2(self.num_bands):
-            self.filter_bank = PQMF(attenuation, self.num_bands, polyphase=True, device=device)     # TODO: Fix hardcoded device
+            self.filter_bank = PQMF(attenuation, self.num_bands, polyphase=True,
+                                    device=device)  # TODO: Fix hardcoded device
         else:
             self.filter_bank = PQMF(attenuation, self.num_bands, polyphase=False, device=device)
 
-    def _settings_list2dict(self):
-        # TODO
-        return NotImplemented
-
-    def set_fx_params(self, params: list[dict] or dict) -> None:
-        raise NotImplementedError       # TODO
+    def set_fx_params(self, params: list[dict] or dict or list) -> None:
+        # TODO: Manage all possible cases. As of now, only complete setting of parameters is allowed
+        params = np.array(params)
+        if params.ndim < 2 or (params.ndim == 2 and not isinstance(params[0, 0], dict)):
+            raise NotImplementedError
+        else:
+            for b in range(self.num_bands):
+                if self.num_fx >= 2 and params.ndim == 3:
+                    board_settings = [_settings_list2dict(params[b][f], self.fx_per_band[f])
+                                      for f in range(self.num_fx)]
+                else:
+                    board_settings = params[b]
+                self.mbfx[b] = util.set_fx_params(self.mbfx[b], board_settings)
 
     def add_perturbation_to_fx_params(self, perturbation):
         # TODO: Ensure parameters do not exceed limits
         # TODO: Deal with conversion between 0/1 and min/max
         raise NotImplementedError
+
+    @property
+    def fx_per_band(self):
+        return [self.mbfx[0][i].__class__ for i in range(self.num_fx)]
+
+    @property
+    def num_fx(self):
+        return len(self.mbfx[0])
 
     @property
     def settings(self):
