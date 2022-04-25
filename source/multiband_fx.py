@@ -105,7 +105,7 @@ class MultiBandFX:
     @property
     def settings(self):
         settings = []
-        for (b, fx) in enumerate(self.mbfx):
+        for fx in self.mbfx:
             settings.append(util.get_fx_params(fx))
         return settings
 
