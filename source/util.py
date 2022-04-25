@@ -25,9 +25,8 @@ CLASSES = ['Dry', 'Feedback Delay', 'Slapback Delay', 'Reverb', 'Chorus', 'Flang
 
 
 def get_fx_params(fx: pdb.Plugin or List[pdb.Plugin] or pdb.Pedalboard):
-    if isinstance(fx, list | pdb.Pedalboard):
-        settings = []
-    else:
+    settings = []
+    if isinstance(fx, pdb.Plugin) and not isinstance(fx, pdb.Pedalboard):
         fx = [fx]
     for f in fx:
         fx_settings = {}
@@ -44,7 +43,6 @@ def set_fx_params(fx: pdb.Plugin or List[pdb.Plugin] or pdb.Pedalboard, params: 
         if len(fx) != len(params):
             raise TypeError("Fx Board and Parameters list must have the same length.")
     if not isinstance(fx, List | pdb.Pedalboard):
-        print("I'm here")
         fx = [fx]
     if not isinstance(params, List):
         params = [params]
