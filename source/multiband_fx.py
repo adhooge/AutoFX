@@ -10,6 +10,8 @@ import torch
 from torch import double
 import util
 
+from numba import jit, cuda
+
 from rave_pqmf import PQMF
 
 
@@ -17,7 +19,8 @@ class MultiBandFX:
     def __call__(self, audio, rate, *args, **kwargs):
         return self.process(audio, rate, args, kwargs)
 
-    def __init__(self, fx: pdb.Plugin or list[pdb.Plugin], bands: int | list[float] | list[Tuple], attenuation: int = 100):
+    def __init__(self, fx: pdb.Plugin or list[pdb.Plugin], bands: int | list[float] | list[Tuple],
+                 device: torch.device = torch.device('cpu'), attenuation: int = 100):
         """
         TODO: Currently, parameters of FX are not transferred to MBFX so MBFX is always initialized to default
         :param fx: An effect from Pedalboard to use in a multiband fashion
@@ -30,8 +33,10 @@ class MultiBandFX:
         :param attenuation: attenuation of the filter bank. Should be an int from between 80 and 120.
         """
         if isinstance(fx, pdb.Plugin):
-            # TODO: retrieve parameters of fx for initialization
+            params = util.get_fx_params(fx)
             fx = fx.__class__
+        else:
+            params = None
         if isinstance(bands, int):
             self.num_bands = bands
             self.bands = []
@@ -63,11 +68,31 @@ class MultiBandFX:
                 board = pdb.Pedalboard([plug() for plug in fx])
                 self.mbfx.append(board)
             else:
-                self.mbfx.append(fx())
+                tmp = fx()
+                if params is not None:
+                    tmp = util.set_fx_params(tmp, params)
+                self.mbfx.append(tmp)
+        self.device = device
         if int(np.log2(self.num_bands)) == np.log2(self.num_bands):
-            self.filter_bank = PQMF(attenuation, self.num_bands, polyphase=True, device='cpu')     # TODO: Fix hardcoded device
+            self.filter_bank = PQMF(attenuation, self.num_bands, polyphase=True, device=device)     # TODO: Fix hardcoded device
         else:
-            self.filter_bank = PQMF(attenuation, self.num_bands, polyphase=False, device='cpu')
+            self.filter_bank = PQMF(attenuation, self.num_bands, polyphase=False, device=device)
+
+    def _settings_list2dict(self):
+        # TODO
+        return NotImplemented
+
+    def _settings_dict2list(self):
+        # TODO
+        return NotImplemented
+
+    def set_fx_params(self, params: list[dict] or dict) -> None:
+        raise NotImplementedError       # TODO
+
+    def add_perturbation_to_fx_params(self, perturbation):
+        # TODO: Ensure parameters do not exceed limits
+        # TODO: Deal with conversion between 0/1 and min/max
+        raise NotImplementedError
 
     @property
     def settings(self):
@@ -75,6 +100,11 @@ class MultiBandFX:
         for (b, fx) in enumerate(self.mbfx):
             settings.append(util.get_fx_params(fx))
         return settings
+
+    @property
+    def settings_list(self):
+        #TODO
+        return NotImplemented
 
     def process(self, audio, rate, *args, **kwargs):
         """
