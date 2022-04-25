@@ -22,7 +22,6 @@ class MultiBandFX:
     def __init__(self, fx: pdb.Plugin or list[pdb.Plugin], bands: int | list[float] | list[Tuple],
                  device: torch.device = torch.device('cpu'), attenuation: int = 100):
         """
-        TODO: Currently, parameters of FX are not transferred to MBFX so MBFX is always initialized to default
         :param fx: An effect from Pedalboard to use in a multiband fashion
         :param bands: If integer: number of frequency bands to use.
                       If list: normalized frequencies separating bands. Number of bands is len(list) + 1.
@@ -65,7 +64,16 @@ class MultiBandFX:
         self.mbfx = []
         for i in range(self.num_bands):
             if isinstance(fx, list):
-                board = pdb.Pedalboard([plug() for plug in fx])
+                if isinstance(fx[0], pdb.Plugin):
+                    board = []
+                    for f in fx:
+                        params = util.get_fx_params(f)
+                        tmp = f.__class__()
+                        tmp = util.set_fx_params(tmp, params)
+                        board.append(tmp[0])
+                else:
+                    board = [plug() for plug in fx]
+                board = pdb.Pedalboard(board)
                 self.mbfx.append(board)
             else:
                 tmp = fx()
