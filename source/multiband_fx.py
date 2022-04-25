@@ -90,10 +90,6 @@ class MultiBandFX:
         # TODO
         return NotImplemented
 
-    def _settings_dict2list(self):
-        # TODO
-        return NotImplemented
-
     def set_fx_params(self, params: list[dict] or dict) -> None:
         raise NotImplementedError       # TODO
 
@@ -111,8 +107,14 @@ class MultiBandFX:
 
     @property
     def settings_list(self):
-        #TODO
-        return NotImplemented
+        settings_dict = self.settings
+        settings_list = []
+        for band in settings_dict:
+            tmp = []
+            for dico in band:
+                tmp.append(list(dico.values()))
+            settings_list.append(tmp)
+        return settings_list
 
     def process(self, audio, rate, *args, **kwargs):
         """
