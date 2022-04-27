@@ -13,3 +13,10 @@ def compute_time_delay(original, pred):
     xcorr = torch.fft.ifft(xcorr_fft)
     time_shift = torch.argmax(torch.abs(xcorr), dim=-1)
     return time_shift
+
+
+def time_align_signals(original, pred):
+    time_shift = compute_time_delay(original, pred)
+    original_shifted = original[:, :-time_shift]
+    pred_shifted = pred[:, time_shift:]
+    return original_shifted, pred_shifted
