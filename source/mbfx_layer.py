@@ -3,7 +3,8 @@ from typing import Any
 import torch
 import torch.nn as nn
 from multiband_fx import MultiBandFX
-
+from torch.autograd import gradcheck
+import pedalboard as pdb
 
 def _make_perturbation_vector(shape):
     return torch.bernoulli(torch.zeros(shape)) + 0.5
@@ -11,65 +12,87 @@ def _make_perturbation_vector(shape):
 
 class MBFxFunction(torch.autograd.Function):
     @staticmethod
-    def forward(ctx: Any, cln, settings, mbfx, eps=0.001, grad_x: bool = True,
+    def forward(ctx: Any, cln, settings, mbfx, rate, param_range, eps=0.001, grad_x: bool = True,
                 *args: Any, **kwargs: Any) -> Any:
         ctx.eps = eps
-        mbfx.set_fx_params(settings)
         ctx.mbfx = mbfx
         ctx.grad_x = grad_x
-        ctx.save_for_backward(cln)
-        batch_size = cln.shape[0]
-        out = torch.zeros_like(cln)
-        for (i, snd) in enumerate(cln):
-            out[i] = mbfx(snd)
+        ctx.rate = rate
+        ctx.param_range = param_range
+        ctx.save_for_backward(cln, settings)
+        tmp = cln.clone()
+        if tmp.ndim == 1:
+            tmp = tmp[None, :]
+        out = torch.zeros_like(tmp)
+        for (i, snd) in enumerate(tmp):
+            mbfx.set_fx_params(settings, flat=True, param_range=param_range)
+            out[i] = mbfx(snd, rate)
         return out
 
     @staticmethod
     def backward(ctx: Any, *grad_outputs: Any) -> Any:
-        cln, = ctx.saved_tensors
+        cln, settings, = ctx.saved_tensors
+        if cln.ndim == 1:
+            cln = cln[None, :]
         batch_size = grad_outputs[0].shape[0]
-        settings = ctx.mbfx.settings_list
-        num_settings = ctx.mbfx.num_bands * len(settings[0])
+        mbfx = ctx.mbfx
+        num_settings = ctx.mbfx.total_num_params_per_band * ctx.mbfx.num_bands
         for i in range(batch_size):
             # TODO: Multiprocess implementation like DAFx?
             # Grad wrt to clean:
+            mbfx.set_fx_params(settings, flat=True)
             snd = cln[i]
             if ctx.grad_x:
                 perturbation = _make_perturbation_vector(cln.shape)
-                J_plus = ctx.mbfx(snd + perturbation * ctx.eps)
-                J_minus = ctx.mbfx(snd - perturbation * ctx.eps)
+                J_plus = mbfx(snd + perturbation * ctx.eps, ctx.rate)
+                J_minus = mbfx(snd - perturbation * ctx.eps, ctx.rate)
                 gradx = (J_plus - J_minus) / (2 * ctx.eps * perturbation)
                 Jx = gradx * grad_outputs[0]
             else:
                 Jx = torch.ones_like(cln)
             # Grad wrt to parameters
             Jy = torch.zeros((batch_size, num_settings))
-            perturbation = _make_perturbation_vector((1, num_settings))
-            ctx.mbfx.add_perturbation_to_fx_params(perturbation)
-            J_plus = ctx.mbfx(snd)
-            ctx.mbfx.add_perturbation_to_fx_params(-2 * perturbation)
-            J_minus = ctx.mbfx(snd)
-            ctx.mbfx.add_perturbation_to_fx_params(perturbation)
+            perturbation = _make_perturbation_vector((num_settings))
+            mbfx.add_perturbation_to_fx_params(perturbation * ctx.eps, ctx.param_range)
+            J_plus = mbfx(snd, ctx.rate)
+            mbfx.add_perturbation_to_fx_params(-2 * perturbation * ctx.eps, ctx.param_range)
+            J_minus = mbfx(snd, ctx.rate)
+            mbfx.add_perturbation_to_fx_params(perturbation * ctx.eps, ctx.param_range)
             for j in range(num_settings):
                 grady = (J_plus - J_minus) / (2 * ctx.eps * perturbation[j])
-                Jy[j] = torch.dot(grad_outputs[0].T, grady)
-        return Jx, Jy, None
+                Jy[i][j] = grad_outputs[0] @ grady.T
+        return Jx, Jy, None, None, None, None
 
 
 class MBFxLayer(nn.Module):
-    def __init__(self, mbfx: MultiBandFX):
+    def __init__(self, mbfx: MultiBandFX, rate, param_range):
         super(MBFxLayer, self).__init__()
         self.mbfx = mbfx
         self.num_params = mbfx.num_bands * len(self.mbfx.settings[0])
         self.params = nn.Parameter(torch.empty(self.num_params))
         nn.init.constant_(self.params, 0.5)
-        self.mbfx.set_fx_params(self.params)
+        self.param_range = param_range
+        self.mbfx.set_fx_params(self.params, flat=True)
+        self.rate = rate
 
     def forward(self, x, settings=None):
         if settings is None:
-            settings = self.mbfx.settings_list
-        processed = MBFxFunction.apply(x, settings, self.mbfx)
+            settings = self.params
+        processed = MBFxFunction.apply(x, settings, self.mbfx, self.rate, self.param_range)
         return processed  # TODO: check
 
     def extra_repr(self) -> str:
         return NotImplemented  # TODO
+
+
+if __name__ == '__main__':
+    # gradcheck takes a tuple of tensors as input, check if your gradient
+    # evaluated with these tensors are close enough to numerical
+    # approximations and returns True if they all verify this condition.
+    function = MBFxFunction.apply
+    mbfx = MultiBandFX([pdb.Distortion, pdb.Gain], 4)
+    settings = torch.tensor([0.5] * 8)
+    inputs = (torch.randn(4, 22050, requires_grad=True),
+              settings, mbfx, 22050, [(0, 10), (0, 10)])
+    test = gradcheck(function, inputs, eps=1e-6, atol=1e-4)
+    print(test)

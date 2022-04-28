@@ -2,7 +2,7 @@
 Class to define an FX on several frequency bands with their own parameters.
 Extends the pedalboard.Plugin class
 """
-from typing import Tuple
+from typing import Tuple, List
 
 import pedalboard as pdb
 import numpy as np
@@ -98,11 +98,18 @@ class MultiBandFX:
         else:
             self.filter_bank = PQMF(attenuation, self.num_bands, polyphase=False, device=device)
 
-    def set_fx_params(self, params: list[dict] or dict or list) -> None:
+    def set_fx_params(self, settings: list[dict] or dict or list, flat: bool = False, param_range: List[Tuple] = None) -> None:
         # TODO: Manage all possible cases. As of now, only complete setting of parameters is allowed
-        params = np.array(params)
+        params = torch.clone(settings)
+        if param_range is None:
+            param_range = [(1, 1)] * (len(params) // self.num_bands)            # TODO: Make it FX agnostic
+        for i in range(len(params)):
+            params[i] = params[i] * (param_range[i//self.num_bands][1] - param_range[i//self.num_bands][0]) + param_range[i//self.num_bands][0]
+        params = torch.Tensor(params)
+        if flat:
+            params = torch.reshape(params, (self.num_bands, self.num_fx, -1))
         if params.ndim < 2 or (params.ndim == 2 and not isinstance(params[0, 0], dict)):
-            raise NotImplementedError
+            raise NotImplementedError(params)
         else:
             for b in range(self.num_bands):
                 if self.num_fx >= 2 and params.ndim == 3:
@@ -112,10 +119,18 @@ class MultiBandFX:
                     board_settings = params[b]
                 self.mbfx[b] = util.set_fx_params(self.mbfx[b], board_settings)
 
-    def add_perturbation_to_fx_params(self, perturbation):
+    def add_perturbation_to_fx_params(self, perturb, param_range):
         # TODO: Ensure parameters do not exceed limits
         # TODO: Deal with conversion between 0/1 and min/max
-        raise NotImplementedError
+        settings_list = self.settings_list
+        for b in range(self.num_bands):
+            for f in range(self.num_fx):
+                for p in range(self.num_params_per_band[f]):
+                    eps = perturb[b*(self.num_params_per_band[f]) + p]
+                    scaled_eps = eps*(param_range[f][1] - param_range[f][0])
+                    settings_list[b][f][p] += scaled_eps
+        settings_list = torch.Tensor(settings_list).flatten()
+        self.set_fx_params(settings_list.tolist(), flat=True)
 
     @property
     def fx_per_band(self):
@@ -143,6 +158,14 @@ class MultiBandFX:
             settings_list.append(tmp)
         return settings_list
 
+    @property
+    def num_params_per_band(self):
+        return [len(self.settings_list[0][i]) for i in range(self.num_fx)]
+
+    @property
+    def total_num_params_per_band(self):
+        return sum(self.num_params_per_band)
+
     def process(self, audio, rate, *args, **kwargs):
         """
         TODO: Make it cleaner between Torch and numpy. Managing Batch sizes properly
@@ -156,8 +179,11 @@ class MultiBandFX:
             audio = torch.from_numpy(audio)
         if audio.dim() == 2:
             audio = audio[None, :]
+        if audio.dim() == 1:
+            audio = audio[None, None, :]
+        out = torch.zeros_like(audio)
         audio_bands = self.filter_bank.forward(audio)[0]
         for (b, fx) in enumerate(self.mbfx):
             audio_bands[b] = torch.from_numpy(fx(audio_bands[b], rate))
-        out = self.filter_bank.inverse(audio_bands[None, :, :])
+        out[:, :, :-1] = self.filter_bank.inverse(audio_bands[None, :, :])
         return out[0]
