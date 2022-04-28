@@ -100,7 +100,7 @@ class MultiBandFX:
 
     def set_fx_params(self, settings: list[dict] or dict or list, flat: bool = False, param_range: List[Tuple] = None) -> None:
         # TODO: Manage all possible cases. As of now, only complete setting of parameters is allowed
-        params = torch.clone(settings)
+        params = torch.clone(torch.Tensor(settings))
         if param_range is None:
             param_range = [(1, 1)] * (len(params) // self.num_bands)            # TODO: Make it FX agnostic
         for i in range(len(params)):
