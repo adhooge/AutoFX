@@ -27,8 +27,8 @@ def _settings_list2dict(settings_list, fx: pdb.Plugin):
 
 
 class MultiBandFX:
-    def __call__(self, audio, rate, *args, **kwargs):
-        return self.process(audio, rate, args, kwargs)
+    def __call__(self, audio, rate, same: bool = True, *args, **kwargs):
+        return self.process(audio, rate, same, args, kwargs)
 
     def __init__(self, fx: pdb.Plugin or list[pdb.Plugin], bands: int | list[float] | list[Tuple],
                  device: torch.device = torch.device('cpu'), attenuation: int = 100):
@@ -166,13 +166,14 @@ class MultiBandFX:
     def total_num_params_per_band(self):
         return sum(self.num_params_per_band)
 
-    def process(self, audio, rate, *args, **kwargs):
+    def process(self, audio, rate, same: bool = True, *args, **kwargs):
         """
         TODO: Make it cleaner between Torch and numpy. Managing Batch sizes properly
         :param audio:
         :param rate:
         :param args:
         :param kwargs:
+        :param same: Should the output have the same shape as the input? Default is True.
         :return:
         """
         if isinstance(audio, np.ndarray):
@@ -181,9 +182,12 @@ class MultiBandFX:
             audio = audio[None, :]
         if audio.dim() == 1:
             audio = audio[None, None, :]
-        out = torch.zeros_like(audio)
         audio_bands = self.filter_bank.forward(audio)[0]
         for (b, fx) in enumerate(self.mbfx):
             audio_bands[b] = torch.from_numpy(fx(audio_bands[b], rate))
-        out[:, :, :-1] = self.filter_bank.inverse(audio_bands[None, :, :])
+        out = self.filter_bank.inverse(audio_bands[None, :, :])
+        if same and (out.shape != audio.shape):
+            tmp = torch.zeros_like(audio)
+            tmp[:, :, :out.shape[-1]] = out
+            out = tmp
         return out[0]
