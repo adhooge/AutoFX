@@ -40,7 +40,6 @@ class FeaturesDataset(Dataset):
         params = self.snd_labels.iloc[item, 1:]
         params = torch.Tensor(params)
         features = self.features.iloc[item, 1:-1]
-        print(features)
         features = torch.Tensor(features)
         cln_resampled = self.transform(cln_sound)
         prc_resampled = self.transform(prc_sound)
