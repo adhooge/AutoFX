@@ -119,6 +119,9 @@ class MultiBandFX:
                 if self.num_fx >= 2 and params.ndim == 3:
                     board_settings = [_settings_list2dict(params[b][f], self.fx_per_band[f])
                                       for f in range(self.num_fx)]
+                elif isinstance(params[b], torch.Tensor):
+                    board_settings = [_settings_list2dict(params[b][f], self.fx_per_band[f])
+                                      for f in range(self.num_fx)]
                 else:
                     board_settings = params[b]
                 self.mbfx[b] = util.set_fx_params(self.mbfx[b], board_settings)

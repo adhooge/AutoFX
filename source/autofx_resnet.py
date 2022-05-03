@@ -14,13 +14,33 @@ import auraloss
 import torch
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch import nn
+import torch.nn.functional as F
 import pytorch_lightning as pl
 import sys
 from multiband_fx import MultiBandFX
 from math import floor
+import math
 from mbfx_layer import MBFxLayer
 from resnet_layers import ResNet
 sys.path.append('..')
+
+def log_cosh_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+    def _log_cosh(x: torch.Tensor) -> torch.Tensor:
+        return x + torch.nn.functional.softplus(-2. * x) - math.log(2.0)
+    return torch.mean(_log_cosh(y_pred - y_true))
+
+class LogCoshLoss(torch.nn.Module):
+    """
+    From:
+    https://datascience.stackexchange.com/questions/96271/logcoshloss-on-pytorch
+    """
+    def __init__(self):
+        super().__init__()
+
+    def forward(
+        self, y_pred: torch.Tensor, y_true: torch.Tensor
+    ) -> torch.Tensor:
+        return log_cosh_loss(y_pred, y_true)
 
 
 class AutoFX(pl.LightningModule):
@@ -50,8 +70,8 @@ class AutoFX(pl.LightningModule):
                  conv_ch: list[int] = [128, 128, 64, 64, 64, 64, 64], conv_k: list[int] = [3, 3, 5, 5, 5, 7, 7],
                  conv_stride: list[int] = [2, 2, 2, 2, 2, 1, 1],
                  fft_size: int = 1024, hop_size: int = 256, audiologs: int = 4, loss_weights: list[float] = [1, 1],
-                 mrstft_fft: list[int] = [256, 512, 1024, 2048],
-                 mrstft_hop: list[int] = [64, 128, 256, 512],
+                 mrstft_fft: list[int] = [64, 128, 256, 512, 1024, 2048],
+                 mrstft_hop: list[int] = [16, 32, 64, 128, 256, 512],
                  learning_rate: int = 0.001, out_of_domain: bool = False,
                  spectro_power: int = 2, mel_spectro: bool = True, mel_num_bands: int = 128,
                  loss_stamps: list = None,
@@ -61,11 +81,12 @@ class AutoFX(pl.LightningModule):
             total_num_bands = num_bands
         self.total_num_bands = total_num_bands
         self.mbfx = MultiBandFX(fx, total_num_bands, device=torch.device('cpu'))
-        self.num_params = num_bands * len(self.mbfx.settings[0])
-        self.resnet = ResNet(num_bands*len(fx))
+        self.num_params = num_bands * self.mbfx.total_num_params_per_band
+        self.resnet = ResNet(self.num_params)
         self.activation = nn.Sigmoid()
         self.learning_rate = learning_rate
-        self.loss = nn.L1Loss()
+        # self.loss = nn.L1Loss()
+        self.loss = LogCoshLoss()
         self.tracker_flag = tracker
         self.tracker = None
         self.mrstft = auraloss.freq.MultiResolutionSTFTLoss(mrstft_fft,

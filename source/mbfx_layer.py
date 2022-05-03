@@ -75,11 +75,11 @@ class MBFxLayer(nn.Module):
             fake_num_bands = mbfx.num_bands
         self.fake_num_bands = fake_num_bands
         self.mbfx = mbfx
-        self.num_params = fake_num_bands * len(self.mbfx.settings[0])
+        self.num_params = fake_num_bands * self.mbfx.total_num_params_per_band
         self.params = nn.Parameter(torch.empty(self.num_params))
         nn.init.constant_(self.params, 0.5)
         self.param_range = param_range
-        self.mbfx.set_fx_params(self.params, flat=True)
+        self.mbfx.set_fx_params(self.params, flat=True, param_range=self.param_range)
         self.rate = rate
 
     def forward(self, x, settings=None):
