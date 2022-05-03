@@ -14,7 +14,7 @@ def _make_perturbation_vector(shape):
 class MBFxFunction(torch.autograd.Function):
     @staticmethod
     def forward(ctx: Any, cln, settings, mbfx, rate, param_range, fake_num_bands: int = None,
-                eps=0.001, grad_x: bool = True, *args: Any, **kwargs: Any) -> Any:
+                eps=0.01, grad_x: bool = True, *args: Any, **kwargs: Any) -> Any:
         if fake_num_bands is None:
             fake_num_bands = mbfx.num_bands
         ctx.fake_num_bands = fake_num_bands

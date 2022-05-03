@@ -134,21 +134,26 @@ class MultiBandFX:
             for f in range(self.num_fx):
                 for p in range(self.num_params_per_band[f]):
                     eps = perturb[b*(self.num_params_per_band[f]) + p]
-                    scaled_eps = eps*(param_range[f][1] - param_range[f][0])
+                    scaled_eps = eps*(param_range[f][p][1] - param_range[f][p][0])
                     settings_list[b][f][p] += scaled_eps
+                    settings_list[b][f][p] = min(param_range[f][p][1], settings_list[b][f][p])
+                    settings_list[b][f][p] = max(param_range[f][p][0], settings_list[b][f][p])
         settings_list = torch.Tensor(settings_list).flatten()
         self.set_fx_params(settings_list.tolist(), flat=True)
 
     def fake_add_perturbation_to_fx_params(self, perturb, param_range, fake_num_bands):
-        # TODO: Ensure parameters do not exceed limits
-        # TODO: Deal with conversion between 0/1 and min/max
         settings_list = self.settings_list
+        if np.array(param_range).ndim == 2:
+            param_range = [param_range]
+        # print(param_range)
         for b in range(fake_num_bands):
             for f in range(self.num_fx):
                 for p in range(self.num_params_per_band[f]):
                     eps = perturb[b*(self.num_params_per_band[f]) + p]
-                    scaled_eps = eps*(param_range[f][1] - param_range[f][0])
+                    scaled_eps = eps*(param_range[f][p][1] - param_range[f][p][0])
                     settings_list[b][f][p] += scaled_eps
+                    settings_list[b][f][p] = min(param_range[f][p][1], settings_list[b][f][p])
+                    settings_list[b][f][p] = max(param_range[f][p][0], settings_list[b][f][p])
         settings_list = torch.Tensor(settings_list).flatten()
         self.set_fx_params(settings_list.tolist(), flat=True, param_range=None)
 
