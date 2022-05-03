@@ -44,7 +44,7 @@ class MBFxFunction(torch.autograd.Function):
         for i in range(batch_size):
             # TODO: Multiprocess implementation like DAFx?
             # Grad wrt to clean:
-            mbfx.set_fx_params(settings, flat=True)
+            mbfx.set_fx_params(settings, flat=True, param_range=ctx.param_range)
             snd = cln[i]
             if ctx.grad_x:
                 perturbation = _make_perturbation_vector(cln.shape)
@@ -57,10 +57,20 @@ class MBFxFunction(torch.autograd.Function):
             # Grad wrt to parameters
             Jy = torch.zeros((batch_size, num_settings))
             perturbation = _make_perturbation_vector((num_settings))
+            # print("before: ", mbfx.settings)
+            # print(snd)
             mbfx.fake_add_perturbation_to_fx_params(perturbation * ctx.eps, ctx.param_range, ctx.fake_num_bands)
+            # print("\n after add: ", mbfx.settings)
             J_plus = mbfx(snd, ctx.rate)
+            # print("Yo")
+            # print("J_plus: ", J_plus)
             mbfx.fake_add_perturbation_to_fx_params(-2 * perturbation * ctx.eps, ctx.param_range, ctx.fake_num_bands)
-            J_minus = mbfx(snd, ctx.rate)
+            # print("\nafter sub: ", mbfx.settings)
+            J_minus = mbfx(torch.clone(snd), ctx.rate)
+            # print("J_minus", J_minus)
+            # print("J_plus again", J_plus)
+            # print("wesh")
+            # print("J_plus: ", J_plus, "\nJ_minus: ", J_minus, "\nJ_plus - J_minus: ", J_plus - J_minus)
             mbfx.fake_add_perturbation_to_fx_params(perturbation * ctx.eps, ctx.param_range, ctx.fake_num_bands)
             for j in range(num_settings):
                 grady = (J_plus - J_minus) / (2 * ctx.eps * perturbation[j])

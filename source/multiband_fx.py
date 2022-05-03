@@ -106,7 +106,7 @@ class MultiBandFX:
             num_bands = self.num_bands
         params = torch.clone(torch.Tensor(settings))
         if param_range is None:
-            param_range = [(1, 1)] * (len(params) // num_bands)            # TODO: Make it FX agnostic
+            param_range = [(0, 1)] * (len(params) // num_bands)            # TODO: Make it FX agnostic
         for i in range(len(params)):
             params[i] = params[i] * (param_range[i//num_bands][1] - param_range[i//num_bands][0]) + param_range[i//num_bands][0]
         params = torch.Tensor(params)
@@ -150,7 +150,7 @@ class MultiBandFX:
                     scaled_eps = eps*(param_range[f][1] - param_range[f][0])
                     settings_list[b][f][p] += scaled_eps
         settings_list = torch.Tensor(settings_list).flatten()
-        self.set_fx_params(settings_list.tolist(), flat=True)
+        self.set_fx_params(settings_list.tolist(), flat=True, param_range=None)
 
     @property
     def fx_per_band(self):
