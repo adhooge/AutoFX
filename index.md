@@ -1,7 +1,7 @@
 ## Welcome to GitHub Pages
 
-TEST
-https://user-images.githubusercontent.com/101201023/167429644-8ea3df9d-9152-454d-8e88-f3c267f9e9c1.mp4
+TEST  
+![test](https://user-images.githubusercontent.com/101201023/167429644-8ea3df9d-9152-454d-8e88-f3c267f9e9c1.mp4)
 
 
 You can use the [editor on GitHub](https://github.com/adhooge/AutoFX/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
