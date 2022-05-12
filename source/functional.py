@@ -1,7 +1,7 @@
 """
 Functionals to be used for simpler representation of time changing-features.
 """
-
+import librosa.feature
 import numpy as np
 from numpy.typing import ArrayLike
 from config import DATA_DICT
@@ -56,6 +56,10 @@ def fft_max(feat):
     rfft[:16] = np.zeros(16)    # TODO: Find why?
     rfft_max = np.max(rfft)
     return rfft_max
+
+
+def estim_derivative(feat, **kwargs):
+    return librosa.feature.delta(feat, **kwargs)
 
 
 def feat_vector(feat: dict, pitch: float) -> dict:
