@@ -5,7 +5,7 @@ References:
     [1]: Geoffroy Peeters, Technical report of the CUIDADO project, 2003
     [2]: Tae Hong Park, Towards automatic musical instrument timbre recognition, 2004 (PhD thesis)
 """
-
+import librosa
 import numpy as np
 
 
@@ -224,3 +224,55 @@ def spectral_flatness(mag: np.ndarray, bands: int or list = 1, rate: float = Non
             arr = mag[band[0]:band[1], fr]
             flatness[fr, b] = _geom_mean(arr)/np.mean(arr)
     return flatness
+
+
+def get_mfcc(audio, rate, num_coeff):
+    mfcc = librosa.feature.mfcc(y=audio, sr=rate)
+    return mfcc[:num_coeff]
+
+
+def phase_fmax(sig):
+    """
+    Copied from:
+    https://github.com/henrikjuergens/guitar-fx-extraction/blob/442adab577a090e27de12d779a6d8a0aa917fe1f/featextr.py#L63
+    Analyses phase error of frequency bin with maximal amplitude
+        compared to pure sine wave"""
+    D = librosa.stft(y=sig, hop_length=256)[20:256]
+    S, P = librosa.core.magphase(D)
+    phase = np.angle(P)
+    # plots.phase_spectrogram(phase)
+
+    spec_sum = S.sum(axis=1)
+    max_bin = spec_sum.argmax()
+    phase_freq_max = phase[max_bin]
+    # plots.phase_fmax(phase_freq_max)
+
+    S_max_bin_mask = S[max_bin]
+    thresh = S[max_bin].max()/8
+    phase_freq_max = np.where(S_max_bin_mask > thresh, phase_freq_max, 0)
+    phase_freq_max_t = np.trim_zeros(phase_freq_max)  # Using only phase with strong signal
+
+    phase_fmax_straight_t = np.copy(phase_freq_max_t)
+    diff_mean_sign = np.mean(np.sign(np.diff(phase_freq_max_t)))
+    if diff_mean_sign > 0:
+        for i in range(1, len(phase_fmax_straight_t)):
+            if np.sign(phase_freq_max_t[i-1]) > np.sign(phase_freq_max_t[i]):
+                phase_fmax_straight_t[i:] += 2*np.pi
+    else:
+        for i in range(1, len(phase_fmax_straight_t)):
+            if np.sign(phase_freq_max_t[i - 1]) < np.sign(phase_freq_max_t[i]):
+                phase_fmax_straight_t[i:] -= 2 * np.pi
+
+    x_axis_t = np.arange(0, len(phase_fmax_straight_t))
+    coeff = np.polyfit(x_axis_t, phase_fmax_straight_t, 1)
+    linregerr_t = np.copy(phase_fmax_straight_t)
+    linregerr_t -= (coeff[0] * x_axis_t + coeff[1])
+    linregerr_t = np.reshape(linregerr_t, (1, len(linregerr_t)))
+    # plots.phase_error_unwrapped(phase_fmax_straight_t, coeff, x_axis_t)
+
+    return linregerr_t
+
+
+def pitch_curve(audio, rate, fmin, fmax):
+    f0, _ = librosa.pyin(audio, fmin=fmin, fmax=fmax)
+    return f0
