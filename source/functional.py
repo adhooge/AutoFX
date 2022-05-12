@@ -33,6 +33,31 @@ def f_kurt(arr: ArrayLike):
     return kurtosis(arr)
 
 
+def linear_regression(feat):
+    lin_coeff, lin_residual, _ = np.polyfit(np.arange(len(feat)), feat, 1, full=True)
+    return lin_coeff, lin_residual
+
+
+def quad_reg(feat):
+    quad_coeff, quad_residual, _ = np.polyfit(np.arange(len(feat)), feat, 2, full=True)
+    return quad_coeff, quad_residual
+
+
+def fft_max(feat):
+    """
+    https://github.com/henrikjuergens/guitar-fx-extraction/blob/master/featextr.py
+    :param feat:
+    :return:
+    """
+    dc_feat = feat - np.mean(feat)
+    dc_feat_w = dc_feat * np.hanning(len(dc_feat))
+    rfft = np.fft.rfft(dc_feat_w, 1024)
+    rfft = np.abs(rfft) * 4 / 1024
+    rfft[:16] = np.zeros(16)    # TODO: Find why?
+    rfft_max = np.max(rfft)
+    return rfft_max
+
+
 def feat_vector(feat: dict, pitch: float) -> dict:
     """
     Returns a dict of all the functionals listed in config.DATA_DICT from feat, a dictionary representing the
