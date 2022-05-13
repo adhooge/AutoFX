@@ -16,7 +16,10 @@ def main(parser):
     out_path = pathlib.Path(args['output_path'])
     out_csv = out_path / (args['name'] + '.csv')
     out_pkl = out_path / (args['name'] + '.pkl')
-    df = pd.read_csv(in_path / "params.csv")
+    if (in_path / "params.csv").exists():
+        df = pd.read_csv(in_path / "params.csv")
+    else:
+        df = pd.DataFrame()
     df['f-phase_fft_max'] = np.nan
     df['f-phase_freq'] = np.nan
     df['f-rms_fft_max'] = np.nan
@@ -44,9 +47,12 @@ def main(parser):
                 phase_fft_max, phase_freq = Fc.fft_max(phase)
                 rms_fft_max, rms_freq = Fc.fft_max(rms)
                 features = [phase_fft_max, phase_freq/512, rms_fft_max, rms_freq/512]
-                df.loc[df['Unnamed: 0'] == file.stem,
-                       ['f-phase_fft_max', 'f-phase_freq',
-                        'f-rms_fft_max', 'f-rms_freq']] = features
+                if 'Unnamed: 0' in df.columns:
+                    df.loc[df['Unnamed: 0'] == file.stem,
+                           ['f-phase_fft_max', 'f-phase_freq',
+                            'f-rms_fft_max', 'f-rms_freq']] = features
+                else:
+                    df.loc[file.stem] = features
     df.to_csv(out_csv)
     df.to_pickle(out_pkl)
     return 0
