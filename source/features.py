@@ -282,4 +282,4 @@ def pitch_curve(audio, rate, fmin, fmax):
 
 
 def rms_energy(audio):
-    return librosa.feature.rms(audio)
+    return librosa.feature.rms(y=audio)
