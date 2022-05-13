@@ -6,6 +6,7 @@ import pathlib
 import warnings
 from typing import Tuple, Any, List
 
+import librosa.onset
 import scipy.fftpack
 import pedalboard as pdb
 from pedalboard.io import AudioFile
@@ -489,3 +490,12 @@ def class_number2idmt_fx(cls: int) -> str:
             return 'Overdrive'
         case _:
             raise ValueError("Unknown FX")
+
+
+def cut2onset(audio, rate, pre_max: int = 20000, post_max: int = 20000, **kwargs):
+    onset = librosa.onset.onset_detect(y=audio, sr=rate, units='samples',
+                                       post_max=post_max, pre_max=pre_max, **kwargs)
+    if len(onset) >= 1:
+        raise ValueError("Several onsets detected. Aborting.")
+    else:
+        return audio[onset:]

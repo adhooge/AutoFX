@@ -1,7 +1,7 @@
 """
 Functionals to be used for simpler representation of time changing-features.
 """
-
+import librosa.feature
 import numpy as np
 from numpy.typing import ArrayLike
 from config import DATA_DICT
@@ -31,6 +31,35 @@ def f_skew(arr: ArrayLike):
 
 def f_kurt(arr: ArrayLike):
     return kurtosis(arr)
+
+
+def linear_regression(feat):
+    lin_coeff, lin_residual, _ = np.polyfit(np.arange(len(feat)), feat, 1, full=True)
+    return lin_coeff, lin_residual
+
+
+def quad_reg(feat):
+    quad_coeff, quad_residual, _ = np.polyfit(np.arange(len(feat)), feat, 2, full=True)
+    return quad_coeff, quad_residual
+
+
+def fft_max(feat):
+    """
+    https://github.com/henrikjuergens/guitar-fx-extraction/blob/master/featextr.py
+    :param feat:
+    :return:
+    """
+    dc_feat = feat - np.mean(feat)
+    dc_feat_w = dc_feat * np.hanning(len(dc_feat))
+    rfft = np.fft.rfft(dc_feat_w, 1024)
+    rfft = np.abs(rfft) * 4 / 1024
+    rfft[:16] = np.zeros(16)    # TODO: Find why?
+    rfft_max = np.max(rfft)
+    return rfft_max
+
+
+def estim_derivative(feat, **kwargs):
+    return librosa.feature.delta(feat, **kwargs)
 
 
 def feat_vector(feat: dict, pitch: float) -> dict:
