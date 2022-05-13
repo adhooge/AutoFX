@@ -43,8 +43,10 @@ def main(parser):
                 rms = Ft.rms_energy(audio)
                 phase_fft_max, phase_freq = Fc.fft_max(phase)
                 rms_fft_max, rms_freq = Fc.fft_max(rms)
-                features = [phase_fft_max, phase_freq, rms_fft_max, rms_freq]
-                df.loc[df['Unnamed: 0'] == file.stem, -4:] = features
+                features = [phase_fft_max, phase_freq/512, rms_fft_max, rms_freq/512]
+                df.loc[df['Unnamed: 0'] == file.stem,
+                       ['f-phase_fft_max', 'f-phase_freq',
+                        'f-rms_fft_max', 'f-rms_freq']] = features
     df.to_csv(out_csv)
     df.to_pickle(out_pkl)
     return 0
