@@ -53,9 +53,10 @@ def fft_max(feat):
     dc_feat_w = dc_feat * np.hanning(len(dc_feat))
     rfft = np.fft.rfft(dc_feat_w, 1024)
     rfft = np.abs(rfft) * 4 / 1024
-    rfft[:16] = np.zeros(16)    # TODO: Find why?
+    rfft[0, :16] = np.zeros(16)    # TODO: Find why?
     rfft_max = np.max(rfft)
-    return rfft_max
+    rfft_max_bin = np.argmax(rfft)
+    return rfft_max, rfft_max_bin
 
 
 def estim_derivative(feat, **kwargs):
