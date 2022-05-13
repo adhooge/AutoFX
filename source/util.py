@@ -9,6 +9,7 @@ from typing import Tuple, Any, List
 import librosa.onset
 import scipy.fftpack
 import pedalboard as pdb
+import torch
 from pedalboard.io import AudioFile
 import soundfile as sf
 import pickle
@@ -40,12 +41,12 @@ def get_fx_params(fx: pdb.Plugin or List[pdb.Plugin] or pdb.Pedalboard):
 
 
 def set_fx_params(fx: pdb.Plugin or List[pdb.Plugin] or pdb.Pedalboard, params: dict or List[dict]):
-    if isinstance(fx, List | pdb.Pedalboard) and isinstance(params, List | np.ndarray):
+    if isinstance(fx, List | pdb.Pedalboard) and isinstance(params, List | np.ndarray | torch.Tensor):
         if len(fx) != len(params):
             raise TypeError("Fx Board and Parameters list must have the same length.")
     if not isinstance(fx, List | pdb.Pedalboard):
         fx = [fx]
-    if not isinstance(params, List | np.ndarray):
+    if not isinstance(params, List | np.ndarray | torch.Tensor):
         params = [params]
     for i in range(len(params)):
         items = list(fx[i].__class__.__dict__.items())
@@ -495,7 +496,7 @@ def class_number2idmt_fx(cls: int) -> str:
 def cut2onset(audio, rate, pre_max: int = 20000, post_max: int = 20000, **kwargs):
     onset = librosa.onset.onset_detect(y=audio, sr=rate, units='samples',
                                        post_max=post_max, pre_max=pre_max, **kwargs)
-    if len(onset) >= 1:
+    if len(onset) > 1:
         raise ValueError("Several onsets detected. Aborting.")
     else:
-        return audio[onset:]
+        return audio[onset[0]:]
