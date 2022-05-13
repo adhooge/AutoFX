@@ -17,4 +17,4 @@ for file in tqdm(IN_PATH.iterdir()):
     if file.suffix == '.wav':
         audio, rate = sf.read(file)
         cut_audio = util.cut2onset(audio, rate)
-        sf.write(OUT_PATH / file.stem, cut_audio, rate)
+        sf.write(OUT_PATH / file.name, cut_audio, rate)
