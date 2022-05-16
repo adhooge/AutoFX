@@ -43,11 +43,14 @@ def quad_reg(feat):
     return quad_coeff, quad_residual
 
 
-def fft_max(feat):
+def fft_max(feat, num_max: int = 1, zero_half_width: int = None):
     """
     https://github.com/henrikjuergens/guitar-fx-extraction/blob/master/featextr.py
-    :param feat:
-    :return:
+    :param feat: Features to analyse
+    :param num_max: Number of fft max to retrieve;
+    :param zero_half_width: Half number of bins that should be zeroed before retrieving
+    a new maximum. 2*zero_half_width + 1 bins are zeroed, centered on the previous max.
+    :return: Lists (possibly of len==1) of fft max and argmax.
     """
     dc_feat = feat - np.mean(feat)
     dc_feat_w = dc_feat * np.hanning(len(dc_feat))
@@ -56,6 +59,18 @@ def fft_max(feat):
     rfft[0, :16] = np.zeros(16)    # TODO: Find why?
     rfft_max = np.max(rfft)
     rfft_max_bin = np.argmax(rfft)
+    rfft_max = [rfft_max]
+    rfft_max_bin = [rfft_max_bin]
+    if num_max > 1:
+        cnt = 1
+        zeros = np.zeros(2 * zero_half_width + 1)
+        while cnt < num_max:
+            low_bound = max(0, rfft_max_bin[cnt-1]-zero_half_width)
+            high_bound = min(513, rfft_max_bin[cnt-1]+zero_half_width + 1)
+            rfft[0, low_bound:high_bound] = zeros[:high_bound-low_bound]
+            rfft_max.append(np.max(rfft))
+            rfft_max_bin.append(np.argmax(rfft))
+            cnt += 1
     return rfft_max, rfft_max_bin
 
 
