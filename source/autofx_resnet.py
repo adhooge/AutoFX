@@ -23,6 +23,7 @@ import math
 from mbfx_layer import MBFxLayer
 from resnet_layers import ResNet
 sys.path.append('..')
+from losses import PitchLoss
 
 def log_cosh_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
     def _log_cosh(x: torch.Tensor) -> torch.Tensor:
@@ -72,7 +73,7 @@ class AutoFX(pl.LightningModule):
                  fft_size: int = 1024, hop_size: int = 256, audiologs: int = 4, loss_weights: list[float] = [1, 1],
                  mrstft_fft: list[int] = [64, 128, 256, 512, 1024, 2048],
                  mrstft_hop: list[int] = [16, 32, 64, 128, 256, 512],
-                 learning_rate: int = 0.001, out_of_domain: bool = False,
+                 learning_rate: float = 0.001, out_of_domain: bool = False,
                  spectro_power: int = 2, mel_spectro: bool = True, mel_num_bands: int = 128,
                  loss_stamps: list = None,
                  device=torch.device('cuda')):  # TODO: change
@@ -86,25 +87,30 @@ class AutoFX(pl.LightningModule):
         self.activation = nn.Sigmoid()
         self.learning_rate = learning_rate
         # self.loss = nn.L1Loss()
-        self.loss = LogCoshLoss()
+        self.loss = nn.MSELoss()
         self.tracker_flag = tracker
         self.tracker = None
         self.mrstft = auraloss.freq.MultiResolutionSTFTLoss(mrstft_fft,
                                                             mrstft_hop,
                                                             mrstft_fft,
-                                                            scale=None,
-                                                            n_bins=64,
+                                                            w_log_mag=1,
+                                                            w_lin_mag=1,
+                                                            w_phs=1,
                                                             sample_rate=rate,
                                                             device=device)  # TODO: Manage device properly
         # self.spectral_loss = auraloss.time.ESRLoss()
-        self.spectral_loss = self.mrstft
+        # self.spectral_loss = self.mrstft
+        self.spectral_loss = PitchLoss(rate=rate)
         # for stft_loss in self.mrstft.stft_losses:
         #    stft_loss = stft_loss.cuda()
         self.num_bands = num_bands
         self.param_range = param_range
         self.rate = rate
         self.out_of_domain = out_of_domain
-        self.loss_weights = loss_weights
+        if loss_stamps is None:
+            self.loss_weights = [1, 0]
+        else:
+            self.loss_weights = loss_weights
         if mel_spectro:
             self.spectro = torchaudio.transforms.MelSpectrogram(n_fft=fft_size, hop_length=hop_size,
                                                                 sample_rate=self.rate,
@@ -116,14 +122,20 @@ class AutoFX(pl.LightningModule):
         self.audiologs = audiologs
         self.tmp = None
         self.loss_stamps = loss_stamps
+        self.num_steps_per_epoch = None
+        self.num_steps_per_train = None
+        self.num_steps_per_valid = None
 
     def forward(self, x, *args, **kwargs) -> Any:
         out = self.spectro(x)
         out = self.resnet(out)
+        # print("before:", out)
         out = self.activation(out)
+        # print("after: ", out)
         return out
 
     def training_step(self, batch, batch_idx, *args, **kwargs) -> STEP_OUTPUT:
+        num_steps_per_epoch = len(self.trainer.train_dataloader) / self.trainer.accumulate_grad_batches
         if not self.out_of_domain:
             clean, processed, label = batch
         else:
@@ -137,28 +149,39 @@ class AutoFX(pl.LightningModule):
             for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
                 scalars[f'{i}'] = val
             self.logger.experiment.add_scalars("Param_distance/Train", scalars, global_step=self.global_step)
-            if self.loss_stamps is None:
-                self.loss_weights = [1, 0]
-            else:
+            if self.loss_stamps is not None:
+                # TODO: could be moved to optimizers
                 if self.trainer.current_epoch < self.loss_stamps[0]:  # TODO: make it cleaner
                     self.loss_weights = [1, 0]
                 elif self.trainer.current_epoch < self.loss_stamps[1]:
-                    weight = (self.trainer.current_epoch - self.loss_stamps[0]) / (self.loss_stamps[1] - self.loss_stamps[0])
+                    weight = (self.trainer.global_step - (self.loss_stamps[0] * num_steps_per_epoch))\
+                             / ((self.loss_stamps[1] - self.loss_stamps[0]) * num_steps_per_epoch)
                     self.loss_weights = [1 - weight, weight]
                 elif self.trainer.current_epoch >= self.loss_stamps[1]:
                     self.loss_weights = [0, 1]
         pred = pred.to("cpu")
         rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)
         for (i, snd) in enumerate(clean):
-            self.mbfx_layer.params = nn.Parameter(pred[i])
-            tmp = self.mbfx_layer.forward(snd.cpu())
+            # self.mbfx_layer.params = pred[i]
+            tmp = self.mbfx_layer.forward(snd.cpu(), pred[i])
             rec[i] = tmp
         self.tmp = rec
         if self.loss_weights[1] != 0 or self.out_of_domain:
-            spectral_loss = self.spectral_loss(rec, processed[:, 0, :])
+            # target_aligned, pred_aligned = time_align_signals(processed[:, 0, :], rec)
+            target_aligned, pred_aligned = processed[:, 0, :].clone(), rec.clone()
+            spec_loss = self.spectral_loss(pred_aligned, target_aligned)
+            time_loss = 0
+            # time_loss = self.time_loss(pred_aligned, target_aligned, aligned=True)
+            spectral_loss = spec_loss + 1000 * time_loss
         else:
             spectral_loss = 0
-        self.logger.experiment.add_scalar("Spectral_loss/Train",
+            spec_loss = 0
+            time_loss = 0
+        self.logger.experiment.add_scalar("Time_loss/Train",
+                                          time_loss, global_step=self.global_step)
+        self.logger.experiment.add_scalar("MRSTFT_loss/Train",
+                                          spec_loss, global_step=self.global_step)
+        self.logger.experiment.add_scalar("Total_Spectral_loss/Train",
                                           spectral_loss, global_step=self.global_step)
         if not self.out_of_domain:
             total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
@@ -172,8 +195,15 @@ class AutoFX(pl.LightningModule):
         pass
 
     def on_after_backward(self) -> None:
-        if self.out_of_domain or self.loss_weights[1] != 0:
-            self.logger.experiment.add_histogram("Grad/params", self.mbfx_layer.params.grad, global_step=self.global_step)
+        # print(self.mbfx_layer.params.grad_fn)
+        if self.out_of_domain or self.loss_weights[1] != 0 or True:
+            # pass
+            # self.logger.experiment.add_histogram("Grad/params", self.mbfx_layer.params.grad, global_step=self.global_step)
+            self.logger.experiment.add_histogram("Weights/resnet_fcl", self.resnet.fcl.weight, global_step=self.global_step)
+            self.logger.experiment.add_histogram("Grad/resnet_fcl", self.resnet.fcl.weight.grad, global_step=self.global_step)
+            self.logger.experiment.add_histogram("Weights/resnet_conv1", self.resnet.conv1[0].weight, global_step=self.global_step)
+            self.logger.experiment.add_histogram("Grad/resnet_conv1", self.resnet.conv1[0].weight.grad,
+                                                 global_step=self.global_step)
 
     def validation_step(self, batch, batch_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
         if not self.out_of_domain:
@@ -193,14 +223,43 @@ class AutoFX(pl.LightningModule):
         pred = pred.to("cpu")
         rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)  # TODO: fix hardcoded value
         for (i, snd) in enumerate(clean):
-            self.mbfx_layer.params = nn.Parameter(pred[i])
-            rec[i] = self.mbfx_layer.forward(snd)
+            # self.mbfx_layer.params = nn.Parameter(pred[i])
+            rec[i] = self.mbfx_layer.forward(snd, pred[i])
         if self.loss_weights[1] != 0 or self.out_of_domain:
-            spectral_loss = self.spectral_loss(rec, processed[:, 0, :-1])
+            # target_aligned, pred_aligned = time_align_signals(processed[:, 0, :], rec)
+            target_aligned, pred_aligned = processed[:, 0, :].clone(), rec.clone()
+            spec_loss = self.spectral_loss(pred_aligned, target_aligned)
+            time_loss = 0
+            # time_loss = self.time_loss(pred_aligned, target_aligned, aligned=True)
+            spectral_loss = spec_loss + 1000 * time_loss
         else:
             spectral_loss = 0
-        self.logger.experiment.add_scalar("Spectral_loss/test",
+            spec_loss = 0
+            time_loss = 0
+        self.logger.experiment.add_scalar("Time_loss/test",
+                                          time_loss, global_step=self.global_step)
+        self.logger.experiment.add_scalar("MRSTFT_loss/test",
+                                          spec_loss, global_step=self.global_step)
+        self.logger.experiment.add_scalar("Total_Spectral_loss/test",
                                           spectral_loss, global_step=self.global_step)
+        if not self.out_of_domain:
+            total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
+        else:
+            total_loss = spectral_loss
+        self.logger.experiment.add_scalar("Total_loss/test", total_loss, global_step=self.global_step)
+        return total_loss
+
+    def on_validation_end(self) -> None:
+        if not self.out_of_domain:
+            clean, processed, label = next(iter(self.trainer.val_dataloaders[0]))
+        else:
+            clean, processed = next(iter(self.trainer.val_dataloaders[0]))
+        pred = self.forward(processed.to(self.device))
+        pred = pred.to("cpu")
+        rec = torch.zeros(clean.shape[0], clean.shape[-1], device=self.device)  # TODO: fix hardcoded value
+        for (i, snd) in enumerate(clean):
+            # self.mbfx_layer.params = nn.Parameter(pred[i])
+            rec[i] = self.mbfx_layer.forward(snd, pred[i])
         for l in range(self.audiologs):
             self.logger.experiment.add_audio(f"Audio/{l}/Original", processed[l] / torch.max(torch.abs(processed[l])),
                                              sample_rate=self.rate, global_step=self.global_step)
@@ -211,12 +270,6 @@ class AutoFX(pl.LightningModule):
                 self.logger.experiment.add_text(f"Audio/{l}/Matched_params", str(pred[l]), global_step=self.global_step)
                 self.logger.experiment.add_text(f"Audio/{l}/Original_params", str(label[l]),
                                                 global_step=self.global_step)
-        if not self.out_of_domain:
-            total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
-        else:
-            total_loss = spectral_loss
-        self.logger.experiment.add_scalar("Total_loss/test", total_loss, global_step=self.global_step)
-        return total_loss
 
     def on_train_epoch_start(self) -> None:
         if self.tracker_flag and self.tracker is None:
