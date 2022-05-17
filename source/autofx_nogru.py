@@ -52,7 +52,7 @@ class AutoFX(pl.LightningModule):
                  fft_size: int = 1024, hop_size: int = 256, audiologs: int = 4, loss_weights: list[float] = [1, 1],
                  mrstft_fft: list[int] = [256, 512, 1024, 2048],
                  mrstft_hop: list[int] = [64, 128, 256, 512],
-                 learning_rate: int = 0.001, out_of_domain: bool = False,
+                 learning_rate: float = 0.001, out_of_domain: bool = False,
                  spectro_power: int = 2, mel_spectro: bool = True, mel_num_bands: int = 128,
                  loss_stamps: list = None,
                  device=torch.device('cuda')):  # TODO: change
@@ -124,7 +124,6 @@ class AutoFX(pl.LightningModule):
             clean, processed, label = batch
         else:
             clean, processed = batch
-        clean.requires_grad_()
         batch_size = processed.shape[0]
         pred = self.forward(processed)
         if not self.out_of_domain:
@@ -158,7 +157,7 @@ class AutoFX(pl.LightningModule):
         self.logger.experiment.add_scalar("Spectral_loss/Train",
                                           spectral_loss, global_step=self.global_step)
         if not self.out_of_domain:
-            total_loss = 10 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
+            total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
         else:
             total_loss = spectral_loss
         self.logger.experiment.add_scalar("Total_loss/Train", total_loss, global_step=self.global_step)
@@ -177,6 +176,7 @@ class AutoFX(pl.LightningModule):
             clean, processed, label = batch
         else:
             clean, processed = batch
+        clean = clean.to("cpu")
         batch_size = processed.shape[0]
         pred = self.forward(processed)
         if not self.out_of_domain:
@@ -190,7 +190,7 @@ class AutoFX(pl.LightningModule):
         rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)  # TODO: fix hardcoded value
         for (i, snd) in enumerate(clean):
             self.mbfx_layer.params = nn.Parameter(pred[i])
-            rec[i] = self.mbfx_layer.forward(snd.cpu())
+            rec[i] = self.mbfx_layer.forward(snd)
         if self.loss_weights[1] != 0 or self.out_of_domain:
             spectral_loss = self.spectral_loss(rec, processed[:, 0, :-1])
         else:
@@ -208,7 +208,7 @@ class AutoFX(pl.LightningModule):
                 self.logger.experiment.add_text(f"Audio/{l}/Original_params", str(label[l]),
                                                 global_step=self.global_step)
         if not self.out_of_domain:
-            total_loss = 10 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
+            total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
         else:
             total_loss = spectral_loss
         self.logger.experiment.add_scalar("Total_loss/test", total_loss, global_step=self.global_step)
