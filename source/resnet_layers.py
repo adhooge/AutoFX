@@ -3,6 +3,7 @@ ResNet block based on https://pytorch-tutorial.readthedocs.io/en/latest/tutorial
 Reference:
 https://arxiv.org/pdf/1512.03385.pdf
 """
+import math
 
 import torch
 from torch import nn
@@ -25,10 +26,12 @@ class ResNetBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride: int = 1, downsample=None):
         super().__init__()
         self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size, stride, kernel_size//2)
+        nn.init.xavier_normal_(self.conv1.weight, gain=math.sqrt(2))
         self.bn1 = nn.BatchNorm2d(out_channels)
         self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size, padding=kernel_size//2)
+        nn.init.xavier_normal_(self.conv2.weight, gain=math.sqrt(2))
         self.bn2 = nn.BatchNorm2d(out_channels)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU(inplace=False)
         self.downsample = downsample
 
     def forward(self, x):
@@ -47,13 +50,14 @@ class ResNetBlock(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, num_params):
+    def __init__(self, num_params, end_with_fcl: bool = True):
         super(ResNet, self).__init__()
         self.conv1 = nn.Sequential(
             nn.Conv2d(1, 64, 7, 2, 3, bias=False),
             nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True)
+            nn.ReLU(inplace=False)
         )
+        nn.init.xavier_normal_(self.conv1[0].weight, gain=math.sqrt(2))
         self.maxpool = nn.MaxPool2d(3, 2, 1)
         self.block1_1 = ResNetBlock(64, 64, 3)
         self.block1_2 = ResNetBlock(64, 64, 3)
@@ -62,7 +66,10 @@ class ResNet(nn.Module):
         self.block3_1 = ResNetBlock(128, 256, 3, 2, Downsampler(128, 256, 2))
         self.block3_2 = ResNetBlock(256, 256, 3)
         self.avgpool = nn.AvgPool2d(8)
-        self.fcl = nn.Linear(22144, num_params)
+        self.end_with_fcl = end_with_fcl
+        if end_with_fcl:
+            self.fcl = nn.Linear(256, num_params)
+            nn.init.xavier_normal_(self.fcl.weight, gain=math.sqrt(2))
 
     def forward(self, x):
         out = self.conv1(x)
@@ -75,5 +82,6 @@ class ResNet(nn.Module):
         out = self.block3_2(out)
         out = self.avgpool(out)
         out = torch.flatten(out, start_dim=1)
-        out = self.fcl(out)
+        if self.end_with_fcl:
+            out = self.fcl(out)
         return out
