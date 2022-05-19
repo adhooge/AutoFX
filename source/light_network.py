@@ -20,7 +20,8 @@ class LightNetwork(pl.LightningModule):
         self.hidden_size = hidden_layer_size
         self.out_size = output_size
         self.linear1 = nn.Linear(self.in_feat, self.hidden_size)
-        self.linear2 = nn.Linear(self.hidden_size, self.out_size)
+        self.linear2 = nn.Linear(self.hidden_size, self.hidden_size)
+        self.linear3 = nn.Linear(self.hidden_size, self.out_size)
         self.activation = nn.Sigmoid()
         self.relu = nn.ReLU()
         self.norm = nn.BatchNorm1d(self.in_feat)
@@ -39,6 +40,8 @@ class LightNetwork(pl.LightningModule):
         out = self.linear1(out)
         out = self.relu(out)
         out = self.linear2(out)
+        out = self.relu(out)
+        out = self.linear3(out)
         out = self.activation(out)
         return out
 
@@ -49,7 +52,7 @@ class LightNetwork(pl.LightningModule):
             _, _, feat, label = batch
             pred = self.forward(feat)
             loss = self.loss(pred, label)
-            self.logger.experiment.add_scalar("Loss/Train", loss, global_step=self.global_step)
+            self.logger.experiment.add_scalar("Param_loss/Train", loss, global_step=self.global_step)
             scalars = {}
             for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
                 scalars[f'{i}'] = val
@@ -78,6 +81,7 @@ class LightNetwork(pl.LightningModule):
                 # self.mbfx_layer.params = nn.Parameter(pred[i])
                 rec[i] = self.mbfx_layer.forward(snd, pred[i])
             if self.loss_weights[1] != 0:
+                pass
                 # target_aligned, pred_aligned = time_align_signals(processed[:, 0, :], rec)
                 target_aligned, pred_aligned = processed[:, 0, :].clone(), rec.clone()
                 spec_loss = self.spectral_loss(pred_aligned, target_aligned)
@@ -112,6 +116,7 @@ class LightNetwork(pl.LightningModule):
             self.logger.experiment.add_audio(f"Audio/{l}/Matched", rec[l] / torch.max(torch.abs(rec[l])),
                                              sample_rate=self.rate, global_step=self.global_step)
             self.logger.experiment.add_text(f"Audio/{l}/Predicted_params", str(pred[l]), global_step=self.global_step)
+            self.logger.experiment.add_text(f"Audio/{l}/Original_params", str(label[l]), global_step=self.global_step)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)

@@ -11,14 +11,14 @@ import pedalboard as pdb
 CLEAN_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_dry_22050_cut")
 PROCESSED_PATH = pathlib.Path("/home/alexandre/dataset/modulation_guitar_mono_cut")
 OUT_OF_DOMAIN_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_modulation_22050_cut")
-NUM_EPOCHS = 80
+NUM_EPOCHS = 500
 PARAM_RANGE = [(0.1, 10), (0, 1), (0, 20), (0, 1), (0, 1)]
 
 logger = TensorBoardLogger("/home/alexandre/logs", name="lite_modulation")
 
 datamodule = FeaturesDataModule(CLEAN_PATH, PROCESSED_PATH, OUT_OF_DOMAIN_PATH)
 
-lite_network = LightNetwork(4, 32, 5, [pdb.Chorus], PARAM_RANGE)
+lite_network = LightNetwork(28, 128, 5, [pdb.Chorus], PARAM_RANGE)
 checkpoint_callback = ModelCheckpoint(every_n_epochs=5, save_top_k=-1)
 
 trainer = pl.Trainer(gpus=1, logger=logger, max_epochs=NUM_EPOCHS, auto_select_gpus=True,
