@@ -2,23 +2,18 @@
 Dataset class for spectrogram from audio.
 """
 import pathlib
-from typing import List
-
-import pedalboard as pdb
 
 import torch
 import torchaudio
 import pandas as pd
 from torch import nn
 from torch.utils.data import Dataset
-from multiband_fx import MultiBandFX
-import util
 
 
 class MBFXDataset(Dataset):
     def __init__(self, params_file: str or pathlib.Path,
                  cln_snd_dir: str or pathlib.Path, prc_snd_dir: str or pathlib.Path, rate: int,
-                 resampling_rate: int = 16000, **kwargs):
+                 resampling_rate: int = 22050, **kwargs):
         self.snd_labels = pd.read_csv(params_file)
         self.cln_snd_dir = pathlib.Path(cln_snd_dir)
         self.prc_snd_dir = pathlib.Path(prc_snd_dir)
