@@ -25,21 +25,24 @@ class MBFxFunction(torch.autograd.Function):
         ctx.param_range = param_range
         ctx.save_for_backward(cln, settings)
         tmp = cln.clone()
+        params = settings.clone()
         if tmp.ndim == 1:
             tmp = tmp[None, :]
         out = torch.zeros_like(tmp)
         for (i, snd) in enumerate(tmp):
-            mbfx.set_fx_params(settings, flat=True, param_range=param_range)
+            # print(params)
+            mbfx.set_fx_params(params, flat=True, param_range=param_range)
             out[i] = mbfx(snd, rate)
         return out
 
     @staticmethod
     def backward(ctx: Any, *grad_outputs: Any) -> Any:
-        cln, settings, = ctx.saved_tensors
+        cln, params, = ctx.saved_tensors
         if cln.ndim == 1:
             cln = cln[None, :]
         batch_size = grad_outputs[0].shape[0]
         mbfx = ctx.mbfx
+        settings = params.clone()
         num_settings = ctx.mbfx.total_num_params_per_band * ctx.fake_num_bands
         for i in range(batch_size):
             # TODO: Multiprocess implementation like DAFx?
@@ -86,15 +89,14 @@ class MBFxLayer(nn.Module):
         self.fake_num_bands = fake_num_bands
         self.mbfx = mbfx
         self.num_params = fake_num_bands * self.mbfx.total_num_params_per_band
-        self.params = nn.Parameter(torch.empty(self.num_params))
-        nn.init.constant_(self.params, 0.5)
+        params = torch.ones(self.num_params, requires_grad=True) * 0.5
+        # self.params = nn.Parameter(torch.empty(self.num_params))
+        # nn.init.constant_(self.params, 0.5)
         self.param_range = param_range
-        self.mbfx.set_fx_params(self.params, flat=True, param_range=self.param_range)
+        self.mbfx.set_fx_params(params, flat=True, param_range=self.param_range)
         self.rate = rate
 
-    def forward(self, x, settings=None):
-        if settings is None:
-            settings = self.params
+    def forward(self, x, settings):
         processed = MBFxFunction.apply(x, settings, self.mbfx, self.rate, self.param_range, self.fake_num_bands)
         return processed  # TODO: check
 
