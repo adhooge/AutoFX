@@ -38,6 +38,7 @@ def main(parser: argparse.ArgumentParser):
         if not in_path.is_dir():
             raise NotADirectoryError("Input path is not a directory.")
         d = 0
+        f = 0
         for child in tqdm(in_path.iterdir()):
             child = pathlib.Path(child)
             if child.is_dir():
@@ -55,6 +56,17 @@ def main(parser: argparse.ArgumentParser):
                         if sample.id is None:
                             sample.info['id'] = int(str(d) + str(f))
                         dframe.loc[str(sample.id) + child.name] = func
+            elif child.suffix == '.wav':
+                file = child
+                f += 1
+                sample = SoundSample(file, idmt=args['idmt'], phil=args['phil'])
+                sample.set_stft(fft_size=args['fft_size'])
+                sample.set_spectral_features(flux_q_norm=args['q_norm'])
+                func = functional.feat_vector(sample.spectral_features, sample.pitch)
+                # func['target_name'] = sample.fx
+                if sample.id is None:
+                    sample.info['id'] = int(str(d) + str(f))
+                dframe.loc[str(sample.id) + child.name] = func
     dframe.to_csv(out_csv)
     dframe.to_pickle(out_pkl)
     return 0
