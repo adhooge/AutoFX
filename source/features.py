@@ -276,9 +276,17 @@ def phase_fmax(sig):
     return linregerr_t
 
 
-def pitch_curve(audio, rate, fmin, fmax):
-    f0, _ = librosa.pyin(audio, fmin=fmin, fmax=fmax, sr=rate)
-    return f0
+def pitch_curve(audio, rate, fmin, fmax, default_f: float = None):
+    """
+    fmin and fmax need to be quite far from one another for the algorithm to work
+    :param audio:
+    :param rate:
+    :param fmin:
+    :param fmax:
+    :return:
+    """
+    f0 = librosa.pyin(y=audio, fmin=int(fmin), fmax=int(fmax), sr=rate, fill_na=default_f)
+    return f0[0]
 
 
 def rms_energy(audio):
