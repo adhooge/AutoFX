@@ -15,9 +15,53 @@ import pedalboard as pdb
 from mbfx_layer import MBFxLayer
 from multiband_fx import MultiBandFX
 from resnet_layers import ResNet
+import functional as Fc
+import features as Ft
+import torchaudio
 
 
 class CAFx(pl.LightningModule):
+    def compute_features(self, audio):
+        pitch = torchaudio.functional.detect_pitch_frequency(audio, self.rate)
+        phase = Ft.phase_fmax(audio)
+        rms = Ft.rms_energy(audio)
+        pitch_delta = Fc.estim_derivative(pitch)
+        phase_delta = Fc.estim_derivative(phase)
+        rms_delta = Fc.estim_derivative(rms)
+        pitch_fft_max, pitch_freq = Fc.fft_max(pitch,
+                                               num_max=2,
+                                               zero_half_width=32)
+        pitch_delta_fft_max, pitch_delta_freq = Fc.fft_max(pitch_delta,
+                                                           num_max=2,
+                                                           zero_half_width=32)
+        rms_delta_fft_max, rms_delta_freq = Fc.fft_max(rms_delta,
+                                                       num_max=2,
+                                                       zero_half_width=32)
+        phase_delta_fft_max, phase_delta_freq = Fc.fft_max(phase_delta,
+                                                           num_max=2,
+                                                           zero_half_width=32)
+        phase_fft_max, phase_freq = Fc.fft_max(phase, num_max=2, zero_half_width=32)
+        rms_fft_max, rms_freq = Fc.fft_max(rms, num_max=2, zero_half_width=32)
+        rms_std = Fc.f_std(rms)
+        rms_skew = Fc.f_skew(rms[0])
+        rms_delta_std = Fc.f_std(rms_delta)
+        rms_delta_skew = Fc.f_skew(rms_delta[0])
+        features = torch.cat((phase_fft_max[:, 0], phase_freq[:, 0] / 512,
+                              rms_fft_max[:, 0], rms_freq[:, 0] / 512,
+                              phase_fft_max[:, 1], phase_freq[:, 1] / 512,
+                              rms_fft_max[:, 1], rms_freq[:, 1] / 512,
+                              rms_delta_fft_max[:, 0], rms_delta_freq[:, 0] / 512,
+                              rms_delta_fft_max[:, 1], rms_delta_freq[:, 1] / 512,
+                              phase_delta_fft_max[:, 0], phase_delta_freq[:, 0] / 512,
+                              phase_delta_fft_max[:, 1], phase_delta_freq[:, 1] / 512,
+                              pitch_delta_fft_max[:, 0], pitch_delta_freq[:, 0] / 512,
+                              pitch_delta_fft_max[:, 1], pitch_delta_freq[:, 1] / 512,
+                              pitch_fft_max[:, 0], pitch_freq[:, 0] / 512,
+                              pitch_fft_max[:, 1], pitch_freq[:, 1] / 512,
+                              rms_std, rms_delta_std, rms_skew, rms_delta_skew
+                              ), dim=-1)
+        return features
+
     def __init__(self, fx: pdb.Plugin, num_bands: int, param_range: List[Tuple],
                  cond_feat: int,
                  tracker: bool = False,
@@ -73,6 +117,7 @@ class CAFx(pl.LightningModule):
         self.num_steps_per_epoch = None
         self.num_steps_per_train = None
         self.num_steps_per_valid = None
+        self.save_hyperparameters()
 
     def forward(self, x, feat, *args, **kwargs) -> Any:
         out = self.spectro(x)
@@ -91,7 +136,7 @@ class CAFx(pl.LightningModule):
         else:
             clean, processed, feat = batch
         batch_size = processed.shape[0]
-        pred = self.forward(processed)
+        pred = self.forward(processed, feat)
         if not self.out_of_domain:
             loss = self.loss(pred, label)
             self.logger.experiment.add_scalar("Param_loss/Train", loss, global_step=self.global_step)
@@ -115,8 +160,9 @@ class CAFx(pl.LightningModule):
             for (i, snd) in enumerate(clean):
                 tmp = self.mbfx_layer.forward(snd.cpu(), pred[i])
                 rec[i] = tmp
-            target_aligned, pred_aligned = processed[:, 0, :].clone(), rec.clone()
-            spec_loss = self.spectral_loss(pred_aligned, target_aligned)
+            target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(
+                torch.abs(rec))
+            spec_loss = self.spectral_loss(pred_normalized, target_normalized)
             spectral_loss = spec_loss
         else:
             spectral_loss = 0
@@ -124,52 +170,55 @@ class CAFx(pl.LightningModule):
         self.logger.experiment.add_scalar("Total_Spectral_loss/Train",
                                           spectral_loss, global_step=self.global_step)
         if not self.out_of_domain:
-            total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
+            total_loss = 1000 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
         else:
             total_loss = spectral_loss
         self.logger.experiment.add_scalar("Total_loss/Train", total_loss, global_step=self.global_step)
         return total_loss
 
-    def validation_step(self, batch, batch_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
-        if not self.out_of_domain:
-            clean, processed, feat, label = batch
+    def validation_step(self, batch, batch_idx, dataloader_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
+        if dataloader_idx == 1:
+            pass
         else:
-            clean, processed, feat = batch
-        clean = clean.to("cpu")
-        batch_size = processed.shape[0]
-        pred = self.forward(processed)
-        if not self.out_of_domain:
-            loss = self.loss(pred, label)
-            self.logger.experiment.add_scalar("Param_loss/test", loss, global_step=self.global_step)
-            scalars = {}
-            for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
-                scalars[f'{i}'] = val
-            self.logger.experiment.add_scalars("Param_distance/test", scalars, global_step=self.global_step)
-        if self.loss_weights[1] != 0 or self.out_of_domain:
-            pred = pred.to("cpu")
-            rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)  # TODO: fix hardcoded value
-            for (i, snd) in enumerate(clean):
-                rec[i] = self.mbfx_layer.forward(snd, pred[i])
-            target_aligned, pred_aligned = processed[:, 0, :].clone(), rec.clone()
-            spec_loss = self.spectral_loss(pred_aligned, target_aligned)
-            spectral_loss = spec_loss
-        else:
-            spectral_loss = 0
-        self.logger.experiment.add_scalar("Total_Spectral_loss/test",
-                                          spectral_loss, global_step=self.global_step)
-        if not self.out_of_domain:
-            total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
-        else:
-            total_loss = spectral_loss
-        self.logger.experiment.add_scalar("Total_loss/test", total_loss, global_step=self.global_step)
-        return total_loss
+            if not self.out_of_domain:
+                clean, processed, feat, label = batch
+            else:
+                clean, processed, feat = batch
+            clean = clean.to("cpu")
+            batch_size = processed.shape[0]
+            pred = self.forward(processed, feat)
+            if not self.out_of_domain:
+                loss = self.loss(pred, label)
+                self.logger.experiment.add_scalar("Param_loss/test", loss, global_step=self.global_step)
+                scalars = {}
+                for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
+                    scalars[f'{i}'] = val
+                self.logger.experiment.add_scalars("Param_distance/test", scalars, global_step=self.global_step)
+            if self.loss_weights[1] != 0 or self.out_of_domain:
+                pred = pred.to("cpu")
+                rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)  # TODO: fix hardcoded value
+                for (i, snd) in enumerate(clean):
+                    rec[i] = self.mbfx_layer.forward(snd, pred[i])
+                target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(torch.abs(rec))
+                spec_loss = self.spectral_loss(pred_normalized, target_normalized)
+                spectral_loss = spec_loss
+            else:
+                spectral_loss = 0
+            self.logger.experiment.add_scalar("Total_Spectral_loss/test",
+                                              spectral_loss, global_step=self.global_step)
+            if not self.out_of_domain:
+                total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
+            else:
+                total_loss = spectral_loss
+            self.logger.experiment.add_scalar("Total_loss/test", total_loss, global_step=self.global_step)
+            return total_loss
 
     def on_validation_end(self) -> None:
         if not self.out_of_domain:
             clean, processed, feat, label = next(iter(self.trainer.val_dataloaders[0]))
         else:
             clean, processed, feat = next(iter(self.trainer.val_dataloaders[0]))
-        pred = self.forward(processed.to(self.device))
+        pred = self.forward(processed.to(self.device), feat.to(self.device))
         pred = pred.to("cpu")
         rec = torch.zeros(clean.shape[0], clean.shape[-1], device=self.device)  # TODO: fix hardcoded value
         for (i, snd) in enumerate(clean):
