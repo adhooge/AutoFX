@@ -1,7 +1,7 @@
 import pathlib
 import pandas as pd
 
-FX_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_non-linear_22050")
+FX_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_modulation_22050")
 CLEAN_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_dry_22050")
 
 

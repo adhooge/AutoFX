@@ -6,8 +6,8 @@ import util
 import pathlib
 import soundfile as sf
 
-IN_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_modulation_22050")
-OUT_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_modulation_22050_cut")
+IN_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_dry_22050")
+OUT_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_dry_22050_cut")
 
 if not OUT_PATH.exists():
     os.mkdir(OUT_PATH)
