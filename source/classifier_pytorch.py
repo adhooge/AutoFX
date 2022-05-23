@@ -15,6 +15,7 @@ from ignite.metrics.confusion_matrix import ConfusionMatrix
 
 from pytorch_lightning.loggers import TensorBoardLogger
 
+
 import source.util as util
 
 
@@ -69,7 +70,8 @@ class MLPClassifier(pl.LightningModule):
 
     def __init__(self, input_size: int, output_size: int,
                  hidden_size: int, activation: str, solver: str,
-                 max_iter: int, learning_rate: float = 0.001):
+                 max_iter: int, learning_rate: float = 0.0001,
+                 tol: float = 1e-4):
         super(MLPClassifier, self).__init__()
         self.input_size = input_size
         self.output_size = output_size
