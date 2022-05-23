@@ -185,23 +185,30 @@ def spectral_kurtosis(*, mag: np.ndarray = None, stft: np.ndarray or Tensor = No
         return kurt
 
 
-def spectral_flux(mag: np.ndarray, q_norm: int = 1):
+def spectral_flux(mag: np.ndarray or Tensor, q_norm: int = 1,
+                  torch_compat: bool = True) -> np.ndarray or Tensor:
     """
     Amount of frame-to-frame fluctuation in time.
     See: Tae Hong Park, Towards automatic musical instrument timbre recognition, 2004 (PhD thesis)
 
-    :param mag: (num_frames, N_fft) Matrix of the frame-by-frame magnitude;
+    :param mag: (N_fft, num_frames) Matrix of the frame-by-frame magnitude;
     :param q_norm: order of the q norm to use. Defaults to 1;
-    :return flux: (num_frames, 1) matrix of the spectral flux, set to 0 for the first frame.
+    :param torch_compat: enable torch-compatible computation. Default is False;
+    :return flux: (1, num_frames) matrix of the spectral flux, set to 0 for the first frame.
     """
-    if mag.ndim == 1:
-        raise ValueError("Spectral flux cannot be computed on a single frame.")
-    num_frames = mag.shape[1]
-    flux = np.zeros((num_frames, 1))
-    for fr in range(1, num_frames):
-        diff = mag[:, fr] - mag[:, fr - 1]
-        flux[fr] = (np.sum(np.power(np.abs(diff), q_norm))) ** (1 / q_norm)
-    return flux
+    if torch_compat:
+        diff = torch.diff(mag, n=1, dim=-1)
+        flux = torch.pow(torch.sum(torch.pow(torch.abs(diff), q_norm)), 1/q_norm)
+        return flux
+    else:
+        if mag.ndim == 1:
+            raise ValueError("Spectral flux cannot be computed on a single frame.")
+        num_frames = mag.shape[1]
+        flux = np.zeros((num_frames, 1))
+        for fr in range(1, num_frames):
+            diff = mag[:, fr] - mag[:, fr - 1]
+            flux[fr] = (np.sum(np.power(np.abs(diff), q_norm))) ** (1 / q_norm)
+        return flux
 
 
 def spectral_rolloff(mag: np.ndarray, threshold: float = 0.95, freq: np.ndarray = None):
