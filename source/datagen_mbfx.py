@@ -1,3 +1,4 @@
+import os
 import pathlib
 import warnings
 
@@ -13,7 +14,7 @@ from tqdm.auto import tqdm
 
 # warnings.filterwarnings("ignore", category=FutureWarning)
 
-DATA_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_dry_22050")
+DATA_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_dry_22050_cut")
 NUM_BANDS = 1
 NUM_CHANGED_BANDS = 1
 FX = [pdb.Reverb()]
@@ -33,7 +34,7 @@ MIX_MIN = 0
 MIX_MAX = 1
 PARAM_RANGE = [(0, 1), (0, 1), (0, 1), (0, 1), (0, 1), (0, 0)]
 PARAMS = ["p-room_size", "p-damping", "p-wet_level", "p-dry_level", "p-width"]
-OUT_PATH = pathlib.Path("/home/alexandre/dataset/reverb_gen")
+OUT_PATH = pathlib.Path("/home/alexandre/dataset/reverb_gen_cut")
 
 NUM_RUNS = 20
 
@@ -41,6 +42,8 @@ NUM_RUNS = 20
 
 dataframe = pd.DataFrame(columns=PARAMS, dtype='float64')
 mbfx = MultiBandFX(FX, NUM_BANDS)
+if not(OUT_PATH.exists()):
+    os.mkdir(OUT_PATH)
 if (OUT_PATH / "params.csv").exists():
     raise ValueError("Output directory already has a params.csv file. Aborting.")
 for i in tqdm(range(NUM_RUNS), position=1):
