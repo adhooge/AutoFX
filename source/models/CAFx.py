@@ -12,11 +12,11 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch import nn
 import pedalboard as pdb
 
-from mbfx_layer import MBFxLayer
-from multiband_fx import MultiBandFX
-from resnet_layers import ResNet
-import functional as Fc
-import features as Ft
+from source.models.mbfx_layer import MBFxLayer
+from source.multiband_fx import MultiBandFX
+from source.models.resnet_layers import ResNet
+import data.functional as Fc
+import data.features as Ft
 import torchaudio
 
 

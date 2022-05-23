@@ -17,13 +17,13 @@ from torch import nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
 import sys
-from multiband_fx import MultiBandFX
+from source.multiband_fx import MultiBandFX
 from math import floor
 import math
-from mbfx_layer import MBFxLayer
-from resnet_layers import ResNet
+from source.models.mbfx_layer import MBFxLayer
+from source.models.resnet_layers import ResNet
 sys.path.append('../..')
-from losses import PitchLoss
+from source.losses import PitchLoss
 
 def log_cosh_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
     def _log_cosh(x: torch.Tensor) -> torch.Tensor:

@@ -2,7 +2,7 @@ from typing import Any
 
 import torch
 import torch.nn as nn
-from multiband_fx import MultiBandFX
+from source.multiband_fx import MultiBandFX
 from torch.autograd import gradcheck
 import pedalboard as pdb
 
