@@ -4,8 +4,8 @@ import warnings
 
 import numpy as np
 
-from multiband_fx import MultiBandFX
-import util
+from source.multiband_fx import MultiBandFX
+import source.util as util
 import random
 import pedalboard as pdb
 import pandas as pd
