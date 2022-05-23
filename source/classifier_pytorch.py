@@ -112,7 +112,7 @@ class MLPClassifier(pl.LightningModule):
         self.prec.update((classes, label))
         self.accuracy.update((classes, label))
         self.recall.update((classes, label))
-        self.confusion_matrix.update((classes, label))
+        # self.confusion_matrix.update((classes, label))
         precision = self.prec.compute()
         self.logger.experiment.add_scalars("Metrics/Precision",
                                            dict(zip(CLASSES, precision)),
@@ -125,11 +125,11 @@ class MLPClassifier(pl.LightningModule):
         self.logger.experiment.add_scalars("Metrics/Recall",
                                            dict(zip(CLASSES, recall)),
                                            global_step=self.global_step)
-        confusion_matrix = self.confusion_matrix.compute()
-        fig = util.make_confusion_matrix(confusion_matrix.numpy(),
-                                         group_names=CLASSES)
-        self.logger.experiment.add_figure("Metrics/Confusion_matrix",
-                                          fig, global_step=self.global_step)
+        # confusion_matrix = self.confusion_matrix.compute()
+        # fig = util.make_confusion_matrix(confusion_matrix.numpy(),
+        #                                 group_names=CLASSES)
+        # self.logger.experiment.add_figure("Metrics/Confusion_matrix",
+        #                                  fig, global_step=self.global_step)
         return loss
 
     def configure_optimizers(self):
@@ -171,13 +171,13 @@ test_dataloader = DataLoader(test_dataset, batch_size=256, num_workers=4)
 clf = MLPClassifier(len(data.columns), len(CLASSES), 100, activation='sigmoid', solver='adam',
                     max_iter=500)
 
-logger = TensorBoardLogger("/home/alexandre/logs", name="classifier")
-early_stop_callback = EarlyStopping(monitor="train_loss",
-                                    min_delta=clf.tol,
-                                    patience=clf.n_iter_no_change)
-trainer = pl.Trainer(gpus=1, logger=logger, max_epochs=clf.max_iter,
+logger = TensorBoardLogger("/home/alexandre/classif_logs", name="torch")
+# early_stop_callback = EarlyStopping(monitor="train_loss",
+#                                     min_delta=clf.tol,
+#                                    patience=clf.n_iter_no_change)
+trainer = pl.Trainer(gpus=2, logger=logger, max_epochs=clf.max_iter,
                      accelerator='ddp',
                      auto_select_gpus=True, log_every_n_steps=10,
-                     callbacks=[early_stop_callback])
+                     ) #callbacks=[early_stop_callback])
 
 trainer.fit(clf, train_dataloader, test_dataloader)
