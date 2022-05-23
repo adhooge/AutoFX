@@ -101,7 +101,7 @@ if __name__ == '__main__':
     parser.add_argument('--board-path', type=pathlib.Path or str, default=None,
                         help="Path to a file representing the Pedalboard.board to use. "
                              "As of now, only pickle files are supported.")
-    parser.add_argument('--in-path', '-i', default=pathlib.Path('.'), type=pathlib.Path,
+    parser.add_argument('--in-path', '-i', default=pathlib.Path('../source'), type=pathlib.Path,
                         help="Path to the dry sounds. Defaults to current directory.")
     parser.add_argument('--out-path', '-o', default=pathlib.Path('./out'), type=pathlib.Path,
                         help="Where to store the processed files. Defaults to ./out")

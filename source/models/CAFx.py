@@ -22,7 +22,7 @@ import torchaudio
 
 class CAFx(pl.LightningModule):
     def compute_features(self, audio):
-        pitch = torchaudio.functional.detect_pitch_frequency(audio, self.rate)
+        pitch = Ft.pitch_curve(audio, self.rate, None, None)
         phase = Ft.phase_fmax(audio)
         rms = Ft.rms_energy(audio)
         pitch_delta = Fc.estim_derivative(pitch)

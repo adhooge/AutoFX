@@ -7,6 +7,8 @@ References:
 """
 import librosa
 import numpy as np
+import torch
+import torchaudio.functional
 
 
 def _geom_mean(arr: np.ndarray):
@@ -233,6 +235,36 @@ def get_mfcc(audio, rate, num_coeff):
     return mfcc[:num_coeff]
 
 
+def phase_fmax_batch(audio):
+    # TODO: TEST
+    """
+    Copy of phase_fmax using torch tools for batch processing and GPU compatible processing.
+    :param audio:
+    :return:
+    """
+    transform = torchaudio.transforms.Spectrogram(n_fft=2048, hop_length=256)
+    stft = transform(audio)
+    mag = torch.abs(stft)
+    phase = torch.angle(stft)
+    spec_sum = torch.sum(mag, dim=-1)
+    max_bins = torch.argmax(spec_sum, dim=-1)
+    phase_freq_max = phase[max_bins]
+
+    mag_max_bin_mask = mag[max_bins]
+    thresh = torch.max(mag_max_bin_mask, dim=-1) / 8
+    phase_freq_max = torch.where(mag_max_bin_mask > thresh, phase_freq_max, 0)
+    phase_freq_max_t = torch.nonzero(phase_freq_max)
+
+    # unwrap phase
+    phase_fmax_straight_t = torch.clone(phase_freq_max_t)
+    diff_mean_sign = torch.mean(torch.sign(torch.diff(phase_freq_max_t)))
+    phase_correction = torch.zeros_like(diff_mean_sign)
+    batch_size = audio.shape[0]
+    for b in range(batch_size):
+        if diff_mean_sign[b] > 0:
+            pass # TODO: implement without for loop
+    raise NotImplementedError
+
 def phase_fmax(sig):
     """
     Copied from:
@@ -285,8 +317,12 @@ def pitch_curve(audio, rate, fmin, fmax, default_f: float = None):
     :param fmax:
     :return:
     """
-    f0 = librosa.pyin(y=audio, fmin=int(fmin), fmax=int(fmax), sr=rate, fill_na=default_f)
-    return f0[0]
+    if audio.ndim == 3:     # batch treatment
+        f0 = torchaudio.functional.detect_pitch_frequency(audio, rate)
+        return f0
+    else:
+        f0 = librosa.pyin(y=audio, fmin=int(fmin), fmax=int(fmax), sr=rate, fill_na=default_f)
+        return f0[0]
 
 
 def rms_energy(audio):

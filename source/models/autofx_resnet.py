@@ -22,7 +22,7 @@ from math import floor
 import math
 from mbfx_layer import MBFxLayer
 from resnet_layers import ResNet
-sys.path.append('..')
+sys.path.append('../..')
 from losses import PitchLoss
 
 def log_cosh_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:

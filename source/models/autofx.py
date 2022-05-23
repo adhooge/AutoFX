@@ -17,7 +17,7 @@ import pytorch_lightning as pl
 import sys
 from multiband_fx import MultiBandFX
 from math import floor
-sys.path.append('..')
+sys.path.append('../..')
 
 
 class AutoFX(pl.LightningModule):

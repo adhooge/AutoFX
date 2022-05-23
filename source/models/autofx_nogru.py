@@ -20,7 +20,7 @@ from multiband_fx import MultiBandFX
 from math import floor
 from mbfx_layer import MBFxLayer
 
-sys.path.append('..')
+sys.path.append('../..')
 
 
 class AutoFX(pl.LightningModule):

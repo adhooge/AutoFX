@@ -12,7 +12,7 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import random_split
 
-from features_dataset import FeaturesDataset
+from source.data.features_dataset import FeaturesDataset
 from mbfx_layer import MBFxLayer
 from multiband_fx import MultiBandFX
 
