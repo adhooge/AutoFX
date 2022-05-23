@@ -9,6 +9,7 @@ import librosa
 import numpy as np
 import torch
 import torchaudio.functional
+from torch import Tensor
 
 
 def _geom_mean(arr: np.ndarray):
@@ -18,26 +19,42 @@ def _geom_mean(arr: np.ndarray):
     return np.exp(np.mean(np.log(arr)))
 
 
-def spectral_centroid(*, mag: np.ndarray = None, stft: np.ndarray = None, freq: np.ndarray = None) -> np.ndarray:
+def spectral_centroid(*, mag: np.ndarray = None, stft: np.ndarray or Tensor = None, freq: np.ndarray = None,
+                      torch_compat: bool = False) -> np.ndarray or Tensor:
     """
     Spectral centroid of each frame.
 
     :param mag: Magnitude spectrogram of the input signal;
     :param stft: Complex matrix of the short time fourier transform;
     :param freq: frequency of each frequency bin, in Hertz;
+    :param torch_compat: enable torch-compatible computation. Default is False
     :return: spectral centroid of each input frame.
     """
-    if mag is None:
-        mag = np.abs(stft)
-    if mag.ndim == 1:
-        mag = np.expand_dims(mag, axis=1)
-    norm_mag = mag / np.sum(mag, axis=0)
-    cent = np.sum(norm_mag * freq[:, np.newaxis], axis=0)
-    return cent
+    if torch_compat:
+        if mag is None:
+            mag = torch.abs(stft)
+        batch_size = mag.shape[0]
+        if freq is None:
+            freq = torch.linspace(0, 0.5, mag.shape[-1])
+            freq = torch.vstack([freq]*batch_size)
+        norm_mag = mag / torch.sum(mag, dim=-1)
+        cent = torch.sum(norm_mag * freq, dim=-1)
+        return cent
+    else:
+        if mag is None:
+            mag = np.abs(stft)
+        if freq is None:
+            freq = np.linspace(0, 0.5, mag.shape[-1])
+        if mag.ndim == 1:
+            mag = np.expand_dims(mag, axis=1)
+        norm_mag = mag / np.sum(mag, axis=0)
+        cent = np.sum(norm_mag * freq[:, np.newaxis], axis=0)
+        return cent
 
 
-def spectral_spread(*, mag: np.ndarray = None, stft: np.ndarray = None,
-                    cent: np.ndarray = None, freq: np.ndarray = None) -> np.ndarray:
+def spectral_spread(*, mag: np.ndarray = None, stft: np.ndarray or Tensor = None,
+                    cent: np.ndarray = None, freq: np.ndarray = None,
+                    torch_compat: bool = False) -> np.ndarray or Tensor:
     """
     Spectral spread of each frame of the input signal.
 
@@ -47,24 +64,40 @@ def spectral_spread(*, mag: np.ndarray = None, stft: np.ndarray = None,
     :param stft: Complex matrix representing a Short Time Fourier Transform;
     :param cent: Array of the spectral centroid of each frame;
     :param freq: frequency of each frequency bin, in Hertz;
+    :param torch_compat: enable torch-compatible computation. Default is False;
     :return spread: spectral spread of each input frame.
     """
-    if mag is None:
-        mag = np.abs(stft)
-    if cent is None:
-        cent = spectral_centroid(mag=mag, freq=freq)
-    if mag.ndim == 1:
-        mag = np.expand_dims(mag, axis=1)
-    spread = np.zeros_like(cent)
-    norm_mag = mag / np.sum(mag, axis=0)
-    for (i, centroid) in enumerate(cent):
-        cnt_freq = freq - centroid
-        spread[i] = np.sum(norm_mag[:, i] * np.square(cnt_freq))
-    return spread
+    if torch_compat:
+        if mag is None:
+            mag = torch.abs(stft)
+        batch_size = mag.shape[0]
+        if cent is None:
+            cent = spectral_centroid(mag=mag, freq=freq, torch_compat=True)
+        if freq is None:
+            freq = torch.linspace(0, 0.5, mag.shape[-1])
+            freq = torch.vstack([freq]*batch_size)
+        norm_mag = mag / torch.sum(mag, dim=-1)
+        cnt_freq = freq - cent
+        spread = torch.sum(norm_mag * torch.square(cnt_freq), dim=-1)
+        return spread
+    else:
+        if mag is None:
+            mag = np.abs(stft)
+        if cent is None:
+            cent = spectral_centroid(mag=mag, freq=freq)
+        if mag.ndim == 1:
+            mag = np.expand_dims(mag, axis=1)
+        spread = np.zeros_like(cent)
+        norm_mag = mag / np.sum(mag, axis=0)
+        for (i, centroid) in enumerate(cent):
+            cnt_freq = freq - centroid
+            spread[i] = np.sum(norm_mag[:, i] * np.square(cnt_freq))
+        return spread
 
 
-def spectral_skewness(*, mag: np.ndarray = None, stft: np.ndarray = None,
-                      cent: np.ndarray = None, freq: np.ndarray = None) -> np.ndarray:
+def spectral_skewness(*, mag: np.ndarray = None, stft: np.ndarray or Tensor = None,
+                      cent: np.ndarray = None, freq: np.ndarray = None,
+                      torch_compat: bool = False) -> np.ndarray or Tensor:
     """
     Spectral skewness of each frame of the input signal.
 
@@ -74,24 +107,42 @@ def spectral_skewness(*, mag: np.ndarray = None, stft: np.ndarray = None,
     :param stft: Complex matrix representing a Short Time Fourier Transform;
     :param cent: Array of the spectral centroid of each frame;
     :param freq: frequency of each frequency bin, in Hertz;
+    :param torch_compat: enable torch-compatible computation. Default is False;
     :return skew: spectral skewness of each input frame.
     """
-    if mag is None:
-        mag = np.abs(stft)
-    if cent is None:
-        cent = spectral_centroid(mag=mag, freq=freq)
-    if mag.ndim == 1:
-        mag = np.expand_dims(mag, axis=1)
-    skew = np.zeros_like(cent)
-    norm_mag = mag / np.sum(mag, axis=0)
-    for (i, centroid) in enumerate(cent):
-        cnt_freq = freq - centroid
-        skew[i] = np.sum(norm_mag[:, i] * np.power(cnt_freq, 3))
-    return skew
+    if torch_compat:
+        if mag is None:
+            mag = torch.abs(stft)
+        batch_size = mag.shape[0]
+        if cent is None:
+            cent = spectral_centroid(mag=mag, freq=freq, torch_compat=True)
+        if freq is None:
+            freq = torch.linspace(0, 0.5, mag.shape[-1])
+            freq = torch.vstack([freq]*batch_size)
+        norm_mag = mag / torch.sum(mag, dim=-1)
+        cnt_freq = freq - cent
+        skew = torch.sum(norm_mag * torch.pow(cnt_freq, 3), dim=-1)
+        return skew
+    else:
+        if mag is None:
+            mag = np.abs(stft)
+        if cent is None:
+            cent = spectral_centroid(mag=mag, freq=freq)
+        if mag.ndim == 1:
+            mag = np.expand_dims(mag, axis=1)
+        if freq is None:
+            freq = np.linspace(0, 0.5, mag.shape[-1])
+        skew = np.zeros_like(cent)
+        norm_mag = mag / np.sum(mag, axis=0)
+        for (i, centroid) in enumerate(cent):
+            cnt_freq = freq - centroid
+            skew[i] = np.sum(norm_mag[:, i] * np.power(cnt_freq, 3))
+        return skew
 
 
-def spectral_kurtosis(*, mag: np.ndarray = None, stft: np.ndarray = None,
-                      cent: np.ndarray = None, freq: np.ndarray = None) -> np.ndarray:
+def spectral_kurtosis(*, mag: np.ndarray = None, stft: np.ndarray or Tensor = None,
+                      cent: np.ndarray = None, freq: np.ndarray = None,
+                      torch_compat: bool = False) -> np.ndarray or Tensor:
     """
     Spectral kurtosis of each frame of the input signal.
 
@@ -101,20 +152,37 @@ def spectral_kurtosis(*, mag: np.ndarray = None, stft: np.ndarray = None,
     :param stft: Complex matrix representing a Short Time Fourier Transform;
     :param cent: Array of the spectral centroid of each frame;
     :param freq: frequency of each frequency bin, in Hertz;
+    :param torch_compat: enable torch-compatible computation. Default is False;
     :return kurt: spectral kurtosis of each input frame.
     """
-    if mag is None:
-        mag = np.abs(stft)
-    if cent is None:
-        cent = spectral_centroid(mag=mag, freq=freq)
-    if mag.ndim == 1:
-        mag = np.expand_dims(mag, axis=1)
-    kurt = np.zeros_like(cent)
-    norm_mag = mag / np.sum(mag, axis=0)
-    for (i, centroid) in enumerate(cent):
-        cnt_freq = freq - centroid
-        kurt[i] = np.sum(norm_mag[:, i] * np.power(cnt_freq, 4))
-    return kurt
+    if torch_compat:
+        if mag is None:
+            mag = torch.abs(stft)
+        batch_size = mag.shape[0]
+        if cent is None:
+            cent = spectral_centroid(mag=mag, freq=freq, torch_compat=True)
+        if freq is None:
+            freq = torch.linspace(0, 0.5, mag.shape[-1])
+            freq = torch.vstack([freq]*batch_size)
+        norm_mag = mag / torch.sum(mag, dim=-1)
+        cnt_freq = freq - cent
+        kurt = torch.sum(norm_mag * torch.pow(cnt_freq, 3), dim=-1)
+        return kurt
+    else:
+        if mag is None:
+            mag = np.abs(stft)
+        if cent is None:
+            cent = spectral_centroid(mag=mag, freq=freq)
+        if mag.ndim == 1:
+            mag = np.expand_dims(mag, axis=1)
+        if freq is None:
+            freq = np.linspace(0, 0.5, mag.shape[-1])
+        kurt = np.zeros_like(cent)
+        norm_mag = mag / np.sum(mag, axis=0)
+        for (i, centroid) in enumerate(cent):
+            cnt_freq = freq - centroid
+            kurt[i] = np.sum(norm_mag[:, i] * np.power(cnt_freq, 4))
+        return kurt
 
 
 def spectral_flux(mag: np.ndarray, q_norm: int = 1):
@@ -304,7 +372,6 @@ def phase_fmax(sig):
     linregerr_t -= (coeff[0] * x_axis_t + coeff[1])
     linregerr_t = np.reshape(linregerr_t, (1, len(linregerr_t)))
     # plots.phase_error_unwrapped(phase_fmax_straight_t, coeff, x_axis_t)
-
     return linregerr_t
 
 
