@@ -1,8 +1,7 @@
 import pathlib
 
-from CAFx import CAFx
-from light_network import LightNetwork
-from datamodules import FeaturesDataModule
+from source.models.CAFx import CAFx
+from source.data.datamodules import FeaturesDataModule
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 from torch.utils.data import random_split, DataLoader
