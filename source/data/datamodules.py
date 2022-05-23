@@ -5,7 +5,7 @@ import torch.utils.data
 from torch.utils.data import DataLoader
 from cfgv import Optional
 from pytorch_lightning.utilities.types import TRAIN_DATALOADERS, EVAL_DATALOADERS
-from datasets import FeatureInDomainDataset, FeatureOutDomainDataset
+from source.data.datasets import FeatureInDomainDataset, FeatureOutDomainDataset
 
 
 class FeaturesDataModule(pl.LightningDataModule):
