@@ -68,11 +68,11 @@ class FeatureInDomainDataset(Dataset):
 class FeatureOutDomainDataset(Dataset):
     def __init__(self, data_path: pathlib.Path or str,
                  clean_path: pathlib.Path or str = None, processed_path: pathlib.Path or str = None,
-                 pad_length: int = 35000):
+                 pad_length: int = 35000, index_col: int = None):
         self.data_path = pathlib.Path(data_path)
         self.clean_path = pathlib.Path(clean_path) if clean_path is not None else clean_path
         self.processed_path = pathlib.Path(processed_path) if processed_path is not None else processed_path
-        self.data = pd.read_csv(data_path / "data.csv")
+        self.data = pd.read_csv(data_path / "data.csv", index_col=index_col)
         self.fx2clean = pd.read_csv(data_path / "fx2clean.csv")
         self.pad_length = pad_length
 
