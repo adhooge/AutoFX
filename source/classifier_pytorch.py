@@ -14,7 +14,7 @@ from ignite.metrics.recall import Recall
 from ignite.metrics.confusion_matrix import ConfusionMatrix
 
 from pytorch_lightning.loggers import TensorBoardLogger
-
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 import source.util as util
 
@@ -71,7 +71,7 @@ class MLPClassifier(pl.LightningModule):
     def __init__(self, input_size: int, output_size: int,
                  hidden_size: int, activation: str, solver: str,
                  max_iter: int, learning_rate: float = 0.0001,
-                 tol: float = 1e-4):
+                 tol: float = 1e-4, n_iter_no_change: int = 10):
         super(MLPClassifier, self).__init__()
         self.input_size = input_size
         self.output_size = output_size
@@ -88,6 +88,8 @@ class MLPClassifier(pl.LightningModule):
         self.accuracy = Accuracy()
         self.confusion_matrix = ConfusionMatrix(num_classes=output_size)
         self.learning_rate = learning_rate
+        self.tol = tol
+        self.n_iter_no_change = n_iter_no_change
 
     def forward(self, x, *args, **kwargs) -> Any:
         out = self.linear1(x)
@@ -100,6 +102,7 @@ class MLPClassifier(pl.LightningModule):
         feat, label = batch
         pred = self.forward(feat)
         loss = self.loss(pred, label)
+        self.log("train_loss", loss)
         self.logger.experiment.add_scalar("Cross-entropy loss", loss, global_step=self.global_step)
         classes = MLPClassifier._to_one_hot(pred, self.output_size)
         self.prec.reset()
@@ -169,8 +172,12 @@ clf = MLPClassifier(len(data.columns), len(CLASSES), 100, activation='sigmoid', 
                     max_iter=500)
 
 logger = TensorBoardLogger("/home/alexandre/logs", name="classifier")
+early_stop_callback = EarlyStopping(monitor="train_loss",
+                                    min_delta=clf.tol,
+                                    patience=clf.n_iter_no_change)
 trainer = pl.Trainer(gpus=1, logger=logger, max_epochs=clf.max_iter,
                      accelerator='ddp',
-                     auto_select_gpus=True, log_every_n_steps=10)
+                     auto_select_gpus=True, log_every_n_steps=10,
+                     callbacks=[early_stop_callback])
 
 trainer.fit(clf, train_dataloader, test_dataloader)
