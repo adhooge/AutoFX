@@ -131,6 +131,7 @@ class CAFx(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, *args, **kwargs) -> STEP_OUTPUT:
         num_steps_per_epoch = len(self.trainer.train_dataloader) / self.trainer.accumulate_grad_batches
+        num_steps_per_epoch = num_steps_per_epoch * self.trainer.num_gpus
         if not self.out_of_domain:
             clean, processed, feat, label = batch
         else:
@@ -199,7 +200,8 @@ class CAFx(pl.LightningModule):
                 rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)  # TODO: fix hardcoded value
                 for (i, snd) in enumerate(clean):
                     rec[i] = self.mbfx_layer.forward(snd, pred[i])
-                target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(torch.abs(rec))
+                target_normalized, pred_normalized = processed[:, 0, :] / torch.max(
+                    torch.abs(processed)), rec / torch.max(torch.abs(rec))
                 spec_loss = self.spectral_loss(pred_normalized, target_normalized)
                 spectral_loss = spec_loss
             else:
