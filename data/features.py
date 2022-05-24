@@ -52,7 +52,7 @@ def spectral_centroid(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or T
         return cent
 
 
-def spectral_spread(*, mag: np.ndarray = None, stft: np.ndarray or Tensor = None,
+def spectral_spread(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or Tensor = None,
                     cent: np.ndarray = None, freq: np.ndarray = None,
                     torch_compat: bool = False) -> np.ndarray or Tensor:
     """
@@ -78,20 +78,20 @@ def spectral_spread(*, mag: np.ndarray = None, stft: np.ndarray or Tensor = None
             freq = torch.vstack([freq]*batch_size)
         norm_mag = mag / torch.sum(mag, dim=-1)
         cnt_freq = freq - cent
-        spread = torch.sum(norm_mag * torch.square(cnt_freq), dim=-1)
+        spread = torch.sum(norm_mag * torch.square(cnt_freq), dim=-1, keepdim=True)
         return spread
     else:
         if mag is None:
             mag = np.abs(stft)
         if cent is None:
             cent = spectral_centroid(mag=mag, freq=freq)
+        if freq is None:
+            freq = np.linspace(0, 0.5, mag.shape[-1])
         if mag.ndim == 1:
             mag = np.expand_dims(mag, axis=1)
-        spread = np.zeros_like(cent)
         norm_mag = mag / np.sum(mag, axis=0)
-        for (i, centroid) in enumerate(cent):
-            cnt_freq = freq - centroid
-            spread[i] = np.sum(norm_mag[:, i] * np.square(cnt_freq))
+        cnt_freq = freq - cent
+        spread = np.sum(np.multiply(norm_mag.T, np.square(cnt_freq)), axis=1)
         return spread
 
 
