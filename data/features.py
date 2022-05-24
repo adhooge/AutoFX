@@ -95,7 +95,8 @@ def spectral_spread(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or Ten
         return spread
 
 
-def spectral_skewness(*, mag: np.ndarray = None, stft: np.ndarray or Tensor = None,
+def spectral_skewness(*, mag: np.ndarray or Tensor = None,
+                      stft: np.ndarray or Tensor = None,
                       cent: np.ndarray = None, freq: np.ndarray = None,
                       torch_compat: bool = False) -> np.ndarray or Tensor:
     """
@@ -121,22 +122,20 @@ def spectral_skewness(*, mag: np.ndarray = None, stft: np.ndarray or Tensor = No
             freq = torch.vstack([freq]*batch_size)
         norm_mag = mag / torch.sum(mag, dim=-1)
         cnt_freq = freq - cent
-        skew = torch.sum(norm_mag * torch.pow(cnt_freq, 3), dim=-1)
+        skew = torch.sum(norm_mag * torch.pow(cnt_freq, 3), dim=-1, keepdim=True)
         return skew
     else:
         if mag is None:
             mag = np.abs(stft)
         if cent is None:
             cent = spectral_centroid(mag=mag, freq=freq)
-        if mag.ndim == 1:
-            mag = np.expand_dims(mag, axis=1)
         if freq is None:
             freq = np.linspace(0, 0.5, mag.shape[-1])
-        skew = np.zeros_like(cent)
+        if mag.ndim == 1:
+            mag = np.expand_dims(mag, axis=1)
         norm_mag = mag / np.sum(mag, axis=0)
-        for (i, centroid) in enumerate(cent):
-            cnt_freq = freq - centroid
-            skew[i] = np.sum(norm_mag[:, i] * np.power(cnt_freq, 3))
+        cnt_freq = freq - cent
+        skew = np.sum(norm_mag.T * np.power(cnt_freq, 3), axis=1)
         return skew
 
 

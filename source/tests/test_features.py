@@ -62,3 +62,42 @@ def test_spectral_spread_value():
     spread = Ft.spectral_spread(mag=mag)
     assert spread == 0
 
+
+def test_spectral_skewness_torch_shape():
+    mag = torch.rand((10, 10))
+    skew = Ft.spectral_skewness(mag=mag, torch_compat=True)
+    assert skew.shape == (10, 1)
+
+
+def test_spectral_skewness_torch_value():
+    mag_sym = torch.ones((10, 10))
+    skew_sym = Ft.spectral_skewness(mag=mag_sym, torch_compat=True)
+    mag_left = torch.zeros((10, 10))
+    mag_left[:, :4] = torch.ones((10, 4))
+    mag_left[:, 0] *= 2
+    skew_left = Ft.spectral_skewness(mag=mag_left, torch_compat=True)
+    mag_right = torch.zeros((10, 10))
+    mag_right[:, -4:] = torch.ones((10, 4))
+    mag_right[:, -1] *= 2
+    skew_right = Ft.spectral_skewness(mag=mag_right, torch_compat=True)
+    assert torch.allclose(skew_sym, torch.zeros_like(skew_sym)) and (skew_right < 0).all() and (skew_left > 0).all()
+
+
+def test_spectral_skewness_shape():
+    mag = np.random.random(10)
+    skew = Ft.spectral_skewness(mag=mag)
+    assert skew.shape == (1,)
+
+
+def test_spectral_skewness_value():
+    mag_sym = np.ones(10)
+    skew_sym = Ft.spectral_skewness(mag=mag_sym)
+    mag_left = np.zeros(10)
+    mag_left[:2] = [2, 1]
+    skew_left = Ft.spectral_skewness(mag=mag_left)
+    mag_right = np.zeros(10)
+    mag_right[-2:] = [1, 2]
+    skew_right = Ft.spectral_skewness(mag=mag_right)
+    assert np.allclose(skew_sym, np.zeros_like(skew_sym))
+    assert skew_right < 0
+    assert skew_left > 0
