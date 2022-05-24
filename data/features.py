@@ -19,7 +19,7 @@ def _geom_mean(arr: np.ndarray):
     return np.exp(np.mean(np.log(arr)))
 
 
-def spectral_centroid(*, mag: np.ndarray = None, stft: np.ndarray or Tensor = None, freq: np.ndarray = None,
+def spectral_centroid(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or Tensor = None, freq: np.ndarray = None,
                       torch_compat: bool = False) -> np.ndarray or Tensor:
     """
     Spectral centroid of each frame.
@@ -38,7 +38,7 @@ def spectral_centroid(*, mag: np.ndarray = None, stft: np.ndarray or Tensor = No
             freq = torch.linspace(0, 0.5, mag.shape[-1])
             freq = torch.vstack([freq]*batch_size)
         norm_mag = mag / torch.sum(mag, dim=-1)
-        cent = torch.sum(norm_mag * freq, dim=-1)
+        cent = torch.sum(norm_mag * freq, dim=-1, keepdim=True)
         return cent
     else:
         if mag is None:
