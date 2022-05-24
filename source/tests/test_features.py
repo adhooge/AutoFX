@@ -4,6 +4,7 @@ import numpy as np
 import data.features as Ft
 from math import sqrt
 
+
 @pytest.fixture
 def mag_synthetic_torch():
     mag = torch.ones((10, 100))
@@ -15,13 +16,14 @@ def mag_synthetic_np():
     mag = np.ones(100)
     return mag
 
+
 @pytest.fixture
 def gaussian_mag_torch():
     x = torch.linspace(0, 0.5, 100)
     x = torch.vstack([x] * 10)
     std = 0.05
     mean = 0.25
-    mag = 1/(std*sqrt(2*torch.pi)) * torch.exp(-0.5*torch.square((x - mean)/std))
+    mag = (1 / (std * sqrt(2 * torch.pi))) * torch.exp(-0.5 * torch.square((x - mean) / std))
     return mag
 
 
@@ -30,7 +32,7 @@ def gaussian_mag_np():
     x = np.linspace(0, 0.5, 100)
     std = 0.05
     mean = 0.25
-    mag = 1/(std*sqrt(2*np.pi)) * np.exp(-0.5*np.square((x - mean)/std))
+    mag = 1 / (std * sqrt(2 * np.pi)) * np.exp(-0.5 * np.square((x - mean) / std))
     return mag
 
 
@@ -53,7 +55,7 @@ def test_spectral_centroid_shape():
 
 def test_spectral_centroid_value(mag_synthetic_np):
     cent = Ft.spectral_centroid(mag=mag_synthetic_np)
-    assert np.allclose(cent, np.ones_like(cent)*0.25)
+    assert np.allclose(cent, np.ones_like(cent) * 0.25)
 
 
 def test_spectral_spread_torch_shape():
@@ -129,12 +131,43 @@ def test_spectral_kurtosis_torch_shape():
 
 def test_spectral_kurtosis_torch_value(gaussian_mag_torch):
     kurt_normal = Ft.spectral_kurtosis(mag=gaussian_mag_torch, torch_compat=True)
-    assert (kurt_normal == 3).all()
+    spread_normal = Ft.spectral_spread(mag=gaussian_mag_torch, torch_compat=True)
+    kurt_normal = kurt_normal / torch.pow(spread_normal, 2)
+    assert torch.allclose(kurt_normal, torch.ones_like(kurt_normal) * 3, atol=1e-4, rtol=1e-4)
     mag_flat = torch.ones((10, 100))
     kurt_flat = Ft.spectral_kurtosis(mag=mag_flat, torch_compat=True)
+    spread_flat = Ft.spectral_spread(mag=mag_flat, torch_compat=True)
+    kurt_flat = kurt_flat / torch.pow(spread_flat, 2)
     assert (kurt_flat < 3).all()
     mag_peak = torch.zeros((10, 100))
-    mag_peak[:, 4:7] = torch.ones((10, 3))
-    mag_peak[:, 5] *= 2
+    mag_peak[:, 40:50] = torch.pow(torch.vstack([torch.linspace(0, 1, 10)] * 10), 5)
+    mag_peak[:, 50:60] = torch.pow(torch.vstack([torch.linspace(1, 0, 10)] * 10), 5)
     kurt_peak = Ft.spectral_kurtosis(mag=mag_peak, torch_compat=True)
+    spread_peak = Ft.spectral_spread(mag=mag_peak, torch_compat=True)
+    kurt_peak = kurt_peak / torch.pow(spread_peak, 2)
     assert (kurt_peak > 3).all()
+
+
+def test_spectral_kurtosis_shape():
+    mag = np.random.random(100)
+    kurt = Ft.spectral_kurtosis(mag=mag)
+    assert kurt.shape == (1,)
+
+
+def test_spectral_kurtosis_value(gaussian_mag_np):
+    kurt_normal = Ft.spectral_kurtosis(mag=gaussian_mag_np)
+    spread_normal = Ft.spectral_spread(mag=gaussian_mag_np)
+    kurt_normal = kurt_normal / np.power(spread_normal, 2)
+    assert np.allclose(kurt_normal, np.ones_like(kurt_normal)*3, atol=1e-4, rtol=1e-4)
+    mag_flat = np.ones(100)
+    kurt_flat = Ft.spectral_kurtosis(mag=mag_flat)
+    spread_flat = Ft.spectral_spread(mag=mag_flat)
+    kurt_flat = kurt_flat / np.power(spread_flat, 2)
+    assert (kurt_flat < 3)
+    mag_peak = np.zeros(100)
+    mag_peak[40:50] = np.power(np.linspace(0, 1, 10), 5)
+    mag_peak[50:60] = np.power(np.linspace(1, 0, 10), 5)
+    kurt_peak = Ft.spectral_kurtosis(mag=mag_peak)
+    spread_peak = Ft.spectral_spread(mag=mag_peak)
+    kurt_peak = kurt_peak / np.power(spread_peak, 2)
+    assert (kurt_peak > 3)

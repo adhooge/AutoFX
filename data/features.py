@@ -165,22 +165,20 @@ def spectral_kurtosis(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or T
             freq = torch.vstack([freq]*batch_size)
         norm_mag = mag / torch.sum(mag, dim=-1, keepdim=True)
         cnt_freq = freq - cent
-        kurt = torch.sum(norm_mag * torch.pow(cnt_freq, 3), dim=-1, keepdim=True)
+        kurt = torch.sum(norm_mag * torch.pow(cnt_freq, 4), dim=-1, keepdim=True)
         return kurt
     else:
         if mag is None:
             mag = np.abs(stft)
         if cent is None:
             cent = spectral_centroid(mag=mag, freq=freq)
-        if mag.ndim == 1:
-            mag = np.expand_dims(mag, axis=1)
         if freq is None:
             freq = np.linspace(0, 0.5, mag.shape[-1])
-        kurt = np.zeros_like(cent)
+        if mag.ndim == 1:
+            mag = np.expand_dims(mag, axis=1)
         norm_mag = mag / np.sum(mag, axis=0)
-        for (i, centroid) in enumerate(cent):
-            cnt_freq = freq - centroid
-            kurt[i] = np.sum(norm_mag[:, i] * np.power(cnt_freq, 4))
+        cnt_freq = freq - cent
+        kurt = np.sum(norm_mag.T * np.power(cnt_freq, 4), axis=1)
         return kurt
 
 
