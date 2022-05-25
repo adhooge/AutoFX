@@ -500,3 +500,23 @@ def cut2onset(audio, rate, pre_max: int = 20000, post_max: int = 20000, **kwargs
         raise ValueError("Several onsets detected. Aborting.")
     else:
         return audio[onset[0]:]
+
+
+def mean_square_linreg_torch(tens, x=None):
+    """
+    Linear regression using ordinary mean squares estimator.
+    beta_1 is the slope and beta_0 is the intercept
+    :param tens:
+    :param x:
+    :return:
+    """
+    batch_size = tens.shape[0]
+    length = tens.shape[-1]
+    if x is None:
+        x = torch.arange(0, length, step=1, dtype=torch.float)
+        x = torch.vstack([x] * batch_size)
+    x_mean = torch.mean(x, dim=-1, keepdim=True)
+    y_mean = torch.mean(tens, dim=-1, keepdim=True)
+    beta_1 = torch.sum((x - x_mean) * (tens - y_mean), dim=-1) / torch.sum(torch.square(x - x_mean), dim=-1)
+    beta_0 = y_mean - beta_1 * x_mean
+    return beta_1, beta_0
