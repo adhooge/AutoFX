@@ -11,7 +11,7 @@ from source.data.datasets import FeatureInDomainDataset, FeatureOutDomainDataset
 class FeaturesDataModule(pl.LightningDataModule):
     def __init__(self, clean_dir: pathlib.Path or str, processed_dir: pathlib.Path or str,
                  out_of_domain_dir: pathlib.Path or str, batch_size: int = 32, num_workers: int = 4,
-                 out_of_domain: bool = False, seed: int = None):
+                 out_of_domain: bool = False, seed: int = None, reverb: bool = False, *args, **kwargs):
         super(FeaturesDataModule, self).__init__()
         self.clean_dir = clean_dir
         self.processed_dir = processed_dir
@@ -22,11 +22,13 @@ class FeaturesDataModule(pl.LightningDataModule):
         if seed is None:
             seed = torch.randint(100000, (1, 1))
         self.seed = seed
+        self.reverb = reverb
         self.save_hyperparameters()
 
     def setup(self, stage: Optional[str] = None) -> None:
         in_domain_full = FeatureInDomainDataset(self.processed_dir, validation=True,
-                                                clean_path=self.clean_dir, processed_path=self.processed_dir)
+                                                clean_path=self.clean_dir, processed_path=self.processed_dir,
+                                                reverb=self.reverb)
         out_domain_full = FeatureOutDomainDataset(self.out_of_domain_dir, self.clean_dir, self.out_of_domain_dir,
                                                   index_col=0)
         self.in_train, self.in_val = torch.utils.data.random_split(in_domain_full,
@@ -50,6 +52,9 @@ class FeaturesDataModule(pl.LightningDataModule):
                                    shuffle=True)
         out_dataloader = DataLoader(self.out_val, self.batch_size, num_workers=self.num_workers,
                                     shuffle=True)
-        return [in_dataloader, out_dataloader]
+        if self.out_of_domain:
+            return out_dataloader
+        else:
+            return in_dataloader
 
 

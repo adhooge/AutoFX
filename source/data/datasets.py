@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 class FeatureInDomainDataset(Dataset):
     def __init__(self, data_path: pathlib.Path or str, validation: bool = False,
                  clean_path: pathlib.Path or str = None, processed_path: pathlib.Path or str = None,
-                 pad_length: int = 35000):
+                 pad_length: int = None, reverb: bool=False):
         if validation and (clean_path is None or processed_path is None):
             raise ValueError("Clean and Processed required for validation dataset.")
         self.data_path = pathlib.Path(data_path)
@@ -32,7 +32,14 @@ class FeatureInDomainDataset(Dataset):
         self.feat_columns = features_columns
         self.num_param = num_param
         self.param_columns = param_columns
-        self.pad_length = pad_length
+        if pad_length is None:
+            if reverb:
+                self.pad_length = 2**17
+            else:
+                self.pad_length = 35000
+        else:
+            self.pad_length = pad_length
+        self.reverb = reverb
 
     def __len__(self):
         return len(self.data)
@@ -55,6 +62,8 @@ class FeatureInDomainDataset(Dataset):
         # print(self.data.iloc[item])
         params = self.data.iloc[item, self.param_columns]
         params = torch.Tensor(params)
+        if self.reverb:
+            params = torch.hstack([params, torch.zeros(1)])
         # print(params)
         features = self.data.iloc[item, self.feat_columns]
         features = torch.Tensor(features)
