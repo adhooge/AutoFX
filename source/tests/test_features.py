@@ -6,6 +6,21 @@ from math import sqrt
 
 
 @pytest.fixture
+def a440_np():
+    t = np.linspace(0, 2, 32000)
+    audio = np.sin(2*np.pi*440*t)
+    return audio
+
+
+@pytest.fixture
+def a440_torch():
+    t = torch.linspace(0, 4, 64000)
+    audio = torch.sin(2*torch.pi*440*t)
+    audio = torch.vstack([audio] * 10)
+    return audio
+
+
+@pytest.fixture
 def mag_synthetic_torch():
     mag = torch.ones((10, 100))
     return mag
@@ -171,3 +186,10 @@ def test_spectral_kurtosis_value(gaussian_mag_np):
     spread_peak = Ft.spectral_spread(mag=mag_peak)
     kurt_peak = kurt_peak / np.power(spread_peak, 2)
     assert (kurt_peak > 3)
+
+
+def test_pitch_curve(a440_np):
+    f0 = Ft.pitch_curve(a440_np, 16000, 80, 1000)
+    assert np.allclose(f0, np.ones_like(f0) * 440, atol=0.1, rtol=0.01)
+
+#TODO: Find a way to test torch version?

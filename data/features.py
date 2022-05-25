@@ -379,7 +379,8 @@ def phase_fmax(sig):
     return linregerr_t
 
 
-def pitch_curve(audio, rate, fmin, fmax, default_f: float = None):
+def pitch_curve(audio, rate, fmin, fmax,
+                default_f: float = None, torch_compat: bool=False):
     """
     fmin and fmax need to be quite far from one another for the algorithm to work
     :param audio:
@@ -388,7 +389,7 @@ def pitch_curve(audio, rate, fmin, fmax, default_f: float = None):
     :param fmax:
     :return:
     """
-    if audio.ndim == 3:     # batch treatment
+    if audio.ndim == 3 or torch_compat:     # batch treatment
         f0 = torchaudio.functional.detect_pitch_frequency(audio, rate)
         return f0
     else:
