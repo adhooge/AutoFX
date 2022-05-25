@@ -10,6 +10,7 @@ import numpy as np
 import torch
 import torchaudio.functional
 from torch import Tensor
+import source.util as util
 
 
 def _geom_mean(arr: np.ndarray):
@@ -36,7 +37,7 @@ def spectral_centroid(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or T
         batch_size = mag.shape[0]
         if freq is None:
             freq = torch.linspace(0, 0.5, mag.shape[-1])
-            freq = torch.vstack([freq]*batch_size)
+            freq = torch.vstack([freq] * batch_size)
         norm_mag = mag / torch.sum(mag, dim=-1, keepdim=True)
         cent = torch.sum(norm_mag * freq, dim=-1, keepdim=True)
         return cent
@@ -75,7 +76,7 @@ def spectral_spread(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or Ten
             cent = spectral_centroid(mag=mag, freq=freq, torch_compat=True)
         if freq is None:
             freq = torch.linspace(0, 0.5, mag.shape[-1])
-            freq = torch.vstack([freq]*batch_size)
+            freq = torch.vstack([freq] * batch_size)
         norm_mag = mag / torch.sum(mag, dim=-1, keepdim=True)
         cnt_freq = freq - cent
         spread = torch.sum(norm_mag * torch.square(cnt_freq), dim=-1, keepdim=True)
@@ -119,7 +120,7 @@ def spectral_skewness(*, mag: np.ndarray or Tensor = None,
             cent = spectral_centroid(mag=mag, freq=freq, torch_compat=True)
         if freq is None:
             freq = torch.linspace(0, 0.5, mag.shape[-1])
-            freq = torch.vstack([freq]*batch_size)
+            freq = torch.vstack([freq] * batch_size)
         norm_mag = mag / torch.sum(mag, dim=-1, keepdim=True)
         cnt_freq = freq - cent
         skew = torch.sum(norm_mag * torch.pow(cnt_freq, 3), dim=-1, keepdim=True)
@@ -162,7 +163,7 @@ def spectral_kurtosis(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or T
             cent = spectral_centroid(mag=mag, freq=freq, torch_compat=True)
         if freq is None:
             freq = torch.linspace(0, 0.5, mag.shape[-1])
-            freq = torch.vstack([freq]*batch_size)
+            freq = torch.vstack([freq] * batch_size)
         norm_mag = mag / torch.sum(mag, dim=-1, keepdim=True)
         cnt_freq = freq - cent
         kurt = torch.sum(norm_mag * torch.pow(cnt_freq, 4), dim=-1, keepdim=True)
@@ -195,7 +196,7 @@ def spectral_flux(mag: np.ndarray or Tensor, q_norm: int = 1,
     """
     if torch_compat:
         diff = torch.diff(mag, n=1, dim=-1)
-        flux = torch.pow(torch.sum(torch.pow(torch.abs(diff), q_norm)), 1/q_norm)
+        flux = torch.pow(torch.sum(torch.pow(torch.abs(diff), q_norm)), 1 / q_norm)
         return flux
     else:
         if mag.ndim == 1:
@@ -307,14 +308,17 @@ def get_mfcc(audio, rate, num_coeff):
     return mfcc[:num_coeff]
 
 
-def phase_fmax_batch(audio):
+def phase_fmax_batch(audio, transform=None):
     # TODO: TEST
     """
     Copy of phase_fmax using torch tools for batch processing and GPU compatible processing.
     :param audio:
+    :param transform: torchaudio.transforms.Spectrogram. Can be passed to avoid recreating an instance
+    at each computation. If None, transform = torchaudio.transforms.Spectrogram(n_fft=2048, hop_length=256)
     :return:
     """
-    transform = torchaudio.transforms.Spectrogram(n_fft=2048, hop_length=256)
+    if transform is None:
+        transform = torchaudio.transforms.Spectrogram(n_fft=2048, hop_length=256)
     stft = transform(audio)
     mag = torch.abs(stft)
     phase = torch.angle(stft)
@@ -330,12 +334,20 @@ def phase_fmax_batch(audio):
     # unwrap phase
     phase_fmax_straight_t = torch.clone(phase_freq_max_t)
     diff_mean_sign = torch.mean(torch.sign(torch.diff(phase_freq_max_t)))
-    phase_correction = torch.zeros_like(diff_mean_sign)
-    batch_size = audio.shape[0]
-    for b in range(batch_size):
-        if diff_mean_sign[b] > 0:
-            pass # TODO: implement without for loop
-    raise NotImplementedError
+    rolled = torch.roll(phase_freq_max_t, shifts=-1, dims=-1)
+    rolled[:, -1] = torch.zeros_like(rolled[:, -1])
+    positive = torch.where(phase_freq_max_t - rolled < 0)
+    negative = torch.where(phase_freq_max_t - rolled > 0)
+    modulos = torch.cumsum(positive, dim=-1)
+    modulos = modulos + torch.cumsum(-negative, dim=-1)
+    phase_fmax_straight_t = phase_fmax_straight_t + 2*torch.pi * modulos
+
+    x_axis_t = torch.arange(0, phase_fmax_straight_t.shape[-1])
+    beta_1, beta_0 = util.mean_square_linreg_torch(phase_fmax_straight_t)
+    linregerr_t = torch.clone(phase_fmax_straight_t)
+    linregerr_t -= (beta_1 * x_axis_t + beta_0)
+    return linregerr_t
+
 
 def phase_fmax(sig):
     """
@@ -380,7 +392,7 @@ def phase_fmax(sig):
 
 
 def pitch_curve(audio, rate, fmin, fmax,
-                default_f: float = None, torch_compat: bool=False):
+                default_f: float = None, torch_compat: bool = False):
     """
     fmin and fmax need to be quite far from one another for the algorithm to work
     :param audio:
@@ -389,7 +401,7 @@ def pitch_curve(audio, rate, fmin, fmax,
     :param fmax:
     :return:
     """
-    if audio.ndim == 3 or torch_compat:     # batch treatment
+    if audio.ndim == 3 or torch_compat:  # batch treatment
         f0 = torchaudio.functional.detect_pitch_frequency(audio, rate)
         return f0
     else:
