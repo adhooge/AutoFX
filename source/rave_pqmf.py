@@ -30,7 +30,7 @@ def make_odd(x):
 
 def get_qmf_bank(h, n_band, device=None):
     """
-    Modulates an input protoype filter into a bank of
+    Modulates an input prototype filter into a bank of
     cosine modulated filters
     Parameters
     ----------
@@ -194,6 +194,10 @@ class PQMF(nn.Module):
     """
 
     def __init__(self, attenuation, n_band, polyphase=True, device=None):
+        if device is None:
+            device = torch.device('cpu')
+        else:
+            device = torch.device(device)
         super().__init__()
         h = get_prototype(attenuation, n_band)
 
@@ -203,9 +207,9 @@ class PQMF(nn.Module):
                 power
             ), "when using the polyphase algorithm, n_band must be a power of 2"
 
-        h = torch.from_numpy(h).float()
+        h = torch.from_numpy(h).float().to(device)
         hk = get_qmf_bank(h, n_band, device)
-        hk = center_pad_next_pow_2(hk)
+        hk = center_pad_next_pow_2(hk).to(device)
 
         self.register_buffer("hk", hk)
         self.register_buffer("h", h)

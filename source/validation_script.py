@@ -9,7 +9,7 @@ from source.data.datasets import FeatureInDomainDataset, FeatureOutDomainDataset
 
 
 PARAM_RANGE = [(0.1, 10), (0, 1), (0, 20), (0, 1), (0, 1)]
-CHECKPOINT = "/home/alexandre/logs/cafx/version_1/checkpoints/epoch=99-step=93600.ckpt"
+CHECKPOINT = "/home/alexandre/logs/cafx/version_1/checkpoints/epoch=49-step=46800.ckpt"
 # CHECKPOINT = "/home/alexandre/logs/resnet_chorus/version_50/checkpoints/epoch=39-step=35000.ckpt"
 CLEAN_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_dry_22050_cut")
 PROCESSED_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_modulation_22050_cut")

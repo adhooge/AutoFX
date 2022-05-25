@@ -8,10 +8,10 @@ from sklearn import metrics
 from sklearn.neural_network import MLPClassifier
 
 import pandas as pd
-import util
+import source.util as util
 from time import time
 import pickle
-import pyRAPL
+# import pyRAPL
 
 CLASSES = ['Dry', 'Feedback Delay', 'Slapback Delay', 'Reverb', 'Chorus', 'Flanger', 'Phaser',
            'Tremolo', 'Vibrato', 'Distortion', 'Overdrive']
@@ -28,21 +28,28 @@ print(data)
 X_train, X_test, y_train, y_test = train_test_split(data, target, test_size=0.3)
 scaler = preprocessing.StandardScaler().fit(X_train)
 X_train = scaler.transform(X_train)
+print(X_train)
 X_test = scaler.transform(X_test)
 
 clf = MLPClassifier(activation='logistic', solver='adam', max_iter=500)
 print(clf.get_params())
 
-pyRAPL.setup()
-measure = pyRAPL.Measurement('MLP')
-measure.begin()
+# pyRAPL.setup()
+# measure = pyRAPL.Measurement('MLP')
+# measure.begin()
 print("Training...")
 start = time()
 clf.fit(X_train, y_train)
 end = time()
 print("Training took: ", end-start)
-measure.end()
-print(measure.result)
+print("Best loss: ", clf.best_loss_)
+print("Loss curve: ", clf.loss_curve_)
+print("num iter: ", clf.n_iter_)
+print("num layers: ", clf.n_layers_)
+print("batch_size: ", clf.batch_size)
+print("hidden layer sizes: ", clf.hidden_layer_sizes)
+# measure.end()
+# print(measure.result)
 
 y_pred = clf.predict(X_test)
 

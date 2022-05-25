@@ -11,7 +11,7 @@ from ignite.metrics import Accuracy
 from ignite.metrics.precision import Precision
 from ignite.metrics.recall import Recall
 from ignite.metrics.confusion_matrix import ConfusionMatrix
-
+import torchaudio
 
 
 import source.util as util
@@ -137,3 +137,12 @@ class MLPClassifier(pl.LightningModule):
             raise NotImplementedError
         return optimizer
 
+
+class FeatureExtractor(nn.Module):
+    def __init__(self):
+        super(FeatureExtractor, self).__init__()
+        self.spectrogram = torchaudio.transforms.Spectrogram(8192, hop_length=512)
+
+    def forward(self, audio, rate):
+        feat = []
+        stft = self.spectrogram(audio)

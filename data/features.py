@@ -318,34 +318,44 @@ def phase_fmax_batch(audio, transform=None):
     :return:
     """
     if transform is None:
-        transform = torchaudio.transforms.Spectrogram(n_fft=2048, hop_length=256)
+        transform = torchaudio.transforms.Spectrogram(n_fft=2048, hop_length=256, power=None)
     stft = transform(audio)
     mag = torch.abs(stft)
+    print(mag.shape)
     phase = torch.angle(stft)
     spec_sum = torch.sum(mag, dim=-1)
+    print(spec_sum.shape)
     max_bins = torch.argmax(spec_sum, dim=-1)
-    phase_freq_max = phase[max_bins]
-
-    mag_max_bin_mask = mag[max_bins]
-    thresh = torch.max(mag_max_bin_mask, dim=-1) / 8
-    phase_freq_max = torch.where(mag_max_bin_mask > thresh, phase_freq_max, 0)
-    phase_freq_max_t = torch.nonzero(phase_freq_max)
-
+    print(max_bins.shape)
+    phase_freq_max = torch.index_select(phase, dim=1, index=max_bins)
+    print(phase_freq_max.shape)
+    mag_max_bin_mask = torch.index_select(mag, dim=1, index=max_bins)
+    thresh, _ = torch.max(mag_max_bin_mask, dim=-1, keepdim=True)
+    print(thresh.shape)
+    thresh = thresh / 8
+    print((mag_max_bin_mask > thresh).shape)
+    phase_freq_max = torch.where(mag_max_bin_mask > thresh, phase_freq_max, torch.zeros_like(phase_freq_max))
+    print(phase_freq_max.shape)
+    phase_freq_max_t = phase_freq_max.clone()
+    print(phase_freq_max_t.shape)
     # unwrap phase
     phase_fmax_straight_t = torch.clone(phase_freq_max_t)
-    diff_mean_sign = torch.mean(torch.sign(torch.diff(phase_freq_max_t)))
+    # diff_mean_sign = torch.mean(torch.sign(torch.diff(phase_freq_max_t)))
     rolled = torch.roll(phase_freq_max_t, shifts=-1, dims=-1)
     rolled[:, -1] = torch.zeros_like(rolled[:, -1])
-    positive = torch.where(phase_freq_max_t - rolled < 0)
-    negative = torch.where(phase_freq_max_t - rolled > 0)
+    positive = torch.where(phase_freq_max_t - rolled < 0, 1, 0)
+    negative = torch.where(phase_freq_max_t - rolled > 0, -1, 0)
     modulos = torch.cumsum(positive, dim=-1)
-    modulos = modulos + torch.cumsum(-negative, dim=-1)
+    modulos = modulos + torch.cumsum(negative, dim=-1)
     phase_fmax_straight_t = phase_fmax_straight_t + 2*torch.pi * modulos
 
     x_axis_t = torch.arange(0, phase_fmax_straight_t.shape[-1])
+    print(phase_fmax_straight_t.shape)
+    print("Yo", x_axis_t.shape)
     beta_1, beta_0 = util.mean_square_linreg_torch(phase_fmax_straight_t)
+    print(beta_1.shape)
     linregerr_t = torch.clone(phase_fmax_straight_t)
-    linregerr_t -= (beta_1 * x_axis_t + beta_0)
+    linregerr_t -= (beta_1 * x_axis_t[None, :].expand(beta_1.shape[0], -1) + beta_0)
     return linregerr_t
 
 
@@ -386,6 +396,10 @@ def phase_fmax(sig):
     coeff = np.polyfit(x_axis_t, phase_fmax_straight_t, 1)
     linregerr_t = np.copy(phase_fmax_straight_t)
     linregerr_t -= (coeff[0] * x_axis_t + coeff[1])
+    print(phase_fmax_straight_t.shape)
+    print(coeff[0])
+    print(coeff[0].shape)
+    print(x_axis_t.shape)
     linregerr_t = np.reshape(linregerr_t, (1, len(linregerr_t)))
     # plots.phase_error_unwrapped(phase_fmax_straight_t, coeff, x_axis_t)
     return linregerr_t
@@ -409,5 +423,8 @@ def pitch_curve(audio, rate, fmin, fmax,
         return f0[0]
 
 
-def rms_energy(audio):
-    return librosa.feature.rms(y=audio)
+def rms_energy(audio, torch_compat: bool = False):
+    if torch_compat:
+        return torch.sqrt(torch.mean(torch.square(audio), dim=-1, keepdim=True))
+    else:
+        return librosa.feature.rms(y=audio)

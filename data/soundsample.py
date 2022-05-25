@@ -13,7 +13,7 @@ from numpy.typing import ArrayLike
 from playsound import playsound
 
 from data import features
-import util
+import source.util as util
 
 
 class SoundSample:

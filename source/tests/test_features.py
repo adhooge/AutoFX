@@ -15,7 +15,7 @@ def a440_np():
 @pytest.fixture
 def a440_torch():
     t = torch.linspace(0, 4, 64000)
-    audio = torch.sin(2*torch.pi*440*t)
+    audio = torch.sin(2*torch.pi*440*t + torch.pi)
     audio = torch.vstack([audio] * 10)
     return audio
 
@@ -193,3 +193,14 @@ def test_pitch_curve(a440_np):
     assert np.allclose(f0, np.ones_like(f0) * 440, atol=0.1, rtol=0.01)
 
 #TODO: Find a way to test torch version?
+
+
+def test_phase_fmax(a440_np):
+    linregerr = Ft.phase_fmax(a440_np)
+    assert np.allclose(linregerr, np.zeros_like(linregerr), atol=0.5)
+
+
+def test_phase_fmax_torch(a440_torch):
+    linregerr = Ft.phase_fmax_batch(a440_torch)
+    print(linregerr)
+    assert torch.allclose(linregerr, torch.zeros_like(linregerr))

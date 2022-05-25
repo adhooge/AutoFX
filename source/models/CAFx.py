@@ -22,8 +22,8 @@ import torchaudio
 
 class CAFx(pl.LightningModule):
     def compute_features(self, audio):
-        pitch = Ft.pitch_curve(audio, self.rate, None, None)
-        phase = Ft.phase_fmax(audio)
+        pitch = Ft.pitch_curve(audio, self.rate, None, None, torch_compat=True)
+        phase = Ft.phase_fmax_batch(audio, transform=self.feature_spectro)
         rms = Ft.rms_energy(audio)
         pitch_delta = Fc.estim_derivative(pitch)
         phase_delta = Fc.estim_derivative(phase)
@@ -107,6 +107,7 @@ class CAFx(pl.LightningModule):
         self.num_bands = num_bands
         self.param_range = param_range
         self.rate = rate
+        self.feature_spectro = torchaudio.transforms.Spectrogram(n_fft=2048, hop_length=256, power=None)
         self.out_of_domain = out_of_domain
         if loss_stamps is None:
             self.loss_weights = [1, 0]

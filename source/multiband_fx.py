@@ -8,11 +8,11 @@ import pedalboard as pdb
 import numpy as np
 import torch
 from torch import double
-import util
+import source.util as util
 
 from numba import jit, cuda
 
-from rave_pqmf import PQMF
+from source.rave_pqmf import PQMF
 
 
 def _settings_list2dict(settings_list, fx: pdb.Plugin):
@@ -107,6 +107,8 @@ class MultiBandFX:
         params = torch.clone(torch.Tensor(settings))
         if param_range is None:
             param_range = [(0, 1)] * (len(params) // num_bands)            # TODO: Make it FX agnostic
+        # print(param_range)
+        # print(params)
         for i in range(len(params)):
             params[i] = params[i] * (param_range[i//num_bands][1] - param_range[i//num_bands][0]) + param_range[i//num_bands][0]
         params = torch.Tensor(params)
@@ -124,6 +126,7 @@ class MultiBandFX:
                                       for f in range(self.num_fx)]
                 else:
                     board_settings = params[b]
+                # print(board_settings)
                 self.mbfx[b] = util.set_fx_params(self.mbfx[b], board_settings)
 
     def add_perturbation_to_fx_params(self, perturb, param_range):

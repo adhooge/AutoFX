@@ -4,9 +4,9 @@ Functionals to be used for simpler representation of time changing-features.
 import librosa.feature
 import numpy as np
 from numpy.typing import ArrayLike
-from config import DATA_DICT
+from source.config import DATA_DICT
 from scipy.stats import skew, kurtosis
-import util
+import source.util as util
 
 
 def f_max(arr: ArrayLike) -> float:
@@ -75,7 +75,14 @@ def fft_max(feat, num_max: int = 1, zero_half_width: int = None):
 
 
 def estim_derivative(feat, **kwargs):
-    return librosa.feature.delta(feat, **kwargs)
+    if 9 > feat.shape[-1]:
+        if feat.shape[-1] % 2:
+            width = feat.shape[-1]
+        else:
+            width = feat.shape[-1] - 1
+    else:
+        width = 9
+    return librosa.feature.delta(feat, width=width, **kwargs)
 
 
 def feat_vector(feat: dict, pitch: float) -> dict:
