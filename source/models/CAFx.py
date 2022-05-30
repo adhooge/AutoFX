@@ -24,10 +24,10 @@ class CAFx(pl.LightningModule):
     def compute_features(self, audio):
         pitch = Ft.pitch_curve(audio, self.rate, None, None, torch_compat=True)
         phase = Ft.phase_fmax_batch(audio, transform=self.feature_spectro)
-        rms = Ft.rms_energy(audio)
-        pitch_delta = Fc.estim_derivative(pitch)
-        phase_delta = Fc.estim_derivative(phase)
-        rms_delta = Fc.estim_derivative(rms)
+        rms = Ft.rms_energy(audio, torch_compat=True)
+        pitch_delta = Fc.estim_derivative(pitch, torch_compat=True)
+        phase_delta = Fc.estim_derivative(phase, torch_compat=True)
+        rms_delta = Fc.estim_derivative(rms, torch_compat=True)
         pitch_fft_max, pitch_freq = Fc.fft_max(pitch,
                                                num_max=2,
                                                zero_half_width=32)

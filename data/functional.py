@@ -3,6 +3,7 @@ Functionals to be used for simpler representation of time changing-features.
 """
 import librosa.feature
 import numpy as np
+import torch
 from numpy.typing import ArrayLike
 from source.config import DATA_DICT
 from scipy.stats import skew, kurtosis
@@ -56,7 +57,7 @@ def fft_max(feat, num_max: int = 1, zero_half_width: int = None):
     dc_feat_w = dc_feat * np.hanning(len(dc_feat))
     rfft = np.fft.rfft(dc_feat_w, 1024)
     rfft = np.abs(rfft) * 4 / 1024
-    rfft[0, :16] = np.zeros(16)    # TODO: Find why?
+    rfft[0, :16] = np.zeros(16)  # TODO: Find why?
     rfft_max = np.max(rfft)
     rfft_max_bin = np.argmax(rfft)
     rfft_max = [rfft_max]
@@ -65,24 +66,27 @@ def fft_max(feat, num_max: int = 1, zero_half_width: int = None):
         cnt = 1
         zeros = np.zeros(2 * zero_half_width + 1)
         while cnt < num_max:
-            low_bound = max(0, rfft_max_bin[cnt-1]-zero_half_width)
-            high_bound = min(513, rfft_max_bin[cnt-1]+zero_half_width + 1)
-            rfft[0, low_bound:high_bound] = zeros[:high_bound-low_bound]
+            low_bound = max(0, rfft_max_bin[cnt - 1] - zero_half_width)
+            high_bound = min(513, rfft_max_bin[cnt - 1] + zero_half_width + 1)
+            rfft[0, low_bound:high_bound] = zeros[:high_bound - low_bound]
             rfft_max.append(np.max(rfft))
             rfft_max_bin.append(np.argmax(rfft))
             cnt += 1
     return rfft_max, rfft_max_bin
 
 
-def estim_derivative(feat, **kwargs):
-    if 9 > feat.shape[-1]:
-        if feat.shape[-1] % 2:
-            width = feat.shape[-1]
-        else:
-            width = feat.shape[-1] - 1
+def estim_derivative(feat, torch_compat: bool = False, **kwargs):
+    if torch_compat:
+        return torch.diff(feat)
     else:
-        width = 9
-    return librosa.feature.delta(feat, width=width, **kwargs)
+        if 9 > feat.shape[-1]:
+            if feat.shape[-1] % 2:
+                width = feat.shape[-1]
+            else:
+                width = feat.shape[-1] - 1
+        else:
+            width = 9
+        return librosa.feature.delta(feat, width=width, **kwargs)
 
 
 def feat_vector(feat: dict, pitch: float) -> dict:
