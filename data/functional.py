@@ -31,9 +31,9 @@ def f_std(arr: ArrayLike, torch_compat: bool = False):
 
 def f_skew(arr: ArrayLike, torch_compat: bool = False):
     if torch_compat:
-        mean = torch.mean(arr, dim=-1)
+        mean = torch.mean(arr, dim=-1, keepdim=True)
         diffs = arr - mean
-        var = torch.mean(torch.pow(diffs, 2), dim=-1)
+        var = torch.mean(torch.pow(diffs, 2), dim=-1, keepdim=True)
         zscores = diffs / torch.sqrt(var)
         skews = torch.mean(torch.pow(zscores, 3), dim=-1)
         return skews
