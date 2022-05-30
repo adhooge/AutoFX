@@ -28,20 +28,20 @@ class CAFx(pl.LightningModule):
         pitch_delta = Fc.estim_derivative(pitch, torch_compat=True)
         phase_delta = Fc.estim_derivative(phase, torch_compat=True)
         rms_delta = Fc.estim_derivative(rms, torch_compat=True)
-        pitch_fft_max, pitch_freq = Fc.fft_max(pitch,
+        pitch_fft_max, pitch_freq = Fc.fft_max_batch(pitch,
                                                num_max=2,
                                                zero_half_width=32)
-        pitch_delta_fft_max, pitch_delta_freq = Fc.fft_max(pitch_delta,
+        pitch_delta_fft_max, pitch_delta_freq = Fc.fft_max_batch(pitch_delta,
                                                            num_max=2,
                                                            zero_half_width=32)
-        rms_delta_fft_max, rms_delta_freq = Fc.fft_max(rms_delta,
+        rms_delta_fft_max, rms_delta_freq = Fc.fft_max_batch(rms_delta,
                                                        num_max=2,
                                                        zero_half_width=32)
-        phase_delta_fft_max, phase_delta_freq = Fc.fft_max(phase_delta,
+        phase_delta_fft_max, phase_delta_freq = Fc.fft_max_batch(phase_delta,
                                                            num_max=2,
                                                            zero_half_width=32)
-        phase_fft_max, phase_freq = Fc.fft_max(phase, num_max=2, zero_half_width=32)
-        rms_fft_max, rms_freq = Fc.fft_max(rms, num_max=2, zero_half_width=32)
+        phase_fft_max, phase_freq = Fc.fft_max_batch(phase, num_max=2, zero_half_width=32)
+        rms_fft_max, rms_freq = Fc._batch(rms, num_max=2, zero_half_width=32)
         rms_std = Fc.f_std(rms)
         rms_skew = Fc.f_skew(rms[0])
         rms_delta_std = Fc.f_std(rms_delta)
