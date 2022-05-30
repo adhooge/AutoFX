@@ -45,7 +45,6 @@ class CAFx(pl.LightningModule):
         rms_std = Fc.f_std(rms, torch_compat=True)
         rms_skew = Fc.f_skew(rms, torch_compat=True)
         rms_delta_std = Fc.f_std(rms_delta, torch_compat=True)
-        print(rms_delta)
         rms_delta_skew = Fc.f_skew(rms_delta, torch_compat=True)
         features = torch.cat((phase_fft_max[:, 0], phase_freq[:, 0] / 512,
                               rms_fft_max[:, 0], rms_freq[:, 0] / 512,
@@ -179,12 +178,14 @@ class CAFx(pl.LightningModule):
                 torch.abs(rec))
             spec_loss = self.spectral_loss(pred_normalized, target_normalized)
             features = self.compute_features(clean[:, 0, :])
-            feat_loss = self.loss(features, feat)
-            print("FEAT_LOSS", feat_loss)
-            spectral_loss = spec_loss
+            feat_loss = self.loss(features.view(clean.shape[0], -1), feat)
+            spectral_loss = spec_loss + 10*feat_loss        # big weight on feat loss to test it
         else:
             spectral_loss = 0
             spec_loss = 0
+            feat_loss = 0
+        self.logger.experiment.add_scalar("Feature_loss/Train",
+                                          feat_loss, global_step=self.global_step)
         self.logger.experiment.add_scalar("Total_Spectral_loss/Train",
                                           spectral_loss, global_step=self.global_step)
         if not self.out_of_domain:
@@ -217,9 +218,14 @@ class CAFx(pl.LightningModule):
             target_normalized, pred_normalized = processed[:, 0, :] / torch.max(
                 torch.abs(processed)), rec / torch.max(torch.abs(rec))
             spec_loss = self.spectral_loss(pred_normalized, target_normalized)
-            spectral_loss = spec_loss
+            features = self.compute_features(clean[:, 0, :])
+            feat_loss = self.loss(features.view(clean.shape[0], -1), feat)
+            spectral_loss = spec_loss + 10 * feat_loss
         else:
             spectral_loss = 0
+            feat_loss = 0
+        self.logger.experiment.add_scalar("Feature_loss/test",
+                                          feat_loss, global_step=self.global_step)
         self.logger.experiment.add_scalar("Total_Spectral_loss/test",
                                           spectral_loss, global_step=self.global_step)
         if not self.out_of_domain:
