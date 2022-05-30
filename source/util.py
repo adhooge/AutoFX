@@ -518,5 +518,5 @@ def mean_square_linreg_torch(tens, x=None):
     x_mean = torch.mean(x, dim=-1, keepdim=True)
     y_mean = torch.mean(tens, dim=-1, keepdim=True)
     beta_1 = torch.sum((x - x_mean) * (tens - y_mean), dim=-1) / torch.sum(torch.square(x - x_mean), dim=-1)
-    beta_0 = y_mean - beta_1 * x_mean
-    return beta_1, beta_0
+    beta_0 = y_mean - beta_1[:, None] * x_mean
+    return beta_1, beta_0[:, 0]
