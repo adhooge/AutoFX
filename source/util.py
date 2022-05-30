@@ -513,7 +513,7 @@ def mean_square_linreg_torch(tens, x=None):
     batch_size = tens.shape[0]
     length = tens.shape[-1]
     if x is None:
-        x = torch.arange(0, length, step=1, dtype=torch.float)
+        x = torch.arange(0, length, step=1, dtype=torch.float, device=tens.device)
         x = torch.vstack([x] * batch_size)
     x_mean = torch.mean(x, dim=-1, keepdim=True)
     y_mean = torch.mean(tens, dim=-1, keepdim=True)

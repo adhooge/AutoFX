@@ -345,7 +345,7 @@ def phase_fmax_batch(audio, transform=None):
     modulos = torch.where(diff_mean_sign[:, None] > 0, positive, negative)
     modulos = torch.cumsum(modulos, dim=-1)
     phase_fmax_straight_t = phase_fmax_straight_t + 2*torch.pi * modulos
-    x_axis_t = torch.arange(0, phase_fmax_straight_t.shape[-1])
+    x_axis_t = torch.arange(0, phase_fmax_straight_t.shape[-1], device=audio.device)
     x_axis_t = torch.vstack([x_axis_t]*audio.shape[0])
     beta_1, beta_0 = util.mean_square_linreg_torch(phase_fmax_straight_t)
     linregerr_t = torch.clone(phase_fmax_straight_t)
