@@ -192,15 +192,15 @@ def test_pitch_curve(a440_np):
     f0 = Ft.pitch_curve(a440_np, 16000, 80, 1000)
     assert np.allclose(f0, np.ones_like(f0) * 440, atol=0.1, rtol=0.01)
 
-#TODO: Find a way to test torch version?
+# TODO: Find a way to test torch version?
 
 
 def test_phase_fmax(a440_np):
     linregerr = Ft.phase_fmax(a440_np)
+    print(linregerr)
     assert np.allclose(linregerr, np.zeros_like(linregerr), atol=0.5)
 
 
 def test_phase_fmax_torch(a440_torch):
     linregerr = Ft.phase_fmax_batch(a440_torch)
-    print(linregerr)
-    assert torch.allclose(linregerr, torch.zeros_like(linregerr))
+    assert torch.allclose(linregerr, torch.zeros_like(linregerr), atol=1)
