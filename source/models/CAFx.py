@@ -41,11 +41,11 @@ class CAFx(pl.LightningModule):
                                                            num_max=2,
                                                            zero_half_width=32)
         phase_fft_max, phase_freq = Fc.fft_max_batch(phase, num_max=2, zero_half_width=32)
-        rms_fft_max, rms_freq = Fc._batch(rms, num_max=2, zero_half_width=32)
-        rms_std = Fc.f_std(rms)
-        rms_skew = Fc.f_skew(rms[0])
-        rms_delta_std = Fc.f_std(rms_delta)
-        rms_delta_skew = Fc.f_skew(rms_delta[0])
+        rms_fft_max, rms_freq = Fc.fft_max_batch(rms, num_max=2, zero_half_width=32)
+        rms_std = Fc.f_std(rms, torch_compat=True)
+        rms_skew = Fc.f_skew(rms[0], torch_compat=True)
+        rms_delta_std = Fc.f_std(rms_delta, torch_compat=True)
+        rms_delta_skew = Fc.f_skew(rms_delta[0], torch_compat=True)
         features = torch.cat((phase_fft_max[:, 0], phase_freq[:, 0] / 512,
                               rms_fft_max[:, 0], rms_freq[:, 0] / 512,
                               phase_fft_max[:, 1], phase_freq[:, 1] / 512,

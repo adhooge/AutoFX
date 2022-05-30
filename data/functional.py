@@ -22,11 +22,21 @@ def f_avg(arr: ArrayLike):
     return np.mean(arr)
 
 
-def f_std(arr: ArrayLike):
-    return np.std(arr)
+def f_std(arr: ArrayLike, torch_compat: bool = False):
+    if torch_compat:
+        return torch.std(arr, dim=-1)
+    else:
+        return np.std(arr)
 
 
-def f_skew(arr: ArrayLike):
+def f_skew(arr: ArrayLike, torch_compat: bool = False):
+    if torch_compat:
+        mean = torch.mean(arr, dim=-1)
+        diffs = arr - mean
+        var = torch.mean(torch.pow(diffs, 2), dim=-1)
+        zscores = diffs / torch.sqrt(var)
+        skews = torch.mean(torch.pow(zscores, 3), dim=-1)
+        return skews
     return skew(arr)
 
 
@@ -55,11 +65,11 @@ def fft_max_batch(feat, num_max: int = 1, zero_half_width: int = None):
     rfft_max, rfft_max_bin = torch.max(rfft, dim=-1)
     if num_max > 1:
         cnt = 1
-        zeros = torch.zeros((feat.shape[0], 2*zero_half_width + 1))
+        zeros = torch.zeros((feat.shape[0], 2 * zero_half_width + 1))
         while cnt < num_max:
-            tmp1 = rfft_max_bin[:, cnt-1] - zero_half_width
+            tmp1 = rfft_max_bin[:, cnt - 1] - zero_half_width
             low_bound = torch.nn.functional.relu(tmp1)
-            tmp2 = rfft_max_bin[:, cnt-1] + zero_half_width + 1
+            tmp2 = rfft_max_bin[:, cnt - 1] + zero_half_width + 1
             high_bound = -torch.nn.functional.relu(-tmp2 + 513) + 513
             # zero mask batch: https://stackoverflow.com/questions/57548180/filling-torch-tensor-with-zeros-after-certain-index
             mask = torch.zeros(feat.shape[0], feat.shape[1] + 1)
