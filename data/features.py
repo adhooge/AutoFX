@@ -415,6 +415,9 @@ def pitch_curve(audio, rate, fmin, fmax,
 
 def rms_energy(audio, torch_compat: bool = False):
     if torch_compat:
-        return torch.sqrt(torch.mean(torch.square(audio), dim=-1, keepdim=True))
+        # TODO: make util function for better frame splitting
+        # discard last frame that is shorter for now
+        frames = torch.stack(torch.split(audio, 1024, dim=-1)[:-1], dim=1)
+        return torch.sqrt(torch.mean(torch.square(frames), dim=-1))
     else:
         return librosa.feature.rms(y=audio)

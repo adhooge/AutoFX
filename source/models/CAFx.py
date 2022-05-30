@@ -29,23 +29,24 @@ class CAFx(pl.LightningModule):
         phase_delta = Fc.estim_derivative(phase, torch_compat=True)
         rms_delta = Fc.estim_derivative(rms, torch_compat=True)
         pitch_fft_max, pitch_freq = Fc.fft_max_batch(pitch,
-                                               num_max=2,
-                                               zero_half_width=32)
+                                                     num_max=2,
+                                                     zero_half_width=32)
         pitch_delta_fft_max, pitch_delta_freq = Fc.fft_max_batch(pitch_delta,
-                                                           num_max=2,
-                                                           zero_half_width=32)
+                                                                 num_max=2,
+                                                                 zero_half_width=32)
         rms_delta_fft_max, rms_delta_freq = Fc.fft_max_batch(rms_delta,
-                                                       num_max=2,
-                                                       zero_half_width=32)
+                                                             num_max=2,
+                                                             zero_half_width=32)
         phase_delta_fft_max, phase_delta_freq = Fc.fft_max_batch(phase_delta,
-                                                           num_max=2,
-                                                           zero_half_width=32)
+                                                                 num_max=2,
+                                                                 zero_half_width=32)
         phase_fft_max, phase_freq = Fc.fft_max_batch(phase, num_max=2, zero_half_width=32)
         rms_fft_max, rms_freq = Fc.fft_max_batch(rms, num_max=2, zero_half_width=32)
         rms_std = Fc.f_std(rms, torch_compat=True)
-        rms_skew = Fc.f_skew(rms[0], torch_compat=True)
+        rms_skew = Fc.f_skew(rms, torch_compat=True)
         rms_delta_std = Fc.f_std(rms_delta, torch_compat=True)
-        rms_delta_skew = Fc.f_skew(rms_delta[0], torch_compat=True)
+        print(rms_delta)
+        rms_delta_skew = Fc.f_skew(rms_delta, torch_compat=True)
         features = torch.cat((phase_fft_max[:, 0], phase_freq[:, 0] / 512,
                               rms_fft_max[:, 0], rms_freq[:, 0] / 512,
                               phase_fft_max[:, 1], phase_freq[:, 1] / 512,
@@ -177,6 +178,9 @@ class CAFx(pl.LightningModule):
             target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(
                 torch.abs(rec))
             spec_loss = self.spectral_loss(pred_normalized, target_normalized)
+            features = self.compute_features(clean[:, 0, :])
+            feat_loss = self.loss(features, feat)
+            print("FEAT_LOSS", feat_loss)
             spectral_loss = spec_loss
         else:
             spectral_loss = 0
