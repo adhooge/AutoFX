@@ -71,7 +71,7 @@ class CAFx(pl.LightningModule):
                  mrstft_hop: list[int] = [16, 32, 64, 128, 256, 512],
                  learning_rate: float = 0.001, out_of_domain: bool = False,
                  spectro_power: int = 2, mel_spectro: bool = True, mel_num_bands: int = 128,
-                 loss_stamps: list = None, device=torch.device('cuda'),
+                 loss_stamps: list = None,
                  reverb: bool = False):
         super().__init__()
         if total_num_bands is None:
@@ -102,7 +102,7 @@ class CAFx(pl.LightningModule):
                                                             w_lin_mag=1,
                                                             w_phs=1,
                                                             sample_rate=rate,
-                                                            device=device)  # TODO: Manage device properly
+                                                            device=torch.device('cuda'))  # TODO: Manage device properly
         self.spectral_loss = self.mrstft
         self.num_bands = num_bands
         self.param_range = param_range
