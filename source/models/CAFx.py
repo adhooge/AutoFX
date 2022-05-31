@@ -177,15 +177,17 @@ class CAFx(pl.LightningModule):
             target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(
                 torch.abs(rec))
             spec_loss = self.spectral_loss(pred_normalized, target_normalized)
-            features = self.compute_features(clean[:, 0, :])
+            features = self.compute_features(processed[:, 0, :])
             feat_loss = self.loss(features, feat)
-            spectral_loss = spec_loss + 10 * feat_loss  # big weight on feat loss to test it
+            spectral_loss = spec_loss + 1 * feat_loss
         else:
             spectral_loss = 0
             spec_loss = 0
             feat_loss = 0
         self.logger.experiment.add_scalar("Feature_loss/Train",
                                           feat_loss, global_step=self.global_step)
+        self.logger.experiment.add_scalar("MRSTFT_loss/Train",
+                                          spec_loss, global_step=self.global_step)
         self.logger.experiment.add_scalar("Total_Spectral_loss/Train",
                                           spectral_loss, global_step=self.global_step)
         if not self.out_of_domain:
@@ -218,7 +220,7 @@ class CAFx(pl.LightningModule):
             target_normalized, pred_normalized = processed[:, 0, :] / torch.max(
                 torch.abs(processed)), rec / torch.max(torch.abs(rec))
             spec_loss = self.spectral_loss(pred_normalized, target_normalized)
-            features = self.compute_features(clean[:, 0, :])
+            features = self.compute_features(processed[:, 0, :])
             feat_loss = self.loss(features, feat)
             spectral_loss = spec_loss + 10 * feat_loss
         else:
@@ -226,6 +228,8 @@ class CAFx(pl.LightningModule):
             feat_loss = 0
         self.logger.experiment.add_scalar("Feature_loss/test",
                                           feat_loss, global_step=self.global_step)
+        self.logger.experiment.add_scalar("MRSTFT_loss/test",
+                                          spec_loss, global_step=self.global_step)
         self.logger.experiment.add_scalar("Total_Spectral_loss/test",
                                           spectral_loss, global_step=self.global_step)
         if not self.out_of_domain:
@@ -243,9 +247,14 @@ class CAFx(pl.LightningModule):
         pred = self.forward(processed.to(self.device), feat.to(self.device))
         pred = pred.to("cpu")
         rec = torch.zeros(clean.shape[0], clean.shape[-1], device=self.device)  # TODO: fix hardcoded value
+        features = self.compute_features(processed[:, 0, :])
         for (i, snd) in enumerate(clean):
             rec[i] = self.mbfx_layer.forward(snd, pred[i])
         for l in range(self.audiologs):
+            self.logger.experiment.add_text(f"Audio/{l}/Original_feat",
+                                            feat[l], global_step=self.global_step)
+            self.logger.experiment.add_text(f"Audio/{l}/Predicted_feat",
+                                            features[l], global_step=self.global_step)
             self.logger.experiment.add_audio(f"Audio/{l}/Original", processed[l] / torch.max(torch.abs(processed[l])),
                                              sample_rate=self.rate, global_step=self.global_step)
             self.logger.experiment.add_audio(f"Audio/{l}/Matched", rec[l] / torch.max(torch.abs(rec[l])),
@@ -255,6 +264,10 @@ class CAFx(pl.LightningModule):
                 self.logger.experiment.add_text(f"Audio/{l}/Matched_params", str(pred[l]), global_step=self.global_step)
                 self.logger.experiment.add_text(f"Audio/{l}/Original_params", str(label[l]),
                                                 global_step=self.global_step)
+
+    def on_after_backward(self) -> None:
+        self.logger.experiment.add_histogram("Grad/fcl", self.fcl.weight.grad,
+                                             global_step=self.global_step)
 
     def on_train_epoch_start(self) -> None:
         if self.tracker_flag and self.tracker is None:
