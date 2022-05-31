@@ -99,18 +99,18 @@ def main(parser):
                     rms_skew = Fc.f_skew(rms[0], torch_compat=True)
                     rms_delta_std = Fc.f_std(rms_delta, torch_compat=True)
                     rms_delta_skew = Fc.f_skew(rms_delta[0], torch_compat=True)
-                    features = [phase_fft_max[0, 0], phase_freq[0, 0] / 512,
-                                rms_fft_max[0, 0], rms_freq[0, 0] / 512,
-                                phase_fft_max[0, 1], phase_freq[0, 1] / 512,
-                                rms_fft_max[0, 1], rms_freq[0, 1] / 512,
-                                rms_delta_fft_max[0, 0], rms_delta_freq[0, 0] / 512,
-                                rms_delta_fft_max[0, 1], rms_delta_freq[0, 1] / 512,
-                                phase_delta_fft_max[0, 0], phase_delta_freq[0, 0] / 512,
-                                phase_delta_fft_max[0, 1], phase_delta_freq[0, 1] / 512,
-                                pitch_delta_fft_max[0, 0], pitch_delta_freq[0, 0] / 512,
-                                pitch_delta_fft_max[0, 1], pitch_delta_freq[0, 1] / 512,
-                                pitch_fft_max[0, 0], pitch_freq[0, 0] / 512,
-                                pitch_fft_max[0, 1], pitch_freq[0, 1] / 512,
+                    features = [phase_fft_max[0, 0].item(), phase_freq[0, 0].item() / 512,
+                                rms_fft_max[0, 0].item(), rms_freq[0, 0].item() / 512,
+                                phase_fft_max[0, 1].item(), phase_freq[0, 1].item() / 512,
+                                rms_fft_max[0, 1].item(), rms_freq[0, 1].item() / 512,
+                                rms_delta_fft_max[0, 0].item(), rms_delta_freq[0, 0].item() / 512,
+                                rms_delta_fft_max[0, 1].item(), rms_delta_freq[0, 1].item() / 512,
+                                phase_delta_fft_max[0, 0].item(), phase_delta_freq[0, 0].item() / 512,
+                                phase_delta_fft_max[0, 1].item(), phase_delta_freq[0, 1].item() / 512,
+                                pitch_delta_fft_max[0, 0].item(), pitch_delta_freq[0, 0].item() / 512,
+                                pitch_delta_fft_max[0, 1].item(), pitch_delta_freq[0, 1].item() / 512,
+                                pitch_fft_max[0, 0].item(), pitch_freq[0, 0].item() / 512,
+                                pitch_fft_max[0, 1].item(), pitch_freq[0, 1].item() / 512,
                                 rms_std.item(), rms_delta_std.item(),
                                 rms_skew.item(), rms_delta_skew.item()
                                 ]
