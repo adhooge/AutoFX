@@ -18,6 +18,7 @@ from source.models.resnet_layers import ResNet
 import data.functional as Fc
 import data.features as Ft
 import torchaudio
+import source.util as util
 
 
 class CAFx(pl.LightningModule):
@@ -62,7 +63,7 @@ class CAFx(pl.LightningModule):
                                 ), dim=1)
         return features
 
-    def __init__(self, fx: pdb.Plugin, num_bands: int, param_range: List[Tuple],
+    def __init__(self, fx: str, num_bands: int, param_range: list,
                  cond_feat: int,
                  tracker: bool = False,
                  rate: int = 22050, total_num_bands: int = None,
@@ -74,6 +75,8 @@ class CAFx(pl.LightningModule):
                  loss_stamps: list = None,
                  reverb: bool = False):
         super().__init__()
+        if isinstance(fx, str):
+            fx = [util.str2pdb(fx)]
         if total_num_bands is None:
             total_num_bands = num_bands
         self.total_num_bands = total_num_bands
@@ -105,6 +108,8 @@ class CAFx(pl.LightningModule):
                                                             device=torch.device('cuda'))  # TODO: Manage device properly
         self.spectral_loss = self.mrstft
         self.num_bands = num_bands
+        if isinstance(param_range[0], str):
+            param_range = util.param_range_from_cli(param_range)
         self.param_range = param_range
         self.rate = rate
         self.feature_spectro = torchaudio.transforms.Spectrogram(n_fft=2048, hop_length=256, power=None)

@@ -520,3 +520,23 @@ def mean_square_linreg_torch(tens, x=None):
     beta_1 = torch.sum((x - x_mean) * (tens - y_mean), dim=-1) / torch.sum(torch.square(x - x_mean), dim=-1)
     beta_0 = y_mean - beta_1[:, None] * x_mean
     return beta_1, beta_0[:, 0]
+
+
+def str2pdb(fx: str):
+    match fx:
+        case "chorus":
+            return pdb.Chorus
+        case _:
+            raise NotImplementedError
+
+
+def param_range_from_cli(param_range: list[str]):
+    i = 0
+    out = []
+    while i < len(param_range):
+        tup = param_range[i] + ',' + param_range[i+1]
+        tup = tup[1:-1]     # drop parentheses
+        tup = tuple(map(float, tup.split(',')))
+        out.append(tup)
+        i += 2
+    return out

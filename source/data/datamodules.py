@@ -9,8 +9,8 @@ from source.data.datasets import FeatureInDomainDataset, FeatureOutDomainDataset
 
 
 class FeaturesDataModule(pl.LightningDataModule):
-    def __init__(self, clean_dir: pathlib.Path or str, processed_dir: pathlib.Path or str,
-                 out_of_domain_dir: pathlib.Path or str, batch_size: int = 32, num_workers: int = 4,
+    def __init__(self, clean_dir: str, processed_dir: str,
+                 out_of_domain_dir: str, batch_size: int = 32, num_workers: int = 4,
                  out_of_domain: bool = False, seed: int = None, reverb: bool = False, *args, **kwargs):
         super(FeaturesDataModule, self).__init__()
         self.clean_dir = clean_dir
@@ -31,6 +31,8 @@ class FeaturesDataModule(pl.LightningDataModule):
                                                 reverb=self.reverb)
         out_domain_full = FeatureOutDomainDataset(self.out_of_domain_dir, self.clean_dir, self.out_of_domain_dir,
                                                   index_col=0)
+        in_domain_full.scaler.fit(in_domain_full[:][2])
+        out_domain_full.scaler.fit(out_domain_full[:][2])
         self.in_train, self.in_val = torch.utils.data.random_split(in_domain_full,
                                                                    [len(in_domain_full) - len(in_domain_full)//5, len(in_domain_full)//5],
                                                                    generator=torch.Generator().manual_seed(self.seed))
