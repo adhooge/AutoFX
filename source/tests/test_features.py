@@ -204,3 +204,12 @@ def test_phase_fmax(a440_np):
 def test_phase_fmax_torch(a440_torch):
     linregerr = Ft.phase_fmax_batch(a440_torch)
     assert torch.allclose(linregerr, torch.zeros_like(linregerr), atol=1)
+
+
+def test_roll_off_torch():
+    # (10, 5, 100)
+    signal = torch.linspace(1, 100, 100)
+    signal = torch.hstack([signal] * 5)
+    signals = torch.vstack([signal] * 10)
+    rolloff = Ft.spectral_rolloff(signals.view(10, 5, 100), torch_compat=True)
+    assert torch.allclose(rolloff, torch.ones_like(rolloff) * 98)

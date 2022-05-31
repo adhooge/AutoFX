@@ -209,36 +209,52 @@ def spectral_flux(mag: np.ndarray or Tensor, q_norm: int = 1,
         return flux
 
 
-def spectral_rolloff(mag: np.ndarray, threshold: float = 0.95, freq: np.ndarray = None):
+def spectral_rolloff(mag: np.ndarray or Tensor, threshold: float = 0.95, freq: np.ndarray = None,
+                     torch_compat: bool=False):
     """
     The spectral roll-off point is the frequency so that threshold% of the signal energy is contained
     below that frequency.
     See: Geoffroy Peeter, Technical report of the CUIDADO project, 2004.
 
-    :param mag: (num_frames, N_fft) Matrix of the frame-by-frame magnitude;
+    :param mag: (..., num_frames, N_fft) Matrix of the frame-by-frame magnitude;
     :param threshold: Ratio of the signal energy to use. Defaults to 0.95;
     :param freq: array of the frequency in Hertz of each frequency bin. If None, result is given as a bin number;
-    :return rolloff: (num_frames, 1) matrix of the spectral roll-off for each frame, in Hz or #bin.
+    :param torch_compat: should the computation be Pytorch-compatible? Default is False.
+    :return rolloff: (..., num_frames, 1) matrix of the spectral roll-off for each frame, in Hz or #bin.
     """
-    if mag.ndim == 1:
-        mag = np.expand_dims(mag, axis=1)
-    num_frames = mag.shape[1]
-    energy = np.power(mag, 2)
-    rolloff = np.empty((num_frames, 1))
-    for fr in range(num_frames):
-        flag = True
-        tot_energy = np.sum(energy[:, fr])
-        cumul_energy = np.cumsum(energy[:, fr])
-        for (bin_num, ener) in enumerate(cumul_energy):
-            if ener > threshold * tot_energy and flag:
-                flag = False
-                if freq is None:
-                    rolloff[fr] = bin_num
-                else:
-                    rolloff[fr] = freq[bin_num]
-            elif not flag:
-                break
-    return rolloff
+    if torch_compat:
+        energy = torch.square(mag)
+        batch_size, num_frames, fft_size = mag.shape
+        tot_energy = torch.sum(energy, dim=-1, keepdim=True)      # (batch_size, num_frames, 1)
+        cumul_energy = torch.cumsum(energy, dim=-1)               # (batch_size, num_frames, fft_size)
+        transition = torch.where(cumul_energy > threshold*tot_energy, 1, 0)
+        cumul_transition = torch.cumsum(transition, dim=-1)   # (batch_size, num_frames, fft_size)
+        indices = (cumul_transition == 1).nonzero(as_tuple=True)
+        roll_off = torch.zeros((batch_size, num_frames, 1))
+        roll_off[indices[:2]] = torch.tensor(indices[-1], dtype=roll_off.dtype)[:, None]
+        if freq is not None:
+            roll_off[indices] = freq[indices[-1]]
+        return roll_off
+    else:
+        if mag.ndim == 1:
+            mag = np.expand_dims(mag, axis=1)
+        num_frames = mag.shape[1]
+        energy = np.power(mag, 2)
+        rolloff = np.empty((num_frames, 1))
+        for fr in range(num_frames):
+            flag = True
+            tot_energy = np.sum(energy[:, fr])
+            cumul_energy = np.cumsum(energy[:, fr])
+            for (bin_num, ener) in enumerate(cumul_energy):
+                if ener > threshold * tot_energy and flag:
+                    flag = False
+                    if freq is None:
+                        rolloff[fr] = bin_num
+                    else:
+                        rolloff[fr] = freq[bin_num]
+                elif not flag:
+                    break
+        return rolloff
 
 
 def spectral_slope(mag: np.ndarray, freq: np.ndarray = None):
