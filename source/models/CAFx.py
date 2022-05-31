@@ -46,20 +46,20 @@ class CAFx(pl.LightningModule):
         rms_skew = Fc.f_skew(rms, torch_compat=True)
         rms_delta_std = Fc.f_std(rms_delta, torch_compat=True)
         rms_delta_skew = Fc.f_skew(rms_delta, torch_compat=True)
-        features = torch.cat((phase_fft_max[:, 0], phase_freq[:, 0] / 512,
-                              rms_fft_max[:, 0], rms_freq[:, 0] / 512,
-                              phase_fft_max[:, 1], phase_freq[:, 1] / 512,
-                              rms_fft_max[:, 1], rms_freq[:, 1] / 512,
-                              rms_delta_fft_max[:, 0], rms_delta_freq[:, 0] / 512,
-                              rms_delta_fft_max[:, 1], rms_delta_freq[:, 1] / 512,
-                              phase_delta_fft_max[:, 0], phase_delta_freq[:, 0] / 512,
-                              phase_delta_fft_max[:, 1], phase_delta_freq[:, 1] / 512,
-                              pitch_delta_fft_max[:, 0], pitch_delta_freq[:, 0] / 512,
-                              pitch_delta_fft_max[:, 1], pitch_delta_freq[:, 1] / 512,
-                              pitch_fft_max[:, 0], pitch_freq[:, 0] / 512,
-                              pitch_fft_max[:, 1], pitch_freq[:, 1] / 512,
-                              rms_std, rms_delta_std, rms_skew, rms_delta_skew
-                              ), dim=-1)
+        features = torch.stack((phase_fft_max[:, 0], phase_freq[:, 0] / 512,
+                                rms_fft_max[:, 0], rms_freq[:, 0] / 512,
+                                phase_fft_max[:, 1], phase_freq[:, 1] / 512,
+                                rms_fft_max[:, 1], rms_freq[:, 1] / 512,
+                                rms_delta_fft_max[:, 0], rms_delta_freq[:, 0] / 512,
+                                rms_delta_fft_max[:, 1], rms_delta_freq[:, 1] / 512,
+                                phase_delta_fft_max[:, 0], phase_delta_freq[:, 0] / 512,
+                                phase_delta_fft_max[:, 1], phase_delta_freq[:, 1] / 512,
+                                pitch_delta_fft_max[:, 0], pitch_delta_freq[:, 0] / 512,
+                                pitch_delta_fft_max[:, 1], pitch_delta_freq[:, 1] / 512,
+                                pitch_fft_max[:, 0], pitch_freq[:, 0] / 512,
+                                pitch_fft_max[:, 1], pitch_freq[:, 1] / 512,
+                                rms_std, rms_delta_std, rms_skew, rms_delta_skew
+                                ), dim=1)
         return features
 
     def __init__(self, fx: pdb.Plugin, num_bands: int, param_range: List[Tuple],
@@ -178,8 +178,8 @@ class CAFx(pl.LightningModule):
                 torch.abs(rec))
             spec_loss = self.spectral_loss(pred_normalized, target_normalized)
             features = self.compute_features(clean[:, 0, :])
-            feat_loss = self.loss(features.view(clean.shape[0], -1), feat)
-            spectral_loss = spec_loss + 10*feat_loss        # big weight on feat loss to test it
+            feat_loss = self.loss(features, feat)
+            spectral_loss = spec_loss + 10 * feat_loss  # big weight on feat loss to test it
         else:
             spectral_loss = 0
             spec_loss = 0
@@ -200,7 +200,7 @@ class CAFx(pl.LightningModule):
             clean, processed, feat, label = batch
         else:
             clean, processed, feat = batch
-        clean = clean.to("cpu")
+        # clean = clean.to("cpu")
         batch_size = processed.shape[0]
         pred = self.forward(processed, feat)
         if not self.out_of_domain:
@@ -214,12 +214,12 @@ class CAFx(pl.LightningModule):
             pred = pred.to("cpu")
             rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)  # TODO: fix hardcoded value
             for (i, snd) in enumerate(clean):
-                rec[i] = self.mbfx_layer.forward(snd, pred[i])
+                rec[i] = self.mbfx_layer.forward(snd.cpu(), pred[i])
             target_normalized, pred_normalized = processed[:, 0, :] / torch.max(
                 torch.abs(processed)), rec / torch.max(torch.abs(rec))
             spec_loss = self.spectral_loss(pred_normalized, target_normalized)
             features = self.compute_features(clean[:, 0, :])
-            feat_loss = self.loss(features.view(clean.shape[0], -1), feat)
+            feat_loss = self.loss(features, feat)
             spectral_loss = spec_loss + 10 * feat_loss
         else:
             spectral_loss = 0
@@ -269,6 +269,7 @@ class CAFx(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)  # TODO: Remove hardcoded values
-        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
-        lr_schedulers = {"scheduler": scheduler, "interval": "epoch"}
-        return {"optimizer": optimizer, "lr_scheduler": lr_schedulers}
+        # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
+        # lr_schedulers = {"scheduler": scheduler, "interval": "epoch"}
+        # return {"optimizer": optimizer, "lr_scheduler": lr_schedulers}
+        return optimizer
