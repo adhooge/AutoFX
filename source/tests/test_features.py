@@ -213,3 +213,12 @@ def test_roll_off_torch():
     signals = torch.vstack([signal] * 10)
     rolloff = Ft.spectral_rolloff(signals.view(10, 5, 100), torch_compat=True)
     assert torch.allclose(rolloff, torch.ones_like(rolloff) * 98)
+
+
+def test_slope_torch():
+    # (10, 5, 100)
+    signal = torch.linspace(100, 1, 100)
+    signal = torch.stack([signal]*5, dim=0)
+    signals = torch.stack([signal] * 10, dim=0)
+    slopes = Ft.spectral_slope(signals, torch_compat=True)
+    assert torch.allclose(slopes, -torch.ones_like(slopes))

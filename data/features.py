@@ -210,7 +210,7 @@ def spectral_flux(mag: np.ndarray or Tensor, q_norm: int = 1,
 
 
 def spectral_rolloff(mag: np.ndarray or Tensor, threshold: float = 0.95, freq: np.ndarray = None,
-                     torch_compat: bool=False):
+                     torch_compat: bool = False):
     """
     The spectral roll-off point is the frequency so that threshold% of the signal energy is contained
     below that frequency.
@@ -225,10 +225,10 @@ def spectral_rolloff(mag: np.ndarray or Tensor, threshold: float = 0.95, freq: n
     if torch_compat:
         energy = torch.square(mag)
         batch_size, num_frames, fft_size = mag.shape
-        tot_energy = torch.sum(energy, dim=-1, keepdim=True)      # (batch_size, num_frames, 1)
-        cumul_energy = torch.cumsum(energy, dim=-1)               # (batch_size, num_frames, fft_size)
-        transition = torch.where(cumul_energy > threshold*tot_energy, 1, 0)
-        cumul_transition = torch.cumsum(transition, dim=-1)   # (batch_size, num_frames, fft_size)
+        tot_energy = torch.sum(energy, dim=-1, keepdim=True)  # (batch_size, num_frames, 1)
+        cumul_energy = torch.cumsum(energy, dim=-1)  # (batch_size, num_frames, fft_size)
+        transition = torch.where(cumul_energy > threshold * tot_energy, 1, 0)
+        cumul_transition = torch.cumsum(transition, dim=-1)  # (batch_size, num_frames, fft_size)
         indices = (cumul_transition == 1).nonzero(as_tuple=True)
         roll_off = torch.zeros((batch_size, num_frames, 1))
         roll_off[indices[:2]] = torch.tensor(indices[-1], dtype=roll_off.dtype)[:, None]
@@ -257,25 +257,35 @@ def spectral_rolloff(mag: np.ndarray or Tensor, threshold: float = 0.95, freq: n
         return rolloff
 
 
-def spectral_slope(mag: np.ndarray, freq: np.ndarray = None):
+def spectral_slope(mag: np.ndarray or Tensor, freq: np.ndarray = None,
+                   torch_compat: bool = False):
     """
     The spectral slope represents the amount of decreasing of the spectral amplitude [1].
 
-    :param mag: (num_frames, N_fft) matrix of the frame_by_frame magnitude;
+    :param torch_compat: should the computation be pytorch-compatible? Default is False.
+    :param mag: (..., num_frames, N_fft) matrix of the frame_by_frame magnitude;
     :param freq: array of the frequency in Hertz of each frequency bin. If None, result is given in bins;
-    :return slope: (num_frames, 1) array of the frame-wise spectral slope, in Hz or bins depending on freq.
+    :return slope: (..., num_frames, 1) array of the frame-wise spectral slope, in Hz or bins depending on freq.
     """
-    if mag.ndim == 1:
-        mag = np.expand_dims(mag, axis=1)
-    n_fft, num_frames = mag.shape
-    if freq is None:
-        freq = np.arange(n_fft)
-    slope = np.empty((num_frames, 1))
-    for fr in range(num_frames):
-        num = (n_fft * np.sum(np.multiply(freq, mag[:, fr])) - np.sum(freq) * np.sum(mag[:, fr]))
-        denom = n_fft * np.sum(np.power(freq, 2)) - np.sum(freq) ** 2
-        slope[fr] = num / denom
-    return slope
+    if torch_compat:
+        batch_size, num_frames, fft_size = mag.shape
+        if freq is None:
+            freq = torch.arange(fft_size)
+        num = fft_size * torch.sum(torch.mul(freq, mag), dim=-1, keepdim=True) - torch.sum(freq) * torch.sum(mag, dim=-1, keepdim=True)
+        denom = fft_size * torch.sum(torch.square(freq)) - torch.sum(freq) ** 2
+        return num / denom
+    else:
+        if mag.ndim == 1:
+            mag = np.expand_dims(mag, axis=1)
+        n_fft, num_frames = mag.shape
+        if freq is None:
+            freq = np.arange(n_fft)
+        slope = np.empty((num_frames, 1))
+        for fr in range(num_frames):
+            num = (n_fft * np.sum(np.multiply(freq, mag[:, fr])) - np.sum(freq) * np.sum(mag[:, fr]))
+            denom = n_fft * np.sum(np.power(freq, 2)) - np.sum(freq) ** 2
+            slope[fr] = num / denom
+        return slope
 
 
 def spectral_flatness(mag: np.ndarray, bands: int or list = 1, rate: float = None):
@@ -360,9 +370,9 @@ def phase_fmax_batch(audio, transform=None):
     positive = torch.where(phase_freq_max_t - rolled > 0, 1, 0)
     modulos = torch.where(diff_mean_sign[:, None] > 0, positive, negative)
     modulos = torch.cumsum(modulos, dim=-1)
-    phase_fmax_straight_t = phase_fmax_straight_t + 2*torch.pi * modulos
+    phase_fmax_straight_t = phase_fmax_straight_t + 2 * torch.pi * modulos
     x_axis_t = torch.arange(0, phase_fmax_straight_t.shape[-1], device=audio.device)
-    x_axis_t = torch.vstack([x_axis_t]*audio.shape[0])
+    x_axis_t = torch.vstack([x_axis_t] * audio.shape[0])
     beta_1, beta_0 = util.mean_square_linreg_torch(phase_fmax_straight_t)
     linregerr_t = torch.clone(phase_fmax_straight_t)
     linregerr_t -= (beta_1[:, None] * x_axis_t + beta_0[:, None])
