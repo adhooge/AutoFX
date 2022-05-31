@@ -247,14 +247,14 @@ class CAFx(pl.LightningModule):
         pred = self.forward(processed.to(self.device), feat.to(self.device))
         pred = pred.to("cpu")
         rec = torch.zeros(clean.shape[0], clean.shape[-1], device=self.device)  # TODO: fix hardcoded value
-        features = self.compute_features(processed[:, 0, :])
+        features = self.compute_features(processed[:, 0, :].to(self.device))
         for (i, snd) in enumerate(clean):
             rec[i] = self.mbfx_layer.forward(snd, pred[i])
         for l in range(self.audiologs):
             self.logger.experiment.add_text(f"Audio/{l}/Original_feat",
-                                            feat[l], global_step=self.global_step)
+                                            str(feat[l]), global_step=self.global_step)
             self.logger.experiment.add_text(f"Audio/{l}/Predicted_feat",
-                                            features[l], global_step=self.global_step)
+                                            str(features[l]), global_step=self.global_step)
             self.logger.experiment.add_audio(f"Audio/{l}/Original", processed[l] / torch.max(torch.abs(processed[l])),
                                              sample_rate=self.rate, global_step=self.global_step)
             self.logger.experiment.add_audio(f"Audio/{l}/Matched", rec[l] / torch.max(torch.abs(rec[l])),
