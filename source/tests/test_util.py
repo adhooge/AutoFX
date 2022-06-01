@@ -28,3 +28,16 @@ def test_approx_argmax():
     estim = util.approx_argmax(arr)
     ground_truth = torch.arange(10, dtype=estim.dtype)
     assert torch.allclose(estim, ground_truth[:, None], atol=0.1)
+
+
+def test_approx_argmax2_shape():
+    arr = torch.eye(10)
+    estim = util.approx_argmax2(arr)
+    assert estim.shape == (10, 1)
+
+
+def test_approx_argmax2():
+    arr = torch.eye(10)
+    estim = util.approx_argmax2(arr)
+    ground_truth = torch.arange(10, dtype=estim.dtype)
+    assert torch.allclose(estim, ground_truth[:, None], atol=0.1)

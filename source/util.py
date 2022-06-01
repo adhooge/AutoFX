@@ -545,13 +545,28 @@ def param_range_from_cli(param_range: list[str]):
 def approx_argmax(arr, beta: int = 10):
     """
     Differentiable approximation of argmax.
-    :param arr: (..., length) array to appluy argmax to
-    :param beta (Default = 1000): scaling parameter. The higher the better the approximation.
+    :param arr: (..., length) array to apply argmax to
+    :param beta (Default = 10): scaling parameter. The higher the better the approximation.
     It should not be too high to avoid exceeding capacity.
     :return:
     """
     batch_size, length = arr.shape
-    i = torch.arange(length)
+    i = torch.arange(length, device=arr.device)
     estim = (torch.sum(i * torch.exp(beta * arr), dim=-1, keepdim=True)) / \
             (torch.sum(torch.exp(beta * arr), dim=-1, keepdim=True))
+    return estim
+
+
+def approx_argmax2(arr, beta: int = 100):
+    """
+    Differentiable approximation of argmax with log for avoiding NaNs.
+    :param arr: (..., length) array to apply argmax to
+    :param beta (Default = 100): scaling parameter. The higher the better the approximation.
+    It should not be too high to avoid exceeding capacity.
+    :return:
+    """
+    batch_size, length = arr.shape
+    i = torch.arange(length, device=arr.device)
+    estim = (torch.sum(i * torch.pow(arr, beta), dim=-1, keepdim=True)) / \
+            (torch.sum(torch.pow(arr, beta), dim=-1, keepdim=True))
     return estim
