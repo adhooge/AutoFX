@@ -540,3 +540,18 @@ def param_range_from_cli(param_range: list[str]):
         out.append(tup)
         i += 2
     return out
+
+
+def approx_argmax(arr, beta: int = 10):
+    """
+    Differentiable approximation of argmax.
+    :param arr: (..., length) array to appluy argmax to
+    :param beta (Default = 1000): scaling parameter. The higher the better the approximation.
+    It should not be too high to avoid exceeding capacity.
+    :return:
+    """
+    batch_size, length = arr.shape
+    i = torch.arange(length)
+    estim = (torch.sum(i * torch.exp(beta * arr), dim=-1, keepdim=True)) / \
+            (torch.sum(torch.exp(beta * arr), dim=-1, keepdim=True))
+    return estim
