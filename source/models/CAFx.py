@@ -12,6 +12,7 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch import nn
 import pedalboard as pdb
 
+from source.data.datasets import TorchStandardScaler
 from source.models.mbfx_layer import MBFxLayer
 from source.multiband_fx import MultiBandFX
 from source.models.resnet_layers import ResNet
@@ -43,10 +44,16 @@ class CAFx(pl.LightningModule):
                                                                  zero_half_width=32)
         phase_fft_max, phase_freq = Fc.fft_max_batch(phase, num_max=2, zero_half_width=32)
         rms_fft_max, rms_freq = Fc.fft_max_batch(rms, num_max=2, zero_half_width=32)
+        # print("rms_freq: ", rms_freq.requires_grad, rms_freq.grad_fn)
+        # print("rms_fft_max: ", rms_fft_max.requires_grad, rms_fft_max.grad_fn)
         rms_std = Fc.f_std(rms, torch_compat=True)
+        # print("rms_std: ", rms_std.requires_grad, rms_std.grad_fn)
         rms_skew = Fc.f_skew(rms, torch_compat=True)
+        # print("rms_skew: ", rms_skew.requires_grad, rms_skew.grad_fn)
         rms_delta_std = Fc.f_std(rms_delta, torch_compat=True)
+        # print("rms_delta_std: ", rms_delta_std.requires_grad, rms_delta_std.grad_fn)
         rms_delta_skew = Fc.f_skew(rms_delta, torch_compat=True)
+        # print("rms_delta_skew: ", rms_delta_skew.requires_grad, rms_delta_skew.grad_fn)
         features = torch.stack((phase_fft_max[:, 0], phase_freq[:, 0] / 512,
                                 rms_fft_max[:, 0], rms_freq[:, 0] / 512,
                                 phase_fft_max[:, 1], phase_freq[:, 1] / 512,
@@ -61,10 +68,11 @@ class CAFx(pl.LightningModule):
                                 pitch_fft_max[:, 1], pitch_freq[:, 1] / 512,
                                 rms_std, rms_delta_std, rms_skew, rms_delta_skew
                                 ), dim=1)
-        return features
+        out = self.scaler.transform(features)
+        return out
 
     def __init__(self, fx: str, num_bands: int, param_range: list,
-                 cond_feat: int,
+                 cond_feat: int, scaler_mean: float = 0, scaler_std: float = 1,
                  tracker: bool = False,
                  rate: int = 22050, total_num_bands: int = None,
                  fft_size: int = 1024, hop_size: int = 256, audiologs: int = 4, loss_weights: list[float] = [1, 1],
@@ -83,6 +91,9 @@ class CAFx(pl.LightningModule):
         self.mbfx = MultiBandFX(fx, total_num_bands, device=torch.device('cpu'))
         self.num_params = num_bands * self.mbfx.total_num_params_per_band
         self.reverb = reverb
+        self.scaler = TorchStandardScaler()
+        self.scaler.mean = scaler_mean
+        self.scaler.std = scaler_std
         if reverb:
             self.num_params -= 1
         self.resnet = ResNet(self.num_params, end_with_fcl=False)
@@ -182,13 +193,18 @@ class CAFx(pl.LightningModule):
             target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(
                 torch.abs(rec))
             spec_loss = self.spectral_loss(pred_normalized, target_normalized)
-            features = self.compute_features(rec)
+            # spec_loss = 0
+            features = self.compute_features(pred_normalized)
+            # print("pred_normalized: ", pred_normalized.requires_grad, pred_normalized.grad_fn)
+            # print("rec: ", rec.requires_grad, rec.grad_fn)
+            # print("features: ", features.requires_grad, features.grad_fn)
             feat_loss = self.loss(features, feat)
-            spectral_loss = spec_loss + 1 * feat_loss
+            spectral_loss = spec_loss + 0.01 * feat_loss
         else:
             spectral_loss = 0
             spec_loss = 0
             feat_loss = 0
+        self.tmp = feat_loss
         self.logger.experiment.add_scalar("Feature_loss/Train",
                                           feat_loss, global_step=self.global_step)
         self.logger.experiment.add_scalar("MRSTFT_loss/Train",
@@ -225,9 +241,9 @@ class CAFx(pl.LightningModule):
             target_normalized, pred_normalized = processed[:, 0, :] / torch.max(
                 torch.abs(processed)), rec / torch.max(torch.abs(rec))
             spec_loss = self.spectral_loss(pred_normalized, target_normalized)
-            features = self.compute_features(processed[:, 0, :])
+            features = self.compute_features(rec)
             feat_loss = self.loss(features, feat)
-            spectral_loss = spec_loss + 10 * feat_loss
+            spectral_loss = spec_loss + 0.01 * feat_loss
         else:
             spectral_loss = 0
             feat_loss = 0
@@ -270,10 +286,6 @@ class CAFx(pl.LightningModule):
                 self.logger.experiment.add_text(f"Audio/{l}/Matched_params", str(pred[l]), global_step=self.global_step)
                 self.logger.experiment.add_text(f"Audio/{l}/Original_params", str(label[l]),
                                                 global_step=self.global_step)
-
-    def on_after_backward(self) -> None:
-        self.logger.experiment.add_histogram("Grad/fcl", self.fcl.weight.grad,
-                                             global_step=self.global_step)
 
     def on_train_epoch_start(self) -> None:
         if self.tracker_flag and self.tracker is None:
