@@ -550,6 +550,8 @@ def approx_argmax(arr, beta: int = 10):
     It should not be too high to avoid exceeding capacity.
     :return:
     """
+    maximum, _ = torch.max(arr, dim=-1)
+    arr = arr - maximum[:, None]
     batch_size, length = arr.shape
     i = torch.arange(length, device=arr.device)
     estim = (torch.sum(i * torch.exp(beta * arr), dim=-1, keepdim=True)) / \
