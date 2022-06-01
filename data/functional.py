@@ -54,7 +54,7 @@ def quad_reg(feat):
     return quad_coeff, quad_residual
 
 
-def fft_max_batch(feat, num_max: int = 1, zero_half_width: int = None):
+def fft_max_batch(feat, num_max: int = 1, zero_half_width: int = None, beta: int = 1000):
     dc_feat = feat - torch.mean(feat, dim=-1, keepdim=True)
     window = torch.hann_window(dc_feat.shape[-1], device=feat.device)
     windows = torch.vstack([window] * feat.shape[0])
@@ -62,9 +62,10 @@ def fft_max_batch(feat, num_max: int = 1, zero_half_width: int = None):
     rfft = torch.fft.rfft(dc_feat_w, 1024)
     rfft = torch.abs(rfft) * 4 / 1024
     rfft[:, :16] = torch.zeros_like(rfft[:, :16])
-    rfft_max, rfft_max_bin = torch.max(rfft, dim=-1)
+    rfft_max, _ = torch.max(rfft, dim=-1)
     rfft_max = rfft_max[:, None]
-    rfft_max_bin = rfft_max_bin[:, None]
+    # rfft_norm = rfft / rfft_max
+    rfft_max_bin = util.approx_argmax(rfft, beta=beta)
     if num_max > 1:
         cnt = 1
         while cnt < num_max:
@@ -74,13 +75,14 @@ def fft_max_batch(feat, num_max: int = 1, zero_half_width: int = None):
             high_bound = -torch.nn.functional.relu(-tmp2 + 513) + 513
             # zero mask batch: https://stackoverflow.com/questions/57548180/filling-torch-tensor-with-zeros-after-certain-index
             mask = torch.zeros(rfft.shape[0], rfft.shape[1] + 1, device=feat.device)
-            mask[(torch.arange(rfft.shape[0]), low_bound)] = 1
-            mask[(torch.arange(rfft.shape[0]), high_bound)] = -1
+            mask[(torch.arange(rfft.shape[0]), low_bound.long())] = 1
+            mask[(torch.arange(rfft.shape[0]), high_bound.long())] = -1
             mask = mask.cumsum(dim=1)[:, :-1]
             rfft = rfft * (1. - mask)
-            max_val, max_bin = torch.max(rfft, dim=-1)
+            max_val, _ = torch.max(rfft, dim=-1)
+            max_bin = util.approx_argmax(rfft + 1, beta=beta)
             rfft_max = torch.cat((rfft_max, max_val[:, None]), dim=-1)
-            rfft_max_bin = torch.cat((rfft_max_bin, max_bin[:, None]), dim=-1)
+            rfft_max_bin = torch.cat((rfft_max_bin, max_bin), dim=-1)
             cnt += 1
     return rfft_max, rfft_max_bin
 
