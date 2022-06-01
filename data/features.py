@@ -13,10 +13,12 @@ from torch import Tensor
 import source.util as util
 
 
-def _geom_mean(arr: np.ndarray):
+def _geom_mean(arr: np.ndarray or Tensor):
     """
     Compute the geometrical mean of an array through log conversion to avoid overflow.
     """
+    if isinstance(arr, Tensor):
+        return torch.exp(torch.mean(torch.log(arr), dim=-1))
     return np.exp(np.mean(np.log(arr)))
 
 
@@ -288,24 +290,22 @@ def spectral_slope(mag: np.ndarray or Tensor, freq: np.ndarray = None,
         return slope
 
 
-def spectral_flatness(mag: np.ndarray, bands: int or list = 1, rate: float = None):
+def spectral_flatness(mag: np.ndarray or Tensor, bands: int or list = 1, rate: float = None,
+                      torch_compat: bool = False):
     """
     The spectral flatness is a measure of the noisiness of a spectrum. [1, 2]
 
-    :param mag: (num_frames, N_fft) matrix of the frame_by_frame magnitude;
+    :param mag: (..., num_frames, N_fft) matrix of the frame_by_frame magnitude;
     :param bands: Default=1. If int: number of frequency bands to consider, regularly spaced in the spectrum.
                              If list: List of (start, end) for each frequency band. Should be in Hz if rate is set,
                              # bins otherwise;
     :param rate: sampling rate of the signal in Hertz;
-    :return flatness: (num_frames, bands) matrix of the spectral flatness of each frame and frequency band.
+    :param torch_compat: Should the computation be pytorch-compatible. Default is False.
+    :return flatness: (..., num_frames, bands) matrix of the spectral flatness of each frame and frequency band.
     """
-
     def freq2bin(freq, rate, n_fft):
         return int(freq * 2 * n_fft / rate)
-
-    if mag.ndim == 1:
-        mag = np.expand_dims(mag, axis=1)
-    n_fft, num_frames = mag.shape
+    n_fft = mag.shape[-1]
     if not isinstance(bands, (int, list)):
         raise TypeError("Frequency bands should be an integer number or a list of Tuples.")
     if isinstance(bands, int):
@@ -321,12 +321,23 @@ def spectral_flatness(mag: np.ndarray, bands: int or list = 1, rate: float = Non
     elif isinstance(bands, list):
         if rate is not None:
             bands = list(map(lambda x: (freq2bin(x[0], rate, n_fft), freq2bin(x[1], rate, n_fft)), bands))
-    flatness = np.empty((num_frames, len(bands)))
-    for fr in range(num_frames):
+    if torch_compat:
+        batch_size, num_frames, n_fft = mag.shape
+        flatness = torch.empty((batch_size, num_frames, len(bands)))
         for (b, band) in enumerate(bands):
-            arr = mag[band[0]:band[1], fr]
-            flatness[fr, b] = _geom_mean(arr) / np.mean(arr)
-    return flatness
+            arr = mag[:, :, band[0]:band[1]]
+            flatness[:, :, b] = _geom_mean(arr) / torch.mean(arr, dim=-1)
+        return flatness # TODO: test
+    else:
+        if mag.ndim == 1:
+            mag = np.expand_dims(mag, axis=1)
+        num_frames, n_fft = mag.shape
+        flatness = np.empty((num_frames, len(bands)))
+        for fr in range(num_frames):
+            for (b, band) in enumerate(bands):
+                arr = mag[fr, band[0]:band[1]]
+                flatness[fr, b] = _geom_mean(arr) / np.mean(arr)
+        return flatness
 
 
 def get_mfcc(audio, rate, num_coeff):

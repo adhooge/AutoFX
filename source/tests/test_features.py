@@ -1,3 +1,5 @@
+import math
+
 import pytest
 import torch
 import numpy as np
@@ -222,3 +224,12 @@ def test_slope_torch():
     signals = torch.stack([signal] * 10, dim=0)
     slopes = Ft.spectral_slope(signals, torch_compat=True)
     assert torch.allclose(slopes, -torch.ones_like(slopes))
+
+
+def test_flatness_torch():
+    signal = torch.linspace(1, 10, 10)
+    signal = torch.stack([signal] * 5, dim=0)
+    signals = torch.stack([signal] * 10, dim=0)
+    flatness = Ft.spectral_flatness(mag=signals, torch_compat=True)
+    ground_truth = math.factorial(10)**0.1 / 5.5
+    assert torch.allclose(flatness, torch.ones_like(flatness)*ground_truth, atol=1e-2)
