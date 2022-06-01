@@ -89,9 +89,9 @@ class CAFx(pl.LightningModule):
         self.cond_feat = cond_feat
         # TODO: Make this cleaner
         if reverb:
-            fcl_size = 1024
+            fcl_size = 4096
         else:
-            fcl_size = 256
+            fcl_size = 1024
         self.fcl = nn.Linear(fcl_size + cond_feat, self.num_params)
         self.activation = nn.Sigmoid()
         self.learning_rate = learning_rate
@@ -182,7 +182,7 @@ class CAFx(pl.LightningModule):
             target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(
                 torch.abs(rec))
             spec_loss = self.spectral_loss(pred_normalized, target_normalized)
-            features = self.compute_features(processed[:, 0, :])
+            features = self.compute_features(rec)
             feat_loss = self.loss(features, feat)
             spectral_loss = spec_loss + 1 * feat_loss
         else:
@@ -231,6 +231,7 @@ class CAFx(pl.LightningModule):
         else:
             spectral_loss = 0
             feat_loss = 0
+            spec_loss = 0
         self.logger.experiment.add_scalar("Feature_loss/test",
                                           feat_loss, global_step=self.global_step)
         self.logger.experiment.add_scalar("MRSTFT_loss/test",
