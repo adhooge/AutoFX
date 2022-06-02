@@ -54,9 +54,9 @@ def gaussian_mag_np():
 
 
 def test_spectral_centroid_torch_shape():
-    mag = torch.rand((10, 100))
+    mag = torch.rand((32, 513, 100))
     cent = Ft.spectral_centroid(mag=mag, torch_compat=True)
-    assert cent.shape == (10, 1)
+    assert cent.shape == (32, 1, 100)
 
 
 def test_spectral_centroid_torch_value(mag_synthetic_torch):
@@ -65,9 +65,9 @@ def test_spectral_centroid_torch_value(mag_synthetic_torch):
 
 
 def test_spectral_centroid_shape():
-    mag = np.random.random(100)
+    mag = np.random.random((257, 10))
     cent = Ft.spectral_centroid(mag=mag)
-    assert cent.shape == (1,)
+    assert cent.shape == (1, 10)
 
 
 def test_spectral_centroid_value(mag_synthetic_np):
@@ -194,6 +194,12 @@ def test_flux_torch_shape():
     signal = torch.rand((32, 10, 256))
     flux = Ft.spectral_flux(signal, torch_compat=True)
     assert flux.shape == (32, 10, 1)
+
+
+def test_flux_np_shape():
+    signal = np.random.random((10, 256))
+    flux = Ft.spectral_flux(signal)
+    assert flux.shape == (10, 1)
 
 
 def test_pitch_curve(a440_np):

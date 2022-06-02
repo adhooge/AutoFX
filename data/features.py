@@ -27,32 +27,31 @@ def spectral_centroid(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or T
     """
     Spectral centroid of each frame.
 
-    :param mag: Magnitude spectrogram of the input signal;
+    :param mag: (..., Nfft, num_frames) Magnitude spectrogram of the input signal;
     :param stft: Complex matrix of the short time fourier transform;
     :param freq: frequency of each frequency bin, in Hertz;
     :param rate: sampling rate of the audio. Only used if freq is None. Default is 1.
     :param torch_compat: enable torch-compatible computation. Default is False
-    :return: spectral centroid of each input frame.
+    :return: (..., 1, num_frames) spectral centroid of each input frame.
     """
     if torch_compat:
         if mag is None:
             mag = torch.abs(stft)
-        batch_size = mag.shape[0]
+        batch_size, nfft, num_frames = mag.shape
         if freq is None:
-            freq = torch.linspace(0, rate / 2, mag.shape[-1])
-            freq = torch.vstack([freq] * batch_size)
-        norm_mag = mag / torch.sum(mag, dim=-1, keepdim=True)
-        cent = torch.sum(norm_mag * freq, dim=-1, keepdim=True)
+            freq = torch.linspace(0, rate / 2, nfft)
+        norm_mag = mag / torch.sum(mag, dim=1, keepdim=True)
+        cent = torch.sum(norm_mag * freq[None, :, None].expand(batch_size, nfft, num_frames), dim=1, keepdim=True)
         return cent
     else:
         if mag is None:
             mag = np.abs(stft)
         if freq is None:
-            freq = np.linspace(0, rate / 2, mag.shape[-1])
+            freq = np.linspace(0, rate / 2, mag.shape[0])
         if mag.ndim == 1:
             mag = np.expand_dims(mag, axis=1)
         norm_mag = mag / np.sum(mag, axis=0)
-        cent = np.sum(norm_mag.T * freq, axis=1)
+        cent = np.sum(norm_mag * freq[:, None], axis=0, keepdims=True)
         return cent
 
 
