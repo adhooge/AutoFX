@@ -190,6 +190,12 @@ def test_spectral_kurtosis_value(gaussian_mag_np):
     assert (kurt_peak > 3)
 
 
+def test_flux_torch_shape():
+    signal = torch.rand((32, 10, 256))
+    flux = Ft.spectral_flux(signal, torch_compat=True)
+    assert flux.shape == (32, 10, 1)
+
+
 def test_pitch_curve(a440_np):
     f0 = Ft.pitch_curve(a440_np, 16000, 80, 1000)
     assert np.allclose(f0, np.ones_like(f0) * 440, atol=0.1, rtol=0.01)
