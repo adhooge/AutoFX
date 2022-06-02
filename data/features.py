@@ -217,7 +217,7 @@ def spectral_flux(mag: np.ndarray or Tensor, q_norm: int = 1,
 
 
 def spectral_rolloff(mag: np.ndarray or Tensor, threshold: float = 0.95, freq: np.ndarray = None,
-                     torch_compat: bool = False):
+                     rate: int = None, torch_compat: bool = False):
     """
     The spectral roll-off point is the frequency so that threshold% of the signal energy is contained
     below that frequency.
@@ -225,7 +225,9 @@ def spectral_rolloff(mag: np.ndarray or Tensor, threshold: float = 0.95, freq: n
 
     :param mag: (..., num_frames, N_fft) Matrix of the frame-by-frame magnitude;
     :param threshold: Ratio of the signal energy to use. Defaults to 0.95;
-    :param freq: array of the frequency in Hertz of each frequency bin. If None, result is given as a bin number;
+    :param freq: array of the frequency in Hertz of each frequency bin. If None, result is given as a bin number
+    unless rate is set;
+    :param rate: Sampling rate of the original signal. If rate is not None, it is used to create freq.
     :param torch_compat: should the computation be Pytorch-compatible? Default is False.
     :return rolloff: (..., num_frames, 1) matrix of the spectral roll-off for each frame, in Hz or #bin.
     """
@@ -239,6 +241,9 @@ def spectral_rolloff(mag: np.ndarray or Tensor, threshold: float = 0.95, freq: n
         indices = (cumul_transition == 1).nonzero(as_tuple=True)
         roll_off = torch.zeros((batch_size, num_frames, 1))
         roll_off[indices[:2]] = torch.tensor(indices[-1], dtype=roll_off.dtype)[:, None]
+        if rate is not None:
+            freq = torch.linspace(0, rate / 2, mag.shape[-1])
+            freq = torch.vstack([freq] * batch_size)
         if freq is not None:
             roll_off[indices] = freq[indices[-1]]
         return roll_off
@@ -248,6 +253,8 @@ def spectral_rolloff(mag: np.ndarray or Tensor, threshold: float = 0.95, freq: n
         num_frames = mag.shape[1]
         energy = np.power(mag, 2)
         rolloff = np.empty((num_frames, 1))
+        if rate is not None:
+            freq = np.linspace(0, rate / 2, mag.shape[-1])
         for fr in range(num_frames):
             flag = True
             tot_energy = np.sum(energy[:, fr])
