@@ -23,13 +23,14 @@ def _geom_mean(arr: np.ndarray or Tensor):
 
 
 def spectral_centroid(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or Tensor = None, freq: np.ndarray = None,
-                      torch_compat: bool = False) -> np.ndarray or Tensor:
+                      rate: int = 1, torch_compat: bool = False) -> np.ndarray or Tensor:
     """
     Spectral centroid of each frame.
 
     :param mag: Magnitude spectrogram of the input signal;
     :param stft: Complex matrix of the short time fourier transform;
     :param freq: frequency of each frequency bin, in Hertz;
+    :param rate: sampling rate of the audio. Only used if freq is None. Default is 1.
     :param torch_compat: enable torch-compatible computation. Default is False
     :return: spectral centroid of each input frame.
     """
@@ -38,7 +39,7 @@ def spectral_centroid(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or T
             mag = torch.abs(stft)
         batch_size = mag.shape[0]
         if freq is None:
-            freq = torch.linspace(0, 0.5, mag.shape[-1])
+            freq = torch.linspace(0, rate / 2, mag.shape[-1])
             freq = torch.vstack([freq] * batch_size)
         norm_mag = mag / torch.sum(mag, dim=-1, keepdim=True)
         cent = torch.sum(norm_mag * freq, dim=-1, keepdim=True)
@@ -47,7 +48,7 @@ def spectral_centroid(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or T
         if mag is None:
             mag = np.abs(stft)
         if freq is None:
-            freq = np.linspace(0, 0.5, mag.shape[-1])
+            freq = np.linspace(0, rate / 2, mag.shape[-1])
         if mag.ndim == 1:
             mag = np.expand_dims(mag, axis=1)
         norm_mag = mag / np.sum(mag, axis=0)
