@@ -13,7 +13,8 @@ from ignite.metrics.recall import Recall
 from ignite.metrics.confusion_matrix import ConfusionMatrix
 import torchaudio
 
-
+import data.features as Ft
+import data.functional as Fc
 import source.util as util
 
 
@@ -113,7 +114,7 @@ class MLPClassifier(pl.LightningModule):
         # self.confusion_matrix.update((classes, label))
         precision = self.prec.compute()
         self.logger.experiment.add_scalars("Metrics/Precision",
-                                           dict(zip(CLASSES, precision)),
+                                           dict(zip(util.CLASSES, precision)),
                                            global_step=self.global_step)
         accuracy = self.accuracy.compute()
         self.logger.experiment.add_scalar("Metrics/Accuracy",
@@ -121,7 +122,7 @@ class MLPClassifier(pl.LightningModule):
                                            global_step=self.global_step)
         recall = self.recall.compute()
         self.logger.experiment.add_scalars("Metrics/Recall",
-                                           dict(zip(CLASSES, recall)),
+                                           dict(zip(util.CLASSES, recall)),
                                            global_step=self.global_step)
         # confusion_matrix = self.confusion_matrix.compute()
         # fig = util.make_confusion_matrix(confusion_matrix.numpy(),
@@ -139,10 +140,24 @@ class MLPClassifier(pl.LightningModule):
 
 
 class FeatureExtractor(nn.Module):
+    @staticmethod
+    def _get_features(mag, rate):
+        centroid = Ft.spectral_centroid(mag=mag, rate=rate, torch_compat=True)
+        spread = Ft.spectral_spread(mag=mag, cent=centroid, rate=rate, torch_compat=True)
+        skew = Ft.spectral_skewness(mag=mag, cent=centroid, rate=rate, torch_compat=True)
+        kurt = Ft.spectral_kurtosis(mag=mag, cent=centroid, rate=rate, torch_compat=True)
+        flux = Ft.spectral_flux(mag=mag, torch_compat=True)
+        rolloff = Ft.spectral_rolloff(mag=mag, rate=rate, torch_compat=True)
+        slope = Ft.spectral_slope(mag=mag, rate=rate, torch_compat=True)
+        flat = Ft.spectral_flatness(mag=mag, bands=1, rate=rate, torch_compat=True)
+
+
     def __init__(self):
         super(FeatureExtractor, self).__init__()
-        self.spectrogram = torchaudio.transforms.Spectrogram(8192, hop_length=512)
+        self.spectrogram = torchaudio.transforms.Spectrogram(8192, hop_length=512, power=0)
 
     def forward(self, audio, rate):
-        feat = []
         stft = self.spectrogram(audio)
+        mag = torch.abs(stft)
+        phase = torch.angle(stft)
+        centroid = Ft.spectral_centroid(mag=mag)
