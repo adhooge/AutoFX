@@ -191,7 +191,7 @@ def spectral_kurtosis(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or T
 
 
 def spectral_flux(mag: np.ndarray or Tensor, q_norm: int = 1,
-                  torch_compat: bool = True) -> np.ndarray or Tensor:
+                  torch_compat: bool = False) -> np.ndarray or Tensor:
     """
     Amount of frame-to-frame fluctuation in time.
     See: Tae Hong Park, Towards automatic musical instrument timbre recognition, 2004 (PhD thesis)
