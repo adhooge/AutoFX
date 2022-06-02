@@ -57,7 +57,7 @@ def spectral_centroid(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or T
 
 
 def spectral_spread(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or Tensor = None,
-                    cent: np.ndarray = None, freq: np.ndarray = None,
+                    cent: np.ndarray = None, freq: np.ndarray = None, rate: int = 1,
                     torch_compat: bool = False) -> np.ndarray or Tensor:
     """
     Spectral spread of each frame of the input signal.
@@ -68,6 +68,7 @@ def spectral_spread(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or Ten
     :param stft: Complex matrix representing a Short Time Fourier Transform;
     :param cent: Array of the spectral centroid of each frame;
     :param freq: frequency of each frequency bin, in Hertz;
+    :param rate: sampling rate of the audio. Only used if freq is None. Default is 1.
     :param torch_compat: enable torch-compatible computation. Default is False;
     :return spread: spectral spread of each input frame.
     """
@@ -78,7 +79,7 @@ def spectral_spread(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or Ten
         if cent is None:
             cent = spectral_centroid(mag=mag, freq=freq, torch_compat=True)
         if freq is None:
-            freq = torch.linspace(0, 0.5, mag.shape[-1])
+            freq = torch.linspace(0, rate/2, mag.shape[-1])
             freq = torch.vstack([freq] * batch_size)
         norm_mag = mag / torch.sum(mag, dim=-1, keepdim=True)
         cnt_freq = freq - cent
@@ -90,7 +91,7 @@ def spectral_spread(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or Ten
         if cent is None:
             cent = spectral_centroid(mag=mag, freq=freq)
         if freq is None:
-            freq = np.linspace(0, 0.5, mag.shape[-1])
+            freq = np.linspace(0, rate/2, mag.shape[-1])
         if mag.ndim == 1:
             mag = np.expand_dims(mag, axis=1)
         norm_mag = mag / np.sum(mag, axis=0)
