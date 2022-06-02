@@ -101,12 +101,13 @@ def test_spectral_spread_value():
 
 
 def test_spectral_skewness_torch_shape():
-    mag = torch.rand((10, 100))
+    mag = torch.rand((32, 257, 100))
     skew = Ft.spectral_skewness(mag=mag, torch_compat=True)
-    assert skew.shape == (10, 1)
+    assert skew.shape == (32, 1, 100)
 
 
 def test_spectral_skewness_torch_value():
+    # TODO: update
     mag_sym = torch.ones((10, 100))
     skew_sym = Ft.spectral_skewness(mag=mag_sym, torch_compat=True)
     mag_left = torch.zeros((10, 100))
@@ -121,9 +122,9 @@ def test_spectral_skewness_torch_value():
 
 
 def test_spectral_skewness_shape():
-    mag = np.random.random(100)
+    mag = np.random.random((257, 10))
     skew = Ft.spectral_skewness(mag=mag)
-    assert skew.shape == (1,)
+    assert skew.shape == (1, 10)
 
 
 def test_spectral_skewness_value():
