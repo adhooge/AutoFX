@@ -11,6 +11,8 @@ from source.data.datasets import FeatureInDomainDataset, FeatureOutDomainDataset
 class FeaturesDataModule(pl.LightningDataModule):
     def __init__(self, clean_dir: str, processed_dir: str,
                  out_of_domain_dir: str, batch_size: int = 32, num_workers: int = 4,
+                 in_scaler_mean: list = None, in_scaler_std: list = None,
+                 out_scaler_mean: list = None, out_scaler_std: list = None,
                  out_of_domain: bool = False, seed: int = None, reverb: bool = False, *args, **kwargs):
         super(FeaturesDataModule, self).__init__()
         self.clean_dir = clean_dir
@@ -23,6 +25,10 @@ class FeaturesDataModule(pl.LightningDataModule):
             seed = torch.randint(100000, (1, 1))
         self.seed = seed
         self.reverb = reverb
+        self.in_scaler_mean = in_scaler_mean
+        self.in_scaler_std = in_scaler_std
+        self.out_scaler_mean = out_scaler_mean
+        self.out_scaler_std = out_scaler_std
         self.save_hyperparameters()
 
     def setup(self, stage: Optional[str] = None) -> None:
@@ -31,8 +37,22 @@ class FeaturesDataModule(pl.LightningDataModule):
                                                 reverb=self.reverb)
         out_domain_full = FeatureOutDomainDataset(self.out_of_domain_dir, self.clean_dir, self.out_of_domain_dir,
                                                   index_col=0)
-        in_domain_full.scaler.fit(in_domain_full[:][2])
-        out_domain_full.scaler.fit(out_domain_full[:][2])
+        if self.in_scaler_mean is None or self.in_scaler_std is None:
+            tmp_dataloader = DataLoader(in_domain_full, batch_size=len(in_domain_full),
+                                    num_workers=6)
+            in_domain_full.scaler.fit(next(iter(tmp_dataloader))[:][2])
+        else:
+            in_domain_full.scaler.mean = torch.tensor(self.in_scaler_mean)
+            in_domain_full.scaler.std = torch.tensor(self.in_scaler_std)
+        print("Scaler mean: ", in_domain_full.scaler.mean)
+        print("Scaler std: ", in_domain_full.scaler.std)
+        if self.out_scaler_std is None or self.out_scaler_mean is None:
+            tmp_dataloader = DataLoader(out_domain_full, batch_size=len(out_domain_full),
+                                    num_workers=6)
+            out_domain_full.scaler.fit(next(iter(tmp_dataloader))[:][2])
+        else:
+            out_domain_full.scaler.mean = torch.tensor(self.out_scaler_mean)
+            out_domain_full.scaler.std = torch.tensor(self.out_scaler_std)
         self.in_train, self.in_val = torch.utils.data.random_split(in_domain_full,
                                                                    [len(in_domain_full) - len(in_domain_full)//5, len(in_domain_full)//5],
                                                                    generator=torch.Generator().manual_seed(self.seed))

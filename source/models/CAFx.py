@@ -54,6 +54,9 @@ class CAFx(pl.LightningModule):
         # print("rms_delta_std: ", rms_delta_std.requires_grad, rms_delta_std.grad_fn)
         rms_delta_skew = Fc.f_skew(rms_delta, torch_compat=True)
         # print("rms_delta_skew: ", rms_delta_skew.requires_grad, rms_delta_skew.grad_fn)
+        # print(pitch_fft_max)
+        # print("pitch_freq: ", pitch_freq[:, 0] / 512)
+        # print("pitch_delta_freq: ", pitch_delta_freq[:, 1]/512)
         features = torch.stack((phase_fft_max[:, 0], phase_freq[:, 0] / 512,
                                 rms_fft_max[:, 0], rms_freq[:, 0] / 512,
                                 phase_fft_max[:, 1], phase_freq[:, 1] / 512,
@@ -68,11 +71,13 @@ class CAFx(pl.LightningModule):
                                 pitch_fft_max[:, 1], pitch_freq[:, 1] / 512,
                                 rms_std, rms_delta_std, rms_skew, rms_delta_skew
                                 ), dim=1)
+        # print("BEFORE SCALING", features[:, 20])
         out = self.scaler.transform(features)
+        # print("OUUUUUUT", out[:, 20])
         return out
 
     def __init__(self, fx: str, num_bands: int, param_range: list,
-                 cond_feat: int, scaler_mean: float = 0, scaler_std: float = 1,
+                 cond_feat: int, scaler_mean: list, scaler_std: list,
                  tracker: bool = False,
                  rate: int = 22050, total_num_bands: int = None,
                  fft_size: int = 1024, hop_size: int = 256, audiologs: int = 4, loss_weights: list[float] = [1, 1],
@@ -92,8 +97,8 @@ class CAFx(pl.LightningModule):
         self.num_params = num_bands * self.mbfx.total_num_params_per_band
         self.reverb = reverb
         self.scaler = TorchStandardScaler()
-        self.scaler.mean = scaler_mean
-        self.scaler.std = scaler_std
+        self.scaler.mean = torch.tensor(scaler_mean, device=torch.device('cuda'))
+        self.scaler.std = torch.tensor(scaler_std, device=torch.device('cuda'))
         if reverb:
             self.num_params -= 1
         self.resnet = ResNet(self.num_params, end_with_fcl=False)
@@ -107,6 +112,7 @@ class CAFx(pl.LightningModule):
         self.activation = nn.Sigmoid()
         self.learning_rate = learning_rate
         self.loss = nn.MSELoss()
+        self.feat_loss = nn.MSELoss()
         self.tracker_flag = tracker
         self.tracker = None
         self.mrstft = auraloss.freq.MultiResolutionSTFTLoss(mrstft_fft,
@@ -198,13 +204,17 @@ class CAFx(pl.LightningModule):
             # print("pred_normalized: ", pred_normalized.requires_grad, pred_normalized.grad_fn)
             # print("rec: ", rec.requires_grad, rec.grad_fn)
             # print("features: ", features.requires_grad, features.grad_fn)
-            feat_loss = self.loss(features, feat)
+            # print(torch.mean(features), torch.mean(feat))
+            # print(torch.max(features, dim=-1), torch.max(feat, dim=-1))
+            # print(torch.argmax(features, dim=-1), torch.argmax(feat, dim=-1))
+            feat_loss = self.feat_loss(features, feat)
+            # print("FEAT_LOSSSSSSSS", feat_loss)
+            # print(torch.mean(torch.square(features - feat)))
             spectral_loss = spec_loss + 0.01 * feat_loss
         else:
             spectral_loss = 0
             spec_loss = 0
             feat_loss = 0
-        self.tmp = feat_loss
         self.logger.experiment.add_scalar("Feature_loss/Train",
                                           feat_loss, global_step=self.global_step)
         self.logger.experiment.add_scalar("MRSTFT_loss/Train",

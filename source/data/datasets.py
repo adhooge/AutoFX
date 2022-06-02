@@ -10,14 +10,17 @@ class TorchStandardScaler:
     from    https://discuss.pytorch.org/t/pytorch-tensor-scaling/38576/8
     """
     def __init__(self):
-        self.mean = 0
-        self.std = 1
+        self.mean = torch.tensor(0)
+        self.std = torch.tensor(1)
 
     def fit(self, x):
-        self.mean = x.mean(0, keepdim=True)
-        self.std = x.std(0, unbiased=False, keepdim=True)
+        self.mean = x.mean(0, keepdim=False)
+        self.std = x.std(0, unbiased=False, keepdim=False)
 
     def transform(self, x):
+        if x.device != self.mean.device or x.device != self.std.device:
+            print('YO', x.device, self.mean.device)
+            x.to(self.mean.device)
         x -= self.mean
         x /= (self.std + 1e-7)
         return x
@@ -65,63 +68,33 @@ class FeatureInDomainDataset(Dataset):
 
     def __getitem__(self, item):
         filename = self.data.iloc[item, 0]
-        if isinstance(filename, pd.Series):
-            for (i, f) in enumerate(filename):
-                if self.validation:
-                    cln_snd_path = self.clean_path / (f.split('_')[0] + '.wav')
-                    prc_snd_path = self.processed_path / (f + '.wav')
-                    cln_sound, rate = torchaudio.load(cln_snd_path, normalize=True)
-                    prc_sound, rate = torchaudio.load(prc_snd_path, normalize=True)
-                    cln_sound = cln_sound[0]
-                    prc_sound = prc_sound[0]
-                    cln_pad = torch.zeros((1, self.pad_length))
-                    cln_pad[0, :len(cln_sound)] = cln_sound
-                    cln_pad[0, len(cln_sound):] = torch.randn(self.pad_length-len(cln_sound)) / 1e9
-                    prc_pad = torch.zeros((1, self.pad_length))
-                    prc_pad[0, :len(prc_sound)] = prc_sound
-                    prc_pad[0, len(prc_sound):] = torch.randn(self.pad_length - len(prc_sound)) / 1e9
-                # print(self.data.iloc[item])
-                params = self.data.iloc[i, self.param_columns]
-                params = torch.Tensor(params)
-                if self.reverb:
-                    params = torch.hstack([params, torch.zeros(1)])
-                # print(params)
-                features = self.data.iloc[i, self.feat_columns]
-                features = torch.Tensor(features)
-                features = self.scaler.transform(features)
-                # print(features)
-                if self.validation:
-                    return cln_pad, prc_pad, features, params
-                else:
-                    return features, params
+        if self.validation:
+            cln_snd_path = self.clean_path / (filename.split('_')[0] + '.wav')
+            prc_snd_path = self.processed_path / (filename + '.wav')
+            cln_sound, rate = torchaudio.load(cln_snd_path, normalize=True)
+            prc_sound, rate = torchaudio.load(prc_snd_path, normalize=True)
+            cln_sound = cln_sound[0]
+            prc_sound = prc_sound[0]
+            cln_pad = torch.zeros((1, self.pad_length))
+            cln_pad[0, :len(cln_sound)] = cln_sound
+            cln_pad[0, len(cln_sound):] = torch.randn(self.pad_length-len(cln_sound)) / 1e9
+            prc_pad = torch.zeros((1, self.pad_length))
+            prc_pad[0, :len(prc_sound)] = prc_sound
+            prc_pad[0, len(prc_sound):] = torch.randn(self.pad_length - len(prc_sound)) / 1e9
+        # print(self.data.iloc[item])
+        params = self.data.iloc[item, self.param_columns]
+        params = torch.Tensor(params)
+        if self.reverb:
+            params = torch.hstack([params, torch.zeros(1)])
+        # print(params)
+        features = self.data.iloc[item, self.feat_columns]
+        features = torch.Tensor(features)
+        features = self.scaler.transform(features)
+        # print(features)
+        if self.validation:
+            return cln_pad, prc_pad, features, params
         else:
-            if self.validation:
-                cln_snd_path = self.clean_path / (filename.split('_')[0] + '.wav')
-                prc_snd_path = self.processed_path / (filename + '.wav')
-                cln_sound, rate = torchaudio.load(cln_snd_path, normalize=True)
-                prc_sound, rate = torchaudio.load(prc_snd_path, normalize=True)
-                cln_sound = cln_sound[0]
-                prc_sound = prc_sound[0]
-                cln_pad = torch.zeros((1, self.pad_length))
-                cln_pad[0, :len(cln_sound)] = cln_sound
-                cln_pad[0, len(cln_sound):] = torch.randn(self.pad_length-len(cln_sound)) / 1e9
-                prc_pad = torch.zeros((1, self.pad_length))
-                prc_pad[0, :len(prc_sound)] = prc_sound
-                prc_pad[0, len(prc_sound):] = torch.randn(self.pad_length - len(prc_sound)) / 1e9
-            # print(self.data.iloc[item])
-            params = self.data.iloc[item, self.param_columns]
-            params = torch.Tensor(params)
-            if self.reverb:
-                params = torch.hstack([params, torch.zeros(1)])
-            # print(params)
-            features = self.data.iloc[item, self.feat_columns]
-            features = torch.Tensor(features)
-            features = self.scaler.transform(features)
-            # print(features)
-            if self.validation:
-                return cln_pad, prc_pad, features, params
-            else:
-                return features, params
+            return features, params
 
 
 
