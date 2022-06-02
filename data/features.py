@@ -195,25 +195,27 @@ def spectral_flux(mag: np.ndarray or Tensor, q_norm: int = 1,
     Amount of frame-to-frame fluctuation in time.
     See: Tae Hong Park, Towards automatic musical instrument timbre recognition, 2004 (PhD thesis)
 
-    :param mag: (..., num_frames, Nfft) Matrix of the frame-by-frame magnitude;
+    :param mag: (..., Nfft, num_frames) Matrix of the frame-by-frame magnitude;
     :param q_norm: order of the q norm to use. Defaults to 1;
     :param torch_compat: enable torch-compatible computation. Default is False;
-    :return flux: (..., num_frames, 1) matrix of the spectral flux, set to 0 for the first frame.
+    :return flux: (..., 1, num_frames) matrix of the spectral flux, set to 0 for the first frame.
     """
     if torch_compat:
+        batch_size, nfft, num_frames = mag.shape
         diff = torch.diff(mag, n=1, dim=-1)
-        flux = torch.pow(torch.sum(torch.pow(torch.abs(diff), q_norm),
-                                   dim=-1, keepdim=True),
+        flux = torch.zeros((batch_size, 1, num_frames))
+        flux[:, :, 1:] = torch.pow(torch.sum(torch.pow(torch.abs(diff), q_norm),
+                                   dim=1, keepdim=True),
                          1 / q_norm)
         return flux
     else:
         if mag.ndim == 1:
             raise ValueError("Spectral flux cannot be computed on a single frame.")
         num_frames = mag.shape[1]
-        flux = np.zeros((num_frames, 1))
+        flux = np.zeros((1, num_frames))
         for fr in range(1, num_frames):
             diff = mag[:, fr] - mag[:, fr - 1]
-            flux[fr] = (np.sum(np.power(np.abs(diff), q_norm))) ** (1 / q_norm)
+            flux[0, fr] = (np.sum(np.power(np.abs(diff), q_norm))) ** (1 / q_norm)
         return flux
 
 
