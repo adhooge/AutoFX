@@ -76,9 +76,9 @@ def test_spectral_centroid_value(mag_synthetic_np):
 
 
 def test_spectral_spread_torch_shape():
-    mag = torch.rand((10, 100))
+    mag = torch.rand((32, 257, 100))
     spread = Ft.spectral_spread(mag=mag, torch_compat=True)
-    assert spread.shape == (10, 1)
+    assert spread.shape == (32, 1, 100)
 
 
 def test_spectral_spread_torch_value():
@@ -88,9 +88,9 @@ def test_spectral_spread_torch_value():
 
 
 def test_spectral_spread_shape():
-    mag = np.random.random(100)
+    mag = np.random.random((257, 100))
     spread = Ft.spectral_spread(mag=mag)
-    assert spread.shape == (1,)
+    assert spread.shape == (1, 100)
 
 
 def test_spectral_spread_value():
