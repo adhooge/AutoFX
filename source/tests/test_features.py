@@ -142,9 +142,9 @@ def test_spectral_skewness_value():
 
 
 def test_spectral_kurtosis_torch_shape():
-    mag = torch.rand((10, 100))
+    mag = torch.rand((32, 257, 100))
     kurt = Ft.spectral_kurtosis(mag=mag, torch_compat=True)
-    assert kurt.shape == (10, 1)
+    assert kurt.shape == (32, 1, 100)
 
 
 def test_spectral_kurtosis_torch_value(gaussian_mag_torch):
@@ -167,9 +167,9 @@ def test_spectral_kurtosis_torch_value(gaussian_mag_torch):
 
 
 def test_spectral_kurtosis_shape():
-    mag = np.random.random(100)
+    mag = np.random.random((129, 10))
     kurt = Ft.spectral_kurtosis(mag=mag)
-    assert kurt.shape == (1,)
+    assert kurt.shape == (1, 10)
 
 
 def test_spectral_kurtosis_value(gaussian_mag_np):

@@ -153,39 +153,39 @@ def spectral_kurtosis(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or T
 
     See: Geoffroy Peeters, Cuidado project Technical report, 2003.
 
-    :param mag: Magnitude spectrogram of the input signal;
+    :param mag: (..., nfft, num_frames) Magnitude spectrogram of the input signal;
     :param stft: Complex matrix representing a Short Time Fourier Transform;
     :param cent: Array of the spectral centroid of each frame;
     :param freq: frequency of each frequency bin, in Hertz;
     :param rate: sampling rate of the audio. Only used if freq is None. Default is 1.
     :param torch_compat: enable torch-compatible computation. Default is False;
-    :return kurt: spectral kurtosis of each input frame.
+    :return kurt: (..., 1, num_frames) spectral kurtosis of each input frame.
     """
     if torch_compat:
         if mag is None:
             mag = torch.abs(stft)
-        batch_size = mag.shape[0]
+        batch_size, nfft, num_frames = mag.shape
         if cent is None:
             cent = spectral_centroid(mag=mag, freq=freq, torch_compat=True)
         if freq is None:
-            freq = torch.linspace(0, rate / 2, mag.shape[-1])
-            freq = torch.vstack([freq] * batch_size)
-        norm_mag = mag / torch.sum(mag, dim=-1, keepdim=True)
-        cnt_freq = freq - cent
-        kurt = torch.sum(norm_mag * torch.pow(cnt_freq, 4), dim=-1, keepdim=True)
+            freq = torch.linspace(0, rate/2, nfft)
+        norm_mag = mag / torch.sum(mag, dim=1, keepdim=True)
+        cnt_freq = freq[None, :, None].expand(batch_size, -1, num_frames) - cent
+        kurt = torch.sum(norm_mag * torch.pow(cnt_freq, 4), dim=1, keepdim=True)
         return kurt
     else:
         if mag is None:
             mag = np.abs(stft)
         if cent is None:
             cent = spectral_centroid(mag=mag, freq=freq)
-        if freq is None:
-            freq = np.linspace(0, rate / 2, mag.shape[-1])
         if mag.ndim == 1:
             mag = np.expand_dims(mag, axis=1)
+        if freq is None:
+            freq = np.linspace(0, rate / 2, mag.shape[0])
+            freq = np.concatenate([freq[:, None]] * mag.shape[1], axis=1)
         norm_mag = mag / np.sum(mag, axis=0)
         cnt_freq = freq - cent
-        kurt = np.sum(norm_mag.T * np.power(cnt_freq, 4), axis=1)
+        kurt = np.sum(norm_mag * np.power(cnt_freq, 4), axis=0, keepdims=True)
         return kurt
 
 
