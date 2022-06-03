@@ -227,6 +227,18 @@ def test_slope_np_shape():
     assert slope.shape == (1, 10)
 
 
+def test_flatness_torch_shape():
+    signal = torch.rand((32, 257, 10))
+    flatness = Ft.spectral_flatness(mag=signal, torch_compat=True)
+    assert flatness.shape == (32, 1, 10)
+
+
+def test_flatness_np_shape():
+    signal = np.random.random((257, 10))
+    flatness = Ft.spectral_flatness(mag=signal)
+    assert flatness.shape == (1, 10)
+
+
 def test_pitch_curve(a440_np):
     f0 = Ft.pitch_curve(a440_np, 16000, 80, 1000)
     assert np.allclose(f0, np.ones_like(f0) * 440, atol=0.1, rtol=0.01)
