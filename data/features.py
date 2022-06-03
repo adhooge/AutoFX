@@ -226,27 +226,27 @@ def spectral_rolloff(mag: np.ndarray or Tensor, threshold: float = 0.95, freq: n
     below that frequency.
     See: Geoffroy Peeter, Technical report of the CUIDADO project, 2004.
 
-    :param mag: (..., num_frames, N_fft) Matrix of the frame-by-frame magnitude;
+    :param mag: (..., n_fft, num_frames) Matrix of the frame-by-frame magnitude;
     :param threshold: Ratio of the signal energy to use. Defaults to 0.95;
     :param freq: array of the frequency in Hertz of each frequency bin. If None, result is given as a bin number
     unless rate is set;
     :param rate: Sampling rate of the original signal. If rate is not None, it is used to create freq.
     :param torch_compat: should the computation be Pytorch-compatible? Default is False.
-    :return rolloff: (..., num_frames, 1) matrix of the spectral roll-off for each frame, in Hz or #bin.
+    :return rolloff: (..., 1, num_frames) matrix of the spectral roll-off for each frame, in Hz or #bin.
     """
     if torch_compat:
         energy = torch.square(mag)
-        batch_size, num_frames, fft_size = mag.shape
-        tot_energy = torch.sum(energy, dim=-1, keepdim=True)  # (batch_size, num_frames, 1)
-        cumul_energy = torch.cumsum(energy, dim=-1)  # (batch_size, num_frames, fft_size)
+        batch_size, fft_size, num_frames = mag.shape
+        tot_energy = torch.sum(energy, dim=1, keepdim=True)  # (batch_size, 1, num_frames)
+        cumul_energy = torch.cumsum(energy, dim=1)  # (batch_size, fft_size, num_frames)
         transition = torch.where(cumul_energy > threshold * tot_energy, 1, 0)
-        cumul_transition = torch.cumsum(transition, dim=-1)  # (batch_size, num_frames, fft_size)
+        cumul_transition = torch.cumsum(transition, dim=1)  # (batch_size, fft_size, num_frames)
         indices = (cumul_transition == 1).nonzero(as_tuple=True)
-        roll_off = torch.zeros((batch_size, num_frames, 1))
-        roll_off[indices[:2]] = torch.tensor(indices[-1], dtype=roll_off.dtype)[:, None]
+        roll_off = torch.zeros((batch_size, 1, num_frames))
+        roll_off[indices[0], :, indices[2]] = torch.tensor(indices[1], dtype=roll_off.dtype)[:, None]
         if rate is not None:
-            freq = torch.linspace(0, rate / 2, mag.shape[-1])
-            freq = torch.vstack([freq] * batch_size)
+            freq = torch.linspace(0, rate / 2, mag.shape[1])
+            freq = freq[None, :, None].expand(batch_size, -1, num_frames)
         if freq is not None:
             roll_off[indices] = freq[indices[-1]]
         return roll_off
@@ -255,9 +255,9 @@ def spectral_rolloff(mag: np.ndarray or Tensor, threshold: float = 0.95, freq: n
             mag = np.expand_dims(mag, axis=1)
         num_frames = mag.shape[1]
         energy = np.power(mag, 2)
-        rolloff = np.empty((num_frames, 1))
+        rolloff = np.empty((1, num_frames))
         if rate is not None:
-            freq = np.linspace(0, rate / 2, mag.shape[-1])
+            freq = np.linspace(0, rate / 2, mag.shape[0])
         for fr in range(num_frames):
             flag = True
             tot_energy = np.sum(energy[:, fr])
@@ -266,9 +266,9 @@ def spectral_rolloff(mag: np.ndarray or Tensor, threshold: float = 0.95, freq: n
                 if ener > threshold * tot_energy and flag:
                     flag = False
                     if freq is None:
-                        rolloff[fr] = bin_num
+                        rolloff[0, fr] = bin_num
                     else:
-                        rolloff[fr] = freq[bin_num]
+                        rolloff[0, fr] = freq[bin_num]
                 elif not flag:
                     break
         return rolloff
