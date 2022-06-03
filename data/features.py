@@ -281,20 +281,19 @@ def spectral_slope(mag: np.ndarray or Tensor, freq: np.ndarray = None,
     The spectral slope represents the amount of decreasing of the spectral amplitude [1].
 
     :param torch_compat: should the computation be pytorch-compatible? Default is False.
-    :param mag: (..., num_frames, N_fft) matrix of the frame_by_frame magnitude;
+    :param mag: (..., N_fft, num_frames) matrix of the frame_by_frame magnitude;
     :param freq: array of the frequency in Hertz of each frequency bin. If None, result is given in bins
     unless rate is set;
     :param rate: Sampling rate of the original signal. If rate is not None, it is used to create freq;
-    :return slope: (..., num_frames, 1) array of the frame-wise spectral slope, in Hz or bins depending on freq.
+    :return slope: (..., 1, num_frames) array of the frame-wise spectral slope, in Hz or bins depending on freq.
     """
     if torch_compat:
-        batch_size, num_frames, fft_size = mag.shape
+        batch_size, fft_size, num_frames = mag.shape
         if rate is not None:
-            freq = torch.linspace(0, rate / 2, mag.shape[-1])
-            freq = torch.vstack([freq] * batch_size)
+            freq = torch.linspace(0, rate / 2, fft_size)
         if freq is None:
             freq = torch.arange(fft_size)
-        num = fft_size * torch.sum(torch.mul(freq, mag), dim=-1, keepdim=True) - torch.sum(freq) * torch.sum(mag, dim=-1, keepdim=True)
+        num = fft_size * torch.sum(torch.mul(freq[:, None], mag), dim=1, keepdim=True) - torch.sum(freq) * torch.sum(mag, dim=1, keepdim=True)
         denom = fft_size * torch.sum(torch.square(freq)) - torch.sum(freq) ** 2
         return num / denom
     else:
@@ -305,11 +304,11 @@ def spectral_slope(mag: np.ndarray or Tensor, freq: np.ndarray = None,
             freq = np.linspace(0, rate/2, mag.shape[-1])
         if freq is None:
             freq = np.arange(n_fft)
-        slope = np.empty((num_frames, 1))
+        slope = np.empty((1, num_frames))
         for fr in range(num_frames):
             num = (n_fft * np.sum(np.multiply(freq, mag[:, fr])) - np.sum(freq) * np.sum(mag[:, fr]))
             denom = n_fft * np.sum(np.power(freq, 2)) - np.sum(freq) ** 2
-            slope[fr] = num / denom
+            slope[0, fr] = num / denom
         return slope
 
 

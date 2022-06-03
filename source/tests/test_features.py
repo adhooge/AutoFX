@@ -215,6 +215,18 @@ def test_rolloff_np_shape():
     assert rolloff.shape == (1, 10)
 
 
+def test_slope_torch_shape():
+    signal = torch.rand((32, 257, 10))
+    slope = Ft.spectral_slope(mag=signal, torch_compat=True)
+    assert slope.shape == (32, 1, 10)
+
+
+def test_slope_np_shape():
+    signal = np.random.random((257, 10))
+    slope = Ft.spectral_slope(mag=signal)
+    assert slope.shape == (1, 10)
+
+
 def test_pitch_curve(a440_np):
     f0 = Ft.pitch_curve(a440_np, 16000, 80, 1000)
     assert np.allclose(f0, np.ones_like(f0) * 440, atol=0.1, rtol=0.01)
