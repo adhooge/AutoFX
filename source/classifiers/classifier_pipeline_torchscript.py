@@ -11,12 +11,14 @@ clf = MLPClassifier.load_from_checkpoint(CHECKPOINT, input_size=143,
 
 
 class ClassifierPipeline(nn.Module):
-    def __init__(self, classifier, feat_extractor):
+    def __init__(self, classifier, feat_extractor, scaler):
         super(ClassifierPipeline, self).__init__()
         self.clf = classifier
         self.feat_extractor = feat_extractor
+        self.scaler = scaler
         self.pipeline = nn.Sequential(
             feat_extractor,
+            scaler,
             clf
         )
 
