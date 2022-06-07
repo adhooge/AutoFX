@@ -204,9 +204,11 @@ def test_flux_np_shape():
 
 
 def test_rolloff_torch_shape():
-    signal = torch.rand((32, 257, 10))
+    signal = torch.rand((32, 257, 100))
     rolloff = Ft.spectral_rolloff(mag=signal, torch_compat=True)
-    assert rolloff.shape == (32, 1, 10)
+    assert rolloff.shape == (32, 1, 100)
+    rolloff = Ft.spectral_rolloff(mag=signal, torch_compat=True, rate=1)
+    assert rolloff.shape == (32, 1, 100)
 
 
 def test_rolloff_np_shape():
