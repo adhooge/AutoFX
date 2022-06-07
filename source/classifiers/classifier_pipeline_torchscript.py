@@ -14,6 +14,7 @@ class ClassifierPipeline(nn.Module):
     def __init__(self, classifier, feat_extractor, scaler):
         super(ClassifierPipeline, self).__init__()
         self.clf = classifier
+        # self.feat_extractor = torch.jit.trace(feat_extractor, example)
         self.feat_extractor = feat_extractor
         self.scaler = scaler
         self.pipeline = nn.Sequential(
@@ -22,7 +23,9 @@ class ClassifierPipeline(nn.Module):
             clf
         )
 
-    def forward(self, audio, rate):
-        out = self.pipeline(audio, rate)
-        return torch.argmax(out)
+    def forward(self, audio):
+        feat = self.feat_extractor(audio)
+        scaled_feat = self.scaler(feat)
+        pred = self.clf(scaled_feat)
+        return torch.argmax(pred)
 

@@ -163,6 +163,7 @@ class MLPClassifier(pl.LightningModule):
 class FeatureExtractor(nn.Module):
     @staticmethod
     def _apply_functionals(feat):
+        feat = feat[:, 0, :]
         out = []
         out.append(Fc.f_avg(feat, dim=1))
         out.append(Fc.f_std(feat, dim=1))
@@ -170,7 +171,8 @@ class FeatureExtractor(nn.Module):
         out.append(Fc.f_kurt(feat, dim=1))
         out.append(Fc.f_min(feat, dim=1))
         out.append(Fc.f_max(feat, dim=1))
-        return torch.stack(out, dim=-1)
+        out = torch.stack(out, dim=-1)
+        return out
 
     @staticmethod
     def _get_features(mag, rate):
@@ -222,7 +224,8 @@ class FeatureExtractor(nn.Module):
         out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(rolloff, dim=-1)))
         out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(slope, dim=-1)))
         out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(flat, dim=-1)))
-        out = torch.stack(out, dim=-1)
+        out = torch.stack(out, dim=1)
+        out = torch.reshape(out, (1, -1))
         return out
 
     def __init__(self):
