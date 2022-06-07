@@ -226,6 +226,7 @@ class FeatureExtractor(nn.Module):
         out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(flat, dim=-1)))
         out = torch.stack(out, dim=1)
         out = torch.reshape(out, (1, -1))
+        out = torch.hstack([out[:, :53], out[:, 54:]])
         return out
 
     def __init__(self):
@@ -246,3 +247,4 @@ class FeatureExtractor(nn.Module):
         pitch = torch.mean(pitch, dim=-1)
         func = FeatureExtractor._get_functionals(feat, pitch)
         return func
+
