@@ -10,37 +10,50 @@ from scipy.stats import skew, kurtosis
 import source.util as util
 
 
-def f_max(arr: ArrayLike) -> float:
+def f_max(arr: ArrayLike, torch_compat: bool = False, dim: int = -1):
+    if torch_compat:
+        return torch.max(arr, dim=dim)[0]
     return np.max(arr)
 
 
-def f_min(arr: ArrayLike) -> float:
+def f_min(arr: ArrayLike, torch_compat: bool = False, dim: int = -1):
+    if torch_compat:
+        return torch.min(arr, dim=dim)
     return np.min(arr)
 
 
-def f_avg(arr: ArrayLike):
+def f_avg(arr: ArrayLike, torch_compat: bool = False, dim: int = -1):
+    if torch_compat:
+        return torch.mean(arr, dim=dim)
     return np.mean(arr)
 
 
-def f_std(arr: ArrayLike, torch_compat: bool = False):
+def f_std(arr: ArrayLike, torch_compat: bool = False, dim: int = -1):
     if torch_compat:
-        return torch.std(arr, dim=-1)
+        return torch.std(arr, dim=dim)
     else:
         return np.std(arr)
 
 
-def f_skew(arr: ArrayLike, torch_compat: bool = False):
+def f_skew(arr: ArrayLike, torch_compat: bool = False, dim: int = -1):
     if torch_compat:
-        mean = torch.mean(arr, dim=-1, keepdim=True)
+        mean = torch.mean(arr, dim=dim, keepdim=True)
         diffs = arr - mean
-        var = torch.mean(torch.pow(diffs, 2), dim=-1, keepdim=True)
+        var = torch.mean(torch.pow(diffs, 2), dim=dim, keepdim=True)
         zscores = diffs / torch.sqrt(var)
-        skews = torch.mean(torch.pow(zscores, 3), dim=-1)
+        skews = torch.mean(torch.pow(zscores, 3), dim=dim)
         return skews
     return skew(arr)
 
 
-def f_kurt(arr: ArrayLike):
+def f_kurt(arr: ArrayLike, torch_compat: bool = False, dim: int = -1):
+    if torch_compat:
+        mean = torch.mean(arr, dim=dim, keepdim=True)
+        diffs = arr - mean
+        var = torch.mean(torch.pow(diffs, 2), dim=dim, keepdim=True)
+        zscores = diffs / torch.sqrt(var)
+        kurts = torch.mean(torch.pow(zscores, 3), dim=dim)
+        return kurts
     return kurtosis(arr)
 
 
