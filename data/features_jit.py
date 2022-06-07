@@ -10,30 +10,26 @@ import librosa
 import numpy as np
 import torch
 import torchaudio.functional
-from torch import Tensor
 import source.util as util
 
 
-def _geom_mean(arr: Tensor, dim: int = -1):
+def _geom_mean(arr, dim: int = -1):
     """
     Compute the geometrical mean of an array through log conversion to avoid overflow.
     """
     return torch.exp(torch.mean(torch.log(arr), dim=dim))
 
 
-def spectral_centroid(mag: Tensor = None, stft: Tensor = None, freq=None,
-                      rate: int = 1) -> Tensor:
+def spectral_centroid(mag=None, freq=None,
+                      rate: int = 1):
     """
     Spectral centroid of each frame.
 
     :param mag: (..., Nfft, num_frames) Magnitude spectrogram of the input signal;
-    :param stft: Complex matrix of the short time fourier transform;
     :param freq: frequency of each frequency bin, in Hertz;
     :param rate: sampling rate of the audio. Only used if freq is None. Default is 1.
     :return: (..., 1, num_frames) spectral centroid of each input frame.
     """
-    if mag is None:
-        mag = torch.abs(stft)
     batch_size, nfft, num_frames = mag.shape
     if freq is None:
         freq = torch.linspace(0, rate / 2, nfft)
@@ -42,8 +38,8 @@ def spectral_centroid(mag: Tensor = None, stft: Tensor = None, freq=None,
     return cent
 
 
-def spectral_spread(mag: Tensor = None, stft: Tensor = None,
-                    cent=None, freq=None, rate: int = 1) -> Tensor:
+def spectral_spread(mag=None, stft=None,
+                    cent=None, freq=None, rate: int = 1):
     """
     Spectral spread of each frame of the input signal.
 
@@ -69,10 +65,10 @@ def spectral_spread(mag: Tensor = None, stft: Tensor = None,
     return spread
 
 
-def spectral_skewness(mag: Tensor = None,
-                      stft: Tensor = None,
+def spectral_skewness(mag=None,
+                      stft=None,
                       cent=None, freq=None,
-                      rate: int = 1) -> Tensor:
+                      rate: int = 1):
     """
     Spectral skewness of each frame of the input signal.
 
@@ -98,8 +94,8 @@ def spectral_skewness(mag: Tensor = None,
     return skew
 
 
-def spectral_kurtosis(mag: Tensor = None, stft: Tensor = None,
-                      cent=None, freq=None, rate: int = 1) -> Tensor:
+def spectral_kurtosis(mag=None, stft=None,
+                      cent=None, freq=None, rate: int = 1):
     """
     Spectral kurtosis of each frame of the input signal.
 
@@ -125,7 +121,7 @@ def spectral_kurtosis(mag: Tensor = None, stft: Tensor = None,
     return kurt
 
 
-def spectral_flux(mag: Tensor, q_norm: int = 1) -> Tensor:
+def spectral_flux(mag, q_norm: int = 1):
     """
     Amount of frame-to-frame fluctuation in time.
     See: Tae Hong Park, Towards automatic musical instrument timbre recognition, 2004 (PhD thesis)
@@ -143,7 +139,7 @@ def spectral_flux(mag: Tensor, q_norm: int = 1) -> Tensor:
     return flux
 
 
-def spectral_rolloff(mag: Tensor, threshold: float = 0.95, freq=None,
+def spectral_rolloff(mag, threshold: float = 0.95, freq=None,
                      rate: int = None):
     """
     The spectral roll-off point is the frequency so that threshold% of the signal energy is contained
@@ -168,13 +164,12 @@ def spectral_rolloff(mag: Tensor, threshold: float = 0.95, freq=None,
     roll_off[indices[0], :, indices[2]] = torch.tensor(indices[1], dtype=roll_off.dtype)[:, None]
     if rate is not None:
         freq = torch.linspace(0, rate / 2, mag.shape[1])
-        freq = freq[None, :, None].expand(batch_size, -1, num_frames)
     if freq is not None:
-        roll_off[indices] = freq[indices[-1]]
+        roll_off[indices[0], :, indices[2]] = freq[indices[1]][:, None]
     return roll_off
 
 
-def spectral_slope(mag: Tensor, freq=None,
+def spectral_slope(mag, freq=None,
                    rate: int = None):
     """
     The spectral slope represents the amount of decreasing of the spectral amplitude [1].
@@ -195,7 +190,7 @@ def spectral_slope(mag: Tensor, freq=None,
     return num / denom
 
 
-def spectral_flatness(mag: Tensor, bands: int = 1, rate: float = None):
+def spectral_flatness(mag, bands: int = 1, rate: float = None):
     """
     The spectral flatness is a measure of the noisiness of a spectrum. [1, 2]
 
@@ -206,10 +201,6 @@ def spectral_flatness(mag: Tensor, bands: int = 1, rate: float = None):
     :param rate: sampling rate of the signal in Hertz;
     :return flatness: (..., bands, num_frames) matrix of the spectral flatness of each frame and frequency band.
     """
-    def freq2bin(freq, rate, n_fft):
-        return int(freq * 2 * n_fft / rate)
-    if mag.ndim == 1:
-        mag = np.expand_dims(mag, axis=1)
     if mag.ndim >= 3:
         n_fft = mag.shape[-2]
     else:
@@ -324,8 +315,7 @@ def phase_fmax(sig):
     return linregerr_t
 
 
-def pitch_curve(audio, rate, fmin, fmax,
-                default_f: float = None, torch_compat: bool = False):
+def pitch_curve(audio, rate):
     """
     fmin and fmax need to be quite far from one another for the algorithm to work
     :param audio:
@@ -334,13 +324,8 @@ def pitch_curve(audio, rate, fmin, fmax,
     :param fmax:
     :return:
     """
-    if audio.ndim == 3 or torch_compat:  # batch treatment
-        f0 = torchaudio.functional.detect_pitch_frequency(audio, rate)
-        return f0
-    else:
-        f0 = librosa.pyin(y=audio, fmin=int(fmin), fmax=int(fmax), sr=rate, fill_na=default_f)
-        return f0[0]
-
+    f0 = torchaudio.functional.detect_pitch_frequency(audio, rate)
+    return f0
 
 def rms_energy(audio, torch_compat: bool = False):
     if torch_compat:

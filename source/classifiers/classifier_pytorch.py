@@ -13,8 +13,8 @@ from ignite.metrics.recall import Recall
 from ignite.metrics.confusion_matrix import ConfusionMatrix
 import torchaudio
 
-import data.features as Ft
-import data.functional as Fc
+import data.features_jit as Ft
+import data.functional_jit as Fc
 import source.util as util
 
 
@@ -32,6 +32,26 @@ class TorchStandardScaler:
         self.std = x.std(0, unbiased=False, keepdim=True)
 
     def transform(self, x):
+        x -= self.mean
+        x /= (self.std + 1e-7)
+        return x
+
+
+class ScalerModule(nn.Module):
+    """
+    from    https://discuss.pytorch.org/t/pytorch-tensor-scaling/38576/8
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.mean = 0
+        self.std = 1
+
+    def fit(self, x):
+        self.mean = x.mean(0, keepdim=True)
+        self.std = x.std(0, unbiased=False, keepdim=True)
+
+    def forward(self, x):
         x -= self.mean
         x /= (self.std + 1e-7)
         return x
@@ -91,7 +111,7 @@ class MLPClassifier(pl.LightningModule):
         self.tol = tol
         self.n_iter_no_change = n_iter_no_change
 
-    def forward(self, x, *args, **kwargs) -> Any:
+    def forward(self, x) -> Any:
         out = self.linear1(x)
         out = self.activation(out)
         out = self.linear2(out)
@@ -144,30 +164,31 @@ class FeatureExtractor(nn.Module):
     @staticmethod
     def _apply_functionals(feat):
         out = []
-        out.append(Fc.f_avg(feat, torch_compat=True, dim=1))
-        out.append(Fc.f_std(feat, torch_compat=True, dim=1))
-        out.append(Fc.f_skew(feat, torch_compat=True, dim=1))
-        out.append(Fc.f_kurt(feat, torch_compat=True, dim=1))
-        out.append(Fc.f_min(feat, torch_compat=True, dim=1))
-        out.append(Fc.f_max(feat, torch_compat=True, dim=1))
+        out.append(Fc.f_avg(feat, dim=1))
+        out.append(Fc.f_std(feat, dim=1))
+        out.append(Fc.f_skew(feat, dim=1))
+        out.append(Fc.f_kurt(feat, dim=1))
+        out.append(Fc.f_min(feat, dim=1))
+        out.append(Fc.f_max(feat, dim=1))
         return torch.stack(out, dim=-1)
 
     @staticmethod
     def _get_features(mag, rate):
-        centroid = Ft.spectral_centroid(mag=mag, rate=rate, torch_compat=True)
-        spread = Ft.spectral_spread(mag=mag, cent=centroid, rate=rate, torch_compat=True)
-        skew = Ft.spectral_skewness(mag=mag, cent=centroid, rate=rate, torch_compat=True)
-        kurt = Ft.spectral_kurtosis(mag=mag, cent=centroid, rate=rate, torch_compat=True)
-        flux = Ft.spectral_flux(mag=mag, torch_compat=True)
-        rolloff = Ft.spectral_rolloff(mag=mag, rate=rate, torch_compat=True)
-        slope = Ft.spectral_slope(mag=mag, rate=rate, torch_compat=True)
-        flat = Ft.spectral_flatness(mag=mag, bands=1, rate=rate, torch_compat=True)
+        centroid = Ft.spectral_centroid(mag=mag, rate=rate)
+        spread = Ft.spectral_spread(mag=mag, cent=centroid, rate=rate)
+        skew = Ft.spectral_skewness(mag=mag, cent=centroid, rate=rate)
+        kurt = Ft.spectral_kurtosis(mag=mag, cent=centroid, rate=rate)
+        flux = Ft.spectral_flux(mag=mag)
+        rolloff = Ft.spectral_rolloff(mag=mag, rate=rate)
+        slope = Ft.spectral_slope(mag=mag, rate=rate)
+        flat = Ft.spectral_flatness(mag=mag, bands=1, rate=rate)
         out = torch.stack([centroid, spread, skew, kurt, flux,
                            rolloff, slope, flat], dim=-1)
         return out
 
     @staticmethod
     def _get_functionals(feat, pitch):
+        pitch = pitch[:, None, None]
         cent = feat[:, :, :, 0]
         spread = feat[:, :, :, 1]
         skew = feat[:, :, :, 2]
@@ -189,30 +210,36 @@ class FeatureExtractor(nn.Module):
         out.append(FeatureExtractor._apply_functionals(rolloff))
         out.append(FeatureExtractor._apply_functionals(slope))
         out.append(FeatureExtractor._apply_functionals(flat))
-        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(cent, torch_compat=True, dim=1)))
-        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(spread, torch_compat=True, dim=1)))
-        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(skew, torch_compat=True, dim=1)))
-        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(kurt, torch_compat=True, dim=1)))
-        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(cent / pitch, torch_compat=True, dim=1)))
-        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(spread / pitch, torch_compat=True, dim=1)))
-        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(skew / pitch, torch_compat=True, dim=1)))
-        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(kurt / pitch, torch_compat=True, dim=1)))
-        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(flux, torch_compat=True, dim=1)))
-        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(rolloff, torch_compat=True, dim=1)))
-        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(slope, torch_compat=True, dim=1)))
-        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(flat, torch_compat=True, dim=1)))
+        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(cent, dim=-1)))
+        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(spread, dim=-1)))
+        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(skew, dim=-1)))
+        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(kurt, dim=-1)))
+        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(cent / pitch, dim=-1)))
+        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(spread / pitch, dim=-1)))
+        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(skew / pitch, dim=-1)))
+        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(kurt / pitch, dim=-1)))
+        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(flux, dim=-1)))
+        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(rolloff, dim=-1)))
+        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(slope, dim=-1)))
+        out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(flat, dim=-1)))
         out = torch.stack(out, dim=-1)
         return out
 
     def __init__(self):
         super(FeatureExtractor, self).__init__()
-        self.spectrogram = torchaudio.transforms.Spectrogram(8192, hop_length=512, power=0)
+        self.spectrogram = torchaudio.transforms.Spectrogram(8192, hop_length=512, power=0.)
 
-    def forward(self, audio, rate):
+    def forward(self, audio, rate: int = 22050):
+        """
+
+        :param audio: (batch, num_samples), mono only for now
+        :param rate:
+        :return:
+        """
         stft = self.spectrogram(audio)
         mag = torch.abs(stft)
         feat = FeatureExtractor._get_features(mag, rate)
-        pitch = Ft.pitch_curve(audio, rate, fmin=50, fmax=1000, torch_compat=True)
+        pitch = Ft.pitch_curve(audio, rate)
         pitch = torch.mean(pitch, dim=-1)
         func = FeatureExtractor._get_functionals(feat, pitch)
         return func
