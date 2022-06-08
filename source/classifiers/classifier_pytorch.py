@@ -243,6 +243,8 @@ class FeatureExtractor(nn.Module):
         :param rate:
         :return:
         """
+        # add some noise
+        audio = audio + torch.randn_like(audio) * (torch.max(torch.abs(audio)) / 1000)
         stft = self.spectrogram(audio)
         mag = torch.abs(stft)
         feat = FeatureExtractor._get_features(mag, rate)
@@ -267,7 +269,7 @@ class FeatureExtractor(nn.Module):
                         row = pd.DataFrame(func.numpy())
                         row['file'] = ff.name
                         row['class'] = fx
-                        out = out.append(row)
+                        out = pd.concat([out, row], axis=0)
             if f.suffix == '.wav':
                 audio, rate = torchaudio.load(f)
                 fx = f.name.split('-')[2][1:-1]
@@ -276,7 +278,7 @@ class FeatureExtractor(nn.Module):
                 row = pd.DataFrame(func.numpy())
                 row['file'] = f.name
                 row['class'] = fx
-                out = out.append(row)
+                out = pd.concat([out, row], axis=0)
         print(out.shape)
-        out.to_csv('test.csv')
-        out.to_pickle('test.pkl')
+        out.to_csv(folder_path / 'out.csv')
+        out.to_pickle(folder_path / 'out.pkl')
