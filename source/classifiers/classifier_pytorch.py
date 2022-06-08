@@ -1,7 +1,10 @@
+import pathlib
+import pickle
 from typing import Any
 
 import pandas as pd
 import torch
+import tqdm
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch import nn
 import torch.nn.functional as F
@@ -231,7 +234,7 @@ class FeatureExtractor(nn.Module):
 
     def __init__(self):
         super(FeatureExtractor, self).__init__()
-        self.spectrogram = torchaudio.transforms.Spectrogram(8192, hop_length=512, power=0.)
+        self.spectrogram = torchaudio.transforms.Spectrogram(8192, hop_length=512, power=None)
 
     def forward(self, audio, rate: int = 22050):
         """
@@ -248,3 +251,32 @@ class FeatureExtractor(nn.Module):
         func = FeatureExtractor._get_functionals(feat, pitch)
         return func
 
+    def process_folder(self, folder_path: str):
+        folder_path = pathlib.Path(folder_path)
+        out = pd.DataFrame([])
+        for f in tqdm.tqdm(folder_path.iterdir()):
+            f = pathlib.Path(f)
+            if f.is_dir():
+                for ff in tqdm.tqdm(f.iterdir()):
+                    ff = pathlib.Path(ff)
+                    if ff.suffix == '.wav':
+                        audio, rate = torchaudio.load(ff)
+                        fx = ff.name.split('-')[2][1:-1]
+                        fx = util.idmt_fx2class_number(util.idmt_fx(fx))
+                        func = self.forward(audio, rate)
+                        row = pd.DataFrame(func.numpy())
+                        row['file'] = ff.name
+                        row['class'] = fx
+                        out = out.append(row)
+            if f.suffix == '.wav':
+                audio, rate = torchaudio.load(f)
+                fx = f.name.split('-')[2][1:-1]
+                fx = util.idmt_fx2class_number(util.idmt_fx(fx))
+                func = self.forward(audio, rate)
+                row = pd.DataFrame(func.numpy())
+                row['file'] = f.name
+                row['class'] = fx
+                out = out.append(row)
+        print(out.shape)
+        out.to_csv('test.csv')
+        out.to_pickle('test.pkl')
