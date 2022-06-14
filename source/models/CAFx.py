@@ -1,6 +1,7 @@
 """
 ResNet network for AutoFX with conditional features added to the last layer
 """
+import math
 from typing import List, Tuple, Any, Optional
 
 import auraloss
@@ -24,6 +25,7 @@ import source.util as util
 
 class CAFx(pl.LightningModule):
     def compute_features(self, audio):
+        audio = audio + torch.randn_like(audio) * 1e-6
         pitch = Ft.pitch_curve(audio, self.rate, None, None, torch_compat=True)
         phase = Ft.phase_fmax_batch(audio, transform=self.feature_spectro)
         rms = Ft.rms_energy(audio, torch_compat=True)
@@ -83,7 +85,7 @@ class CAFx(pl.LightningModule):
                  fft_size: int = 1024, hop_size: int = 256, audiologs: int = 4, loss_weights: list[float] = [1, 1],
                  mrstft_fft: list[int] = [64, 128, 256, 512, 1024, 2048],
                  mrstft_hop: list[int] = [16, 32, 64, 128, 256, 512],
-                 learning_rate: float = 0.001, out_of_domain: bool = False,
+                 learning_rate: float = 0.0001, out_of_domain: bool = False,
                  spectro_power: int = 2, mel_spectro: bool = True, mel_num_bands: int = 128,
                  loss_stamps: list = None,
                  reverb: bool = False):
@@ -107,22 +109,20 @@ class CAFx(pl.LightningModule):
         if reverb:
             fcl_size = 4096
         else:
-            fcl_size = 1024
+            fcl_size = 2048
         self.fcl = nn.Linear(fcl_size + cond_feat, self.num_params)
+        nn.init.xavier_normal_(self.fcl.weight, gain=math.sqrt(2))
         self.activation = nn.Sigmoid()
         self.learning_rate = learning_rate
         self.loss = nn.MSELoss()
         self.feat_loss = nn.MSELoss()
         self.tracker_flag = tracker
         self.tracker = None
-        self.mrstft = auraloss.freq.MultiResolutionSTFTLoss(mrstft_fft,
-                                                            mrstft_hop,
-                                                            mrstft_fft,
-                                                            w_log_mag=1,
-                                                            w_lin_mag=1,
+        self.mrstft = auraloss.freq.MultiResolutionSTFTLoss(fft_sizes=mrstft_fft,
+                                                            hop_sizes=mrstft_hop,
+                                                            win_lengths=mrstft_fft,
                                                             w_phs=1,
-                                                            sample_rate=rate,
-                                                            device=torch.device('cuda'))  # TODO: Manage device properly
+                                                            w_sc=0)
         self.spectral_loss = self.mrstft
         self.num_bands = num_bands
         if isinstance(param_range[0], str):
@@ -175,6 +175,7 @@ class CAFx(pl.LightningModule):
         pred = self.forward(processed, feat)
         if not self.out_of_domain:
             loss = self.loss(pred, label)
+            # loss = 0
             self.logger.experiment.add_scalar("Param_loss/Train", loss, global_step=self.global_step)
             scalars = {}
             for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
@@ -190,14 +191,19 @@ class CAFx(pl.LightningModule):
                     self.loss_weights = [1 - weight, weight]
                 elif self.trainer.current_epoch >= self.loss_stamps[1]:
                     self.loss_weights = [0, 1]
-        if self.loss_weights[1] != 0 or self.out_of_domain:
+        if True:
             pred = pred.to("cpu")
+            self.pred = pred
+            self.pred.retain_grad()
             rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)
             for (i, snd) in enumerate(clean):
-                tmp = self.mbfx_layer.forward(snd.cpu(), pred[i])
-                rec[i] = tmp
+                snd_norm = snd / torch.max(torch.abs(snd))
+                snd_norm = snd_norm + torch.randn_like(snd_norm) * 1e-9
+                tmp = self.mbfx_layer.forward(snd_norm.cpu(), pred[i])
+                rec[i] = tmp.clone()
             target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(
                 torch.abs(rec))
+            # spec_loss = self.loss(pred_normalized, target_normalized)
             spec_loss = self.spectral_loss(pred_normalized, target_normalized)
             # spec_loss = 0
             features = self.compute_features(pred_normalized)
@@ -208,9 +214,11 @@ class CAFx(pl.LightningModule):
             # print(torch.max(features, dim=-1), torch.max(feat, dim=-1))
             # print(torch.argmax(features, dim=-1), torch.argmax(feat, dim=-1))
             feat_loss = self.feat_loss(features, feat)
+            # print('feat_loss maison', torch.mean(torch.square(features - feat)))
+            # feat_loss = 0
             # print("FEAT_LOSSSSSSSS", feat_loss)
             # print(torch.mean(torch.square(features - feat)))
-            spectral_loss = spec_loss + 0.01 * feat_loss
+            spectral_loss = (spec_loss + feat_loss)/2
         else:
             spectral_loss = 0
             spec_loss = 0
@@ -222,11 +230,15 @@ class CAFx(pl.LightningModule):
         self.logger.experiment.add_scalar("Total_Spectral_loss/Train",
                                           spectral_loss, global_step=self.global_step)
         if not self.out_of_domain:
-            total_loss = 1000 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
+            total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
         else:
             total_loss = spectral_loss
         self.logger.experiment.add_scalar("Total_loss/Train", total_loss, global_step=self.global_step)
+        # print("MAYBE", target_normalized==pred_normalized)
         return total_loss
+
+    def on_after_backward(self) -> None:
+        pass
 
     def validation_step(self, batch, batch_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
         if not self.out_of_domain:
@@ -253,7 +265,7 @@ class CAFx(pl.LightningModule):
             spec_loss = self.spectral_loss(pred_normalized, target_normalized)
             features = self.compute_features(rec)
             feat_loss = self.loss(features, feat)
-            spectral_loss = spec_loss + 0.01 * feat_loss
+            spectral_loss = (spec_loss + 1 * feat_loss) / 2
         else:
             spectral_loss = 0
             feat_loss = 0
@@ -309,7 +321,7 @@ class CAFx(pl.LightningModule):
             self.tracker.epoch_end()
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)  # TODO: Remove hardcoded values
+        optimizer = torch.optim.SGD(self.parameters(), lr=self.learning_rate)  # TODO: Remove hardcoded values
         # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
         # lr_schedulers = {"scheduler": scheduler, "interval": "epoch"}
         # return {"optimizer": optimizer, "lr_scheduler": lr_schedulers}
