@@ -129,7 +129,7 @@ class FeatureOutDomainDataset(Dataset):
                 prc_pad = torch.zeros((1, self.pad_length))
                 prc_pad[0, :len(prc_sound)] = prc_sound
                 prc_pad[0, len(prc_sound):] = torch.randn(self.pad_length - len(prc_sound)) / 1e9
-                features = self.data.iloc[i, 1:]
+                features = self.data.iloc[i, :]
                 features = torch.Tensor(features)
                 features = self.scaler.transform(features)
                 return cln_pad, prc_pad, features
@@ -146,7 +146,7 @@ class FeatureOutDomainDataset(Dataset):
             prc_pad = torch.zeros((1, self.pad_length))
             prc_pad[0, :len(prc_sound)] = prc_sound
             prc_pad[0, len(prc_sound):] = torch.randn(self.pad_length - len(prc_sound)) / 1e9
-            features = self.data.iloc[item, 1:]
+            features = self.data.iloc[item, :]
             features = torch.Tensor(features)
             features = self.scaler.transform(features)
             return cln_pad, prc_pad, features
