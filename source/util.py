@@ -435,6 +435,35 @@ def idmt_fx2one_hot_vector(fx: str) -> np.ndarray:
     return vector
 
 
+def idmt_fx(char: str):
+    match char:
+        case '11':
+            return 'Dry'
+        case '12':
+            return 'Amp sim'
+        case '21':
+            return 'Feedback delay'
+        case '22':
+            return 'Slapback delay'
+        case '23':
+            return 'Reverb'
+        case '31':
+            return 'Chorus'
+        case '32':
+            return 'Flanger'
+        case '33':
+            return 'Phaser'
+        case '34':
+            return 'Tremolo'
+        case '35':
+            return 'Vibrato'
+        case '41':
+            return 'Distortion'
+        case '42':
+            return 'Overdrive'
+        case _:
+            return None
+
 def idmt_fx2class_number(fx: str) -> int:
     match fx:
         case 'Dry':
