@@ -161,7 +161,7 @@ def spectral_rolloff(mag, threshold: float = 0.95, freq=None,
     cumul_transition = torch.cumsum(transition, dim=1)  # (batch_size, fft_size, num_frames)
     indices = (cumul_transition == 1).nonzero(as_tuple=True)
     roll_off = torch.zeros((batch_size, 1, num_frames))
-    roll_off[indices[0], :, indices[2]] = torch.tensor(indices[1], dtype=roll_off.dtype)[:, None]
+    roll_off[indices[0], :, indices[2]] = torch.clone(indices[1]).detach()[:, None].float()
     if rate is not None:
         freq = torch.linspace(0, rate / 2, mag.shape[1])
     if freq is not None:
