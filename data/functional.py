@@ -88,7 +88,10 @@ def fft_max_batch(feat, num_max: int = 1, zero_half_width: int = None, beta: int
             high_bound = -torch.nn.functional.relu(-tmp2 + 513) + 513
             # zero mask batch: https://stackoverflow.com/questions/57548180/filling-torch-tensor-with-zeros-after-certain-index
             mask = torch.zeros(rfft.shape[0], rfft.shape[1] + 1, device=feat.device)
-            mask[(torch.arange(rfft.shape[0]), low_bound.long())] = 1
+            try:
+                mask[(torch.arange(rfft.shape[0]), low_bound.long())] = 1
+            except:
+                print(f"Mask failed with rfft.shape[0] {rfft.shape[0]} and low_bound {low_bound} (low_bound.long {low_bound.long()}")
             mask[(torch.arange(rfft.shape[0]), high_bound.long())] = -1
             mask = mask.cumsum(dim=1)[:, :-1]
             rfft = rfft * (1. - mask)
