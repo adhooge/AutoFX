@@ -10,51 +10,41 @@ from scipy.stats import skew, kurtosis
 import source.util as util
 
 
-def f_max(arr: ArrayLike, torch_compat: bool = False, dim: int = -1):
-    if torch_compat:
-        return torch.max(arr, dim=dim)[0]
-    return np.max(arr)
+def f_max(arr, dim: int = -1):
+    return torch.max(arr, dim=dim)[0]
 
 
-def f_min(arr: ArrayLike, torch_compat: bool = False, dim: int = -1):
-    if torch_compat:
-        return torch.min(arr, dim=dim)
-    return np.min(arr)
+def f_min(arr, dim: int = -1):
+    return torch.min(arr, dim=dim)[0]
 
 
-def f_avg(arr: ArrayLike, torch_compat: bool = False, dim: int = -1):
-    if torch_compat:
-        return torch.mean(arr, dim=dim)
-    return np.mean(arr)
+def f_avg(arr, dim: int = -1):
+    return torch.mean(arr, dim=dim)
 
 
-def f_std(arr: ArrayLike, torch_compat: bool = False, dim: int = -1):
-    if torch_compat:
-        return torch.std(arr, dim=dim)
-    else:
-        return np.std(arr)
+def f_std(arr, dim: int = -1):
+    dev = torch.std(arr, dim=dim)
+    # if torch.isnan(dev).any():
+    #    raise ValueError
+    return dev
 
 
-def f_skew(arr: ArrayLike, torch_compat: bool = False, dim: int = -1):
-    if torch_compat:
-        mean = torch.mean(arr, dim=dim, keepdim=True)
-        diffs = arr - mean
-        var = torch.mean(torch.pow(diffs, 2), dim=dim, keepdim=True)
-        zscores = diffs / torch.sqrt(var)
-        skews = torch.mean(torch.pow(zscores, 3), dim=dim)
-        return skews
-    return skew(arr)
+def f_skew(arr, dim: int = -1):
+    mean = torch.mean(arr, dim=dim, keepdim=True)
+    diffs = arr - mean
+    var = torch.mean(torch.pow(diffs, 2), dim=dim, keepdim=True)
+    zscores = diffs / torch.sqrt(var)
+    skews = torch.mean(torch.pow(zscores, 3), dim=dim)
+    return skews
 
 
-def f_kurt(arr: ArrayLike, torch_compat: bool = False, dim: int = -1):
-    if torch_compat:
-        mean = torch.mean(arr, dim=dim, keepdim=True)
-        diffs = arr - mean
-        var = torch.mean(torch.pow(diffs, 2), dim=dim, keepdim=True)
-        zscores = diffs / torch.sqrt(var)
-        kurts = torch.mean(torch.pow(zscores, 3), dim=dim)
-        return kurts
-    return kurtosis(arr)
+def f_kurt(arr, dim: int = -1):
+    mean = torch.mean(arr, dim=dim, keepdim=True)
+    diffs = arr - mean
+    var = torch.mean(torch.pow(diffs, 2), dim=dim, keepdim=True)
+    zscores = diffs / torch.sqrt(var)
+    kurts = torch.mean(torch.pow(zscores, 4), dim=dim)
+    return kurts
 
 
 def linear_regression(feat):
@@ -88,10 +78,7 @@ def fft_max_batch(feat, num_max: int = 1, zero_half_width: int = None, beta: int
             high_bound = -torch.nn.functional.relu(-tmp2 + 513) + 513
             # zero mask batch: https://stackoverflow.com/questions/57548180/filling-torch-tensor-with-zeros-after-certain-index
             mask = torch.zeros(rfft.shape[0], rfft.shape[1] + 1, device=feat.device)
-            try:
-                mask[(torch.arange(rfft.shape[0]), low_bound.long())] = 1
-            except:
-                print(f"Mask failed with rfft.shape[0] {rfft.shape[0]} and low_bound {low_bound} (low_bound.long {low_bound.long()}")
+            mask[(torch.arange(rfft.shape[0]), low_bound.long())] = 1
             mask[(torch.arange(rfft.shape[0]), high_bound.long())] = -1
             mask = mask.cumsum(dim=1)[:, :-1]
             rfft = rfft * (1. - mask)
@@ -134,18 +121,10 @@ def fft_max(feat, num_max: int = 1, zero_half_width: int = None):
     return rfft_max, rfft_max_bin
 
 
-def estim_derivative(feat, torch_compat: bool = False, **kwargs):
-    if torch_compat:
-        return torch.diff(feat)
-    else:
-        if 9 > feat.shape[-1]:
-            if feat.shape[-1] % 2:
-                width = feat.shape[-1]
-            else:
-                width = feat.shape[-1] - 1
-        else:
-            width = 9
-        return librosa.feature.delta(feat, width=width, **kwargs)
+def estim_derivative(feat, dim: int = -1):
+    prepend = torch.zeros_like(feat)
+    prepend = torch.sum(prepend, dim=dim, keepdim=True)
+    return torch.diff(feat, dim=dim, prepend=prepend)
 
 
 def feat_vector(feat: dict, pitch: float) -> dict:

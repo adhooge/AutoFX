@@ -246,9 +246,8 @@ def spectral_rolloff(mag: np.ndarray or Tensor, threshold: float = 0.95, freq: n
         roll_off[indices[0], :, indices[2]] = torch.tensor(indices[1], dtype=roll_off.dtype)[:, None]
         if rate is not None:
             freq = torch.linspace(0, rate / 2, mag.shape[1])
-            freq = freq[None, :, None].expand(batch_size, -1, num_frames)
         if freq is not None:
-            roll_off[indices] = freq[indices[-1]]
+            roll_off[indices[0], :, indices[2]] = freq[indices[1]][:, None]
         return roll_off
     else:
         if mag.ndim == 1:

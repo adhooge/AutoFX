@@ -232,6 +232,27 @@ def energy_envelope(audio: ArrayLike, rate: float,
         raise NotImplementedError
 
 
+def find_attack_torch(energy,
+                      start_threshold: float, end_threshold: float):
+    """
+    Find beginning and end of attack from energy envelope using a fixed method.
+
+    See: Geoffroy Peeters, A large set of audio features for sound description in the CUIDADO project, 2003.
+
+
+    :param energy: ArrayLike of the energy envelope;
+    :param end_threshold: max energy ratio to detect end of attack in 'fixed' method;
+    :param start_threshold: max energy ratio to detect start of attack in 'fixed' method;
+    :return (start, end): indices from energy to the corresponding instants.
+    """
+    max_energy, max_pos = torch.max(energy, dim=-1, keepdim=True)
+    start = torch.where(energy >= max_energy * start_threshold, 1, 0)
+    end = torch.where(energy >= max_energy * end_threshold, 1, 0)
+    _, start = torch.max(start, dim=-1, keepdim=True)
+    _, end = torch.max(end, dim=-1, keepdim=True)
+    return start, end
+
+
 def find_attack(energy: ArrayLike, method: str,
                 start_threshold: float = None, end_threshold: float = None,
                 times: ArrayLike = None) -> Tuple[float, float]:
@@ -434,6 +455,35 @@ def idmt_fx2one_hot_vector(fx: str) -> np.ndarray:
             raise ValueError("Unknown FX")
     return vector
 
+
+def idmt_fx(char: str):
+    match char:
+        case '11':
+            return 'Dry'
+        case '12':
+            return 'Amp sim'
+        case '21':
+            return 'Feedback delay'
+        case '22':
+            return 'Slapback delay'
+        case '23':
+            return 'Reverb'
+        case '31':
+            return 'Chorus'
+        case '32':
+            return 'Flanger'
+        case '33':
+            return 'Phaser'
+        case '34':
+            return 'Tremolo'
+        case '35':
+            return 'Vibrato'
+        case '41':
+            return 'Distortion'
+        case '42':
+            return 'Overdrive'
+        case _:
+            return None
 
 def idmt_fx2class_number(fx: str) -> int:
     match fx:
