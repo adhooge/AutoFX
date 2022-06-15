@@ -210,8 +210,13 @@ class FeatureExtractor(nn.Module):
         out.append(FeatureExtractor._apply_functionals(cent / pitch))
         out.append(FeatureExtractor._apply_functionals(spread / pitch))
         out.append(FeatureExtractor._apply_functionals(skew / pitch))
+        # print("kurt/pitch", kurt / pitch)
         out.append(FeatureExtractor._apply_functionals(kurt / pitch))
+        # print("flux", flux)
         out.append(FeatureExtractor._apply_functionals(flux))
+        # print("rolloff", rolloff)
+        # add some noise to avoid rolloff being constant
+        rolloff = rolloff + torch.randn_like(rolloff) * 1e-4
         out.append(FeatureExtractor._apply_functionals(rolloff))
         out.append(FeatureExtractor._apply_functionals(slope))
         out.append(FeatureExtractor._apply_functionals(flat))
@@ -229,7 +234,7 @@ class FeatureExtractor(nn.Module):
         out.append(FeatureExtractor._apply_functionals(Fc.estim_derivative(flat, dim=-1)))
         out = torch.stack(out, dim=1)
         out = torch.reshape(out, (1, -1))
-        out = torch.hstack([out[:, :53], out[:, 54:]])
+        out = torch.hstack([out[:, :52], out[:, 53:]])
         return out
 
     def __init__(self):
@@ -256,29 +261,34 @@ class FeatureExtractor(nn.Module):
     def process_folder(self, folder_path: str):
         folder_path = pathlib.Path(folder_path)
         out = pd.DataFrame([])
-        for f in tqdm.tqdm(folder_path.iterdir()):
+        for f in tqdm.tqdm(folder_path.rglob('*.wav')):
             f = pathlib.Path(f)
-            if f.is_dir():
-                for ff in tqdm.tqdm(f.iterdir()):
-                    ff = pathlib.Path(ff)
-                    if ff.suffix == '.wav':
-                        audio, rate = torchaudio.load(ff)
-                        fx = ff.name.split('-')[2][1:-1]
-                        fx = util.idmt_fx2class_number(util.idmt_fx(fx))
-                        func = self.forward(audio, rate)
-                        row = pd.DataFrame(func.numpy())
-                        row['file'] = ff.name
-                        row['class'] = fx
-                        out = pd.concat([out, row], axis=0)
-            if f.suffix == '.wav':
-                audio, rate = torchaudio.load(f)
-                fx = f.name.split('-')[2][1:-1]
-                fx = util.idmt_fx2class_number(util.idmt_fx(fx))
+            audio, rate = torchaudio.load(f)
+            fx = f.name.split('-')[2][1:-1]
+            fx = util.idmt_fx2class_number(util.idmt_fx(fx))
+            try:
                 func = self.forward(audio, rate)
-                row = pd.DataFrame(func.numpy())
-                row['file'] = f.name
-                row['class'] = fx
-                out = pd.concat([out, row], axis=0)
+            except ValueError:
+                print(f"One std was zero, this will return NaNs. File was {f}")
+            if torch.isnan(func).any():
+                raise ValueError(f"NaN returned while processing {f}: {func}")
+            row = pd.DataFrame(func.numpy())
+            row['file'] = f.name
+            row['class'] = fx
+            out = pd.concat([out, row], axis=0)
         print(out.shape)
         out.to_csv(folder_path / 'out.csv')
         out.to_pickle(folder_path / 'out.pkl')
+
+
+class SilenceRemover(nn.Module):
+    def __init__(self, start_threshold: float, end_threshold: float):
+        super(SilenceRemover, self).__init__()
+        self.start_thresh = start_threshold
+        self.end_thresh = end_threshold
+
+    def forward(self, audio):
+        energy = torch.square(audio)
+        start, end = util.find_attack_torch(energy, start_threshold=self.start_thresh, end_threshold=self.end_thresh)
+        onset = int((start+end)/2)
+        return audio[:, onset:]
