@@ -23,7 +23,10 @@ def f_avg(arr, dim: int = -1):
 
 
 def f_std(arr, dim: int = -1):
-    return torch.std(arr, dim=dim)
+    dev = torch.std(arr, dim=dim)
+    # if torch.isnan(dev).any():
+    #    raise ValueError
+    return dev
 
 
 def f_skew(arr, dim: int = -1):
@@ -40,7 +43,7 @@ def f_kurt(arr, dim: int = -1):
     diffs = arr - mean
     var = torch.mean(torch.pow(diffs, 2), dim=dim, keepdim=True)
     zscores = diffs / torch.sqrt(var)
-    kurts = torch.mean(torch.pow(zscores, 3), dim=dim)
+    kurts = torch.mean(torch.pow(zscores, 4), dim=dim)
     return kurts
 
 
