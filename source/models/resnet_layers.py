@@ -50,21 +50,21 @@ class ResNetBlock(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, num_params, end_with_fcl: bool = True):
+    def __init__(self, num_params, end_with_fcl: bool = True, num_channels: int = 128):
         super(ResNet, self).__init__()
         self.conv1 = nn.Sequential(
-            nn.Conv2d(1, 64, 7, 2, 3, bias=False),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(1, num_channels, 7, 2, 3, bias=False),
+            nn.BatchNorm2d(num_channels),
             nn.ReLU(inplace=False)
         )
         nn.init.xavier_normal_(self.conv1[0].weight, gain=math.sqrt(2))
         self.maxpool = nn.MaxPool2d(3, 2, 1)
-        self.block1_1 = ResNetBlock(64, 64, 3)
-        self.block1_2 = ResNetBlock(64, 64, 3)
-        self.block2_1 = ResNetBlock(64, 128, 3, 2, Downsampler(64, 128, 2))
-        self.block2_2 = ResNetBlock(128, 128, 3)
-        self.block3_1 = ResNetBlock(128, 256, 3, 2, Downsampler(128, 256, 2))
-        self.block3_2 = ResNetBlock(256, 256, 3)
+        self.block1_1 = ResNetBlock(num_channels, num_channels, 3)
+        self.block1_2 = ResNetBlock(num_channels, num_channels, 3)
+        self.block2_1 = ResNetBlock(num_channels, 2*num_channels, 3, 2, Downsampler(num_channels, 2*num_channels, 2))
+        self.block2_2 = ResNetBlock(2*num_channels, 2*num_channels, 3)
+        self.block3_1 = ResNetBlock(2*num_channels, 4*num_channels, 3, 2, Downsampler(2*num_channels, 4*num_channels, 2))
+        self.block3_2 = ResNetBlock(4*num_channels, 4*num_channels, 3)
         self.avgpool = nn.AvgPool2d(8)
         self.end_with_fcl = end_with_fcl
         if end_with_fcl:

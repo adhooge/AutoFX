@@ -58,6 +58,10 @@ def main(parser):
             file = pathlib.Path(file)
             if file.suffix == '.wav':
                 audio, rate = torchaudio.load(file)
+                # normalize
+                audio = audio / torch.max(torch.abs(audio))
+                # add some noise
+                audio = audio + torch.randn_like(audio) * 1e-9
                 if args['append']:
                     rms = Ft.rms_energy(audio, torch_compat=True)
                     rms_delta = Fc.estim_derivative(rms, torch_compat=True)

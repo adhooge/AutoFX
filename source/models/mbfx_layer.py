@@ -8,13 +8,16 @@ import pedalboard as pdb
 
 
 def _make_perturbation_vector(shape):
-    return torch.bernoulli(torch.zeros(shape)) + 0.5
+    vector = (torch.bernoulli(torch.zeros(shape) + 0.5) * 2) - 1
+    return vector
 
 
 class MBFxFunction(torch.autograd.Function):
     @staticmethod
     def forward(ctx: Any, cln, settings, mbfx, rate, param_range, fake_num_bands: int = None,
-                eps=0.01, grad_x: bool = True, *args: Any, **kwargs: Any) -> Any:
+                eps=0.01, grad_x: bool = False, *args: Any, **kwargs: Any) -> Any:
+        # print("clean", cln.requires_grad)
+        # print("settings", settings.requires_grad)
         if fake_num_bands is None:
             fake_num_bands = mbfx.num_bands
         ctx.fake_num_bands = fake_num_bands
@@ -37,6 +40,8 @@ class MBFxFunction(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx: Any, *grad_outputs: Any) -> Any:
+        # print(ctx.needs_input_grad)
+        # print("DAFUK", grad_outputs)
         cln, params, = ctx.saved_tensors
         if cln.ndim == 1:
             cln = cln[None, :]
@@ -48,11 +53,11 @@ class MBFxFunction(torch.autograd.Function):
             # TODO: Multiprocess implementation like DAFx?
             # Grad wrt to clean:
             mbfx.set_fx_params(settings, flat=True, param_range=ctx.param_range)
-            snd = cln[i]
+            snd = cln[i].clone()
             if ctx.grad_x:
                 perturbation = _make_perturbation_vector(cln.shape)
-                J_plus = mbfx(snd + perturbation * ctx.eps, ctx.rate)
-                J_minus = mbfx(snd - perturbation * ctx.eps, ctx.rate)
+                J_plus = mbfx(snd.clone() + perturbation * ctx.eps, ctx.rate)
+                J_minus = mbfx(snd.clone() - perturbation * ctx.eps, ctx.rate)
                 gradx = (J_plus - J_minus) / (2 * ctx.eps * perturbation)
                 Jx = gradx * grad_outputs[0]
             else:
@@ -64,7 +69,7 @@ class MBFxFunction(torch.autograd.Function):
             # print(snd)
             mbfx.fake_add_perturbation_to_fx_params(perturbation * ctx.eps, ctx.param_range, ctx.fake_num_bands)
             # print("\n after add: ", mbfx.settings)
-            J_plus = mbfx(snd, ctx.rate)
+            J_plus = mbfx(snd.clone(), ctx.rate)
             # print("Yo")
             # print("J_plus: ", J_plus)
             mbfx.fake_add_perturbation_to_fx_params(-2 * perturbation * ctx.eps, ctx.param_range, ctx.fake_num_bands)
@@ -75,10 +80,15 @@ class MBFxFunction(torch.autograd.Function):
             # print("wesh")
             # print("J_plus: ", J_plus, "\nJ_minus: ", J_minus, "\nJ_plus - J_minus: ", J_plus - J_minus)
             mbfx.fake_add_perturbation_to_fx_params(perturbation * ctx.eps, ctx.param_range, ctx.fake_num_bands)
+            # print("perturbation", perturbation)
             for j in range(num_settings):
+                # print("1", (2 * ctx.eps * perturbation[j]))
                 grady = (J_plus - J_minus) / (2 * ctx.eps * perturbation[j])
                 Jy[i][j] = grad_outputs[0] @ grady.T
-        return Jx, Jy, None, None, None, None
+                # print("2", Jy[i][j])
+        # print(Jx, Jy)
+        # print("3", torch.mean(Jx), torch.mean(Jy))
+        return None, Jy, None, None, None, None
 
 
 class MBFxLayer(nn.Module):
