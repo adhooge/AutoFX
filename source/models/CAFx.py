@@ -88,7 +88,7 @@ class CAFx(pl.LightningModule):
                  learning_rate: float = 0.0001, out_of_domain: bool = False,
                  spectro_power: int = 2, mel_spectro: bool = True, mel_num_bands: int = 128,
                  penalty_1: float = 0, penalty_0: float = 0, feat_weight: float = 0.5, mrstft_weight: float = 0.5,
-                 loss_stamps: list = None,
+                 loss_stamps: list = None, freeze_layers: list = None,
                  reverb: bool = False):
         super().__init__()
         if isinstance(fx, str):
@@ -154,6 +154,10 @@ class CAFx(pl.LightningModule):
         self.penalty_0 = penalty_0
         self.feat_weight = feat_weight
         self.mrstft_weight = mrstft_weight
+        self.freeze_layers = freeze_layers
+        if freeze_layers is not None:
+            for f in freeze_layers:
+                self.resnet.freeze(f)
         self.save_hyperparameters()
 
     def forward(self, x, feat, *args, **kwargs) -> Any:
