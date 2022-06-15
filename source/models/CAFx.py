@@ -87,7 +87,8 @@ class CAFx(pl.LightningModule):
                  mrstft_hop: list[int] = [16, 32, 64, 128, 256, 512],
                  learning_rate: float = 0.0001, out_of_domain: bool = False,
                  spectro_power: int = 2, mel_spectro: bool = True, mel_num_bands: int = 128,
-                 loss_stamps: list = None,
+                 penalty_1: float = 0, penalty_0: float = 0, feat_weight: float = 0.5, mrstft_weight: float = 0.5,
+                 loss_stamps: list = None, freeze_layers: list = None,
                  reverb: bool = False):
         super().__init__()
         if isinstance(fx, str):
@@ -149,6 +150,14 @@ class CAFx(pl.LightningModule):
         self.num_steps_per_epoch = None
         self.num_steps_per_train = None
         self.num_steps_per_valid = None
+        self.penalty_1 = penalty_1
+        self.penalty_0 = penalty_0
+        self.feat_weight = feat_weight
+        self.mrstft_weight = mrstft_weight
+        self.freeze_layers = freeze_layers
+        if freeze_layers is not None:
+            for f in freeze_layers:
+                self.resnet.freeze(f)
         self.save_hyperparameters()
 
     def forward(self, x, feat, *args, **kwargs) -> Any:
@@ -173,6 +182,8 @@ class CAFx(pl.LightningModule):
             clean, processed, feat = batch
         batch_size = processed.shape[0]
         pred = self.forward(processed, feat)
+        penalty_0 = torch.mean(-1 * torch.log10(pred*0.99))
+        penalty_1 = torch.mean(-1 * torch.log10(1 - 0.99*pred))
         if not self.out_of_domain:
             loss = self.loss(pred, label)
             # loss = 0
@@ -203,22 +214,10 @@ class CAFx(pl.LightningModule):
                 rec[i] = tmp.clone()
             target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(
                 torch.abs(rec))
-            # spec_loss = self.loss(pred_normalized, target_normalized)
             spec_loss = self.spectral_loss(pred_normalized, target_normalized)
-            # spec_loss = 0
             features = self.compute_features(pred_normalized)
-            # print("pred_normalized: ", pred_normalized.requires_grad, pred_normalized.grad_fn)
-            # print("rec: ", rec.requires_grad, rec.grad_fn)
-            # print("features: ", features.requires_grad, features.grad_fn)
-            # print(torch.mean(features), torch.mean(feat))
-            # print(torch.max(features, dim=-1), torch.max(feat, dim=-1))
-            # print(torch.argmax(features, dim=-1), torch.argmax(feat, dim=-1))
             feat_loss = self.feat_loss(features, feat)
-            # print('feat_loss maison', torch.mean(torch.square(features - feat)))
-            # feat_loss = 0
-            # print("FEAT_LOSSSSSSSS", feat_loss)
-            # print(torch.mean(torch.square(features - feat)))
-            spectral_loss = (spec_loss + feat_loss)/2
+            spectral_loss = self.feat_weight*feat_loss + self.mrstft_weight*spec_loss
         else:
             spectral_loss = 0
             spec_loss = 0
@@ -232,7 +231,7 @@ class CAFx(pl.LightningModule):
         if not self.out_of_domain:
             total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
         else:
-            total_loss = spectral_loss
+            total_loss = spectral_loss + self.penalty_0*penalty_0 + self.penalty_1*penalty_1
         self.logger.experiment.add_scalar("Total_loss/Train", total_loss, global_step=self.global_step)
         # print("MAYBE", target_normalized==pred_normalized)
         return total_loss

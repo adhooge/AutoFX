@@ -4,6 +4,7 @@ Reference:
 https://arxiv.org/pdf/1512.03385.pdf
 """
 import math
+import warnings
 
 import torch
 from torch import nn
@@ -21,14 +22,20 @@ class Downsampler(nn.Module):
         out = self.downsample(x)
         return out
 
+    def freeze(self):
+        self.downsample[0].weight.requires_grad = False
+        self.downsample[0].bias.requires_grad = False
+        self.downsample[1].weight.requires_grad = False
+        self.downsample[1].bias.requires_grad = False
+
 
 class ResNetBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride: int = 1, downsample=None):
         super().__init__()
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size, stride, kernel_size//2)
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size, stride, kernel_size // 2)
         nn.init.xavier_normal_(self.conv1.weight, gain=math.sqrt(2))
         self.bn1 = nn.BatchNorm2d(out_channels)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size, padding=kernel_size//2)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size, padding=kernel_size // 2)
         nn.init.xavier_normal_(self.conv2.weight, gain=math.sqrt(2))
         self.bn2 = nn.BatchNorm2d(out_channels)
         self.relu = nn.ReLU(inplace=False)
@@ -48,6 +55,18 @@ class ResNetBlock(nn.Module):
         out = self.relu(out)
         return out
 
+    def freeze(self):
+        self.conv1.weight.requires_grad = False
+        self.conv1.bias.requires_grad = False
+        self.bn1.weight.requires_grad = False
+        self.bn1.bias.requires_grad = False
+        self.conv2.weight.requires_grad = False
+        self.conv2.bias.requires_grad = False
+        self.bn2.weight.requires_grad = False
+        self.bn2.bias.requires_grad = False
+        if self.downsample is not None:
+            self.downsample.freeze()
+
 
 class ResNet(nn.Module):
     def __init__(self, num_params, end_with_fcl: bool = True, num_channels: int = 128):
@@ -61,10 +80,12 @@ class ResNet(nn.Module):
         self.maxpool = nn.MaxPool2d(3, 2, 1)
         self.block1_1 = ResNetBlock(num_channels, num_channels, 3)
         self.block1_2 = ResNetBlock(num_channels, num_channels, 3)
-        self.block2_1 = ResNetBlock(num_channels, 2*num_channels, 3, 2, Downsampler(num_channels, 2*num_channels, 2))
-        self.block2_2 = ResNetBlock(2*num_channels, 2*num_channels, 3)
-        self.block3_1 = ResNetBlock(2*num_channels, 4*num_channels, 3, 2, Downsampler(2*num_channels, 4*num_channels, 2))
-        self.block3_2 = ResNetBlock(4*num_channels, 4*num_channels, 3)
+        self.block2_1 = ResNetBlock(num_channels, 2 * num_channels, 3, 2,
+                                    Downsampler(num_channels, 2 * num_channels, 2))
+        self.block2_2 = ResNetBlock(2 * num_channels, 2 * num_channels, 3)
+        self.block3_1 = ResNetBlock(2 * num_channels, 4 * num_channels, 3, 2,
+                                    Downsampler(2 * num_channels, 4 * num_channels, 2))
+        self.block3_2 = ResNetBlock(4 * num_channels, 4 * num_channels, 3)
         self.avgpool = nn.AvgPool2d(8)
         self.end_with_fcl = end_with_fcl
         if end_with_fcl:
@@ -85,3 +106,21 @@ class ResNet(nn.Module):
         if self.end_with_fcl:
             out = self.fcl(out)
         return out
+
+    def freeze(self, block: int):
+        match block:
+            case 0:
+                self.conv1[0].weight.requires_grad = False
+                self.conv1[1].weight.requires_grad = False
+                self.conv1[1].bias.requires_grad = False
+            case 1:
+                self.block1_1.freeze()
+                self.block1_2.freeze()
+            case 2:
+                self.block2_1.freeze()
+                self.block2_2.freeze()
+            case 3:
+                self.block3_1.freeze()
+                self.block3_2.freeze()
+            case _:
+                warnings.warn("I did not understand what you want me to freeze.", UserWarning)
