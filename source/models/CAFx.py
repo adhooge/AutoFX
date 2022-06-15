@@ -173,6 +173,8 @@ class CAFx(pl.LightningModule):
             clean, processed, feat = batch
         batch_size = processed.shape[0]
         pred = self.forward(processed, feat)
+        penalty_0 = torch.mean(-1 * torch.log10(pred*0.99))
+        penalty_1 = torch.mean(-1 * torch.log10(1 - 0.99*pred))
         if not self.out_of_domain:
             loss = self.loss(pred, label)
             # loss = 0
@@ -232,7 +234,7 @@ class CAFx(pl.LightningModule):
         if not self.out_of_domain:
             total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
         else:
-            total_loss = spectral_loss
+            total_loss = spectral_loss + 0.1*penalty_0 + 1*penalty_1
         self.logger.experiment.add_scalar("Total_loss/Train", total_loss, global_step=self.global_step)
         # print("MAYBE", target_normalized==pred_normalized)
         return total_loss
