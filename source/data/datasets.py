@@ -9,6 +9,7 @@ class TorchStandardScaler:
     """
     from    https://discuss.pytorch.org/t/pytorch-tensor-scaling/38576/8
     """
+
     def __init__(self):
         self.mean = torch.tensor(0)
         self.std = torch.tensor(1)
@@ -29,7 +30,7 @@ class TorchStandardScaler:
 class FeatureInDomainDataset(Dataset):
     def __init__(self, data_path: str, validation: bool = False,
                  clean_path: str = None, processed_path: str = None,
-                 pad_length: int = None, reverb: bool=False):
+                 pad_length: int = None, reverb: bool = False):
         if validation and (clean_path is None or processed_path is None):
             raise ValueError("Clean and Processed required for validation dataset.")
         self.data_path = pathlib.Path(data_path)
@@ -56,7 +57,7 @@ class FeatureInDomainDataset(Dataset):
         self.scaler = TorchStandardScaler()
         if pad_length is None:
             if reverb:
-                self.pad_length = 2**17
+                self.pad_length = 2 ** 17
             else:
                 self.pad_length = 35000
         else:
@@ -75,9 +76,11 @@ class FeatureInDomainDataset(Dataset):
             prc_sound, rate = torchaudio.load(prc_snd_path, normalize=True)
             cln_sound = cln_sound[0]
             prc_sound = prc_sound[0]
+            cln_sound = cln_sound / torch.max(torch.abs(cln_sound))
+            prc_sound = prc_sound / torch.max(torch.abs(prc_sound))
             cln_pad = torch.zeros((1, self.pad_length))
             cln_pad[0, :len(cln_sound)] = cln_sound
-            cln_pad[0, len(cln_sound):] = torch.randn(self.pad_length-len(cln_sound)) / 1e9
+            cln_pad[0, len(cln_sound):] = torch.randn(self.pad_length - len(cln_sound)) / 1e9
             prc_pad = torch.zeros((1, self.pad_length))
             prc_pad[0, :len(prc_sound)] = prc_sound
             prc_pad[0, len(prc_sound):] = torch.randn(self.pad_length - len(prc_sound)) / 1e9
@@ -95,7 +98,6 @@ class FeatureInDomainDataset(Dataset):
             return cln_pad, prc_pad, features, params
         else:
             return features, params
-
 
 
 class FeatureOutDomainDataset(Dataset):
@@ -123,6 +125,8 @@ class FeatureOutDomainDataset(Dataset):
                 prc_sound, rate = torchaudio.load(fx_snd_path, normalize=True)
                 cln_sound = cln_sound[0]
                 prc_sound = prc_sound[0]
+                cln_sound = cln_sound / torch.max(torch.abs(cln_sound))
+                prc_sound = prc_sound / torch.max(torch.abs(prc_sound))
                 cln_pad = torch.zeros((1, self.pad_length))
                 cln_pad[0, :len(cln_sound)] = cln_sound
                 cln_pad[0, len(cln_sound):] = torch.randn(self.pad_length - len(cln_sound)) / 1e9
@@ -140,6 +144,8 @@ class FeatureOutDomainDataset(Dataset):
             prc_sound, rate = torchaudio.load(fx_snd_path, normalize=True)
             cln_sound = cln_sound[0]
             prc_sound = prc_sound[0]
+            cln_sound = cln_sound / torch.max(torch.abs(cln_sound))
+            prc_sound = prc_sound / torch.max(torch.abs(prc_sound))
             cln_pad = torch.zeros((1, self.pad_length))
             cln_pad[0, :len(cln_sound)] = cln_sound
             cln_pad[0, len(cln_sound):] = torch.randn(self.pad_length - len(cln_sound)) / 1e9
