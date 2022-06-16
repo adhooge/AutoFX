@@ -13,6 +13,7 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch import nn
 import pedalboard as pdb
 
+from source.models.film_layer import FilmLayer
 from source.data.datasets import TorchStandardScaler
 from source.models.mbfx_layer import MBFxLayer
 from source.multiband_fx import MultiBandFX
@@ -89,7 +90,7 @@ class CAFx(pl.LightningModule):
                  spectro_power: int = 2, mel_spectro: bool = True, mel_num_bands: int = 128,
                  penalty_1: float = 0, penalty_0: float = 0, feat_weight: float = 0.5, mrstft_weight: float = 0.5,
                  loss_stamps: list = None, freeze_layers: list = None,
-                 reverb: bool = False):
+                 reverb: bool = False, with_film: bool = False):
         super().__init__()
         if isinstance(fx, str):
             fx = [util.str2pdb(fx)]
@@ -104,7 +105,15 @@ class CAFx(pl.LightningModule):
         self.scaler.std = torch.tensor(scaler_std, device=torch.device('cuda'))
         if reverb:
             self.num_params -= 1
-        self.resnet = ResNet(self.num_params, end_with_fcl=False)
+        self.resnet = ResNet(self.num_params, end_with_fcl=False, with_film=with_film)
+        self.with_film = with_film
+        if self.with_film:
+            self.film1_1 = FilmLayer(1, 577920)
+            self.film1_2 = FilmLayer(1, 577920)
+            self.film2_1 = FilmLayer(1, 299520)
+            self.film2_2 = FilmLayer(1, 299520)
+            self.film3_1 = FilmLayer(1, 152064)
+            self.film3_2 = FilmLayer(1, 152064)
         self.cond_feat = cond_feat
         # TODO: Make this cleaner
         if reverb:
@@ -160,9 +169,32 @@ class CAFx(pl.LightningModule):
                 self.resnet.freeze(f)
         self.save_hyperparameters()
 
-    def forward(self, x, feat, *args, **kwargs) -> Any:
+    def forward(self, x, feat, conditioning=None, *args, **kwargs) -> Any:
+        if self.with_film:
+            alphas = []
+            betas = []
+            alpha, beta = self.film1_1(conditioning)
+            alphas.append(alpha)
+            betas.append(beta)
+            alpha, beta = self.film1_2(conditioning)
+            alphas.append(alpha)
+            betas.append(beta)
+            alpha, beta = self.film2_1(conditioning)
+            alphas.append(alpha)
+            betas.append(beta)
+            alpha, beta = self.film2_2(conditioning)
+            alphas.append(alpha)
+            betas.append(beta)
+            alpha, beta = self.film3_1(conditioning)
+            alphas.append(alpha)
+            betas.append(beta)
+            alpha, beta = self.film3_2(conditioning)
+            alphas.append(alpha)
+            betas.append(beta)
+        else:
+            alphas, betas = None, None
         out = self.spectro(x)
-        out = self.resnet(out)
+        out = self.resnet(out, alphas, betas)
         out = torch.cat((out, feat), dim=-1)
         out = self.fcl(out)
         # print("before:", out)
@@ -179,9 +211,13 @@ class CAFx(pl.LightningModule):
         if not self.out_of_domain:
             clean, processed, feat, label = batch
         else:
-            clean, processed, feat = batch
+            if self.with_film:
+                clean, processed, feat, conditioning = batch
+            else:
+                clean, processed, feat = batch
+                conditioning = None
         batch_size = processed.shape[0]
-        pred = self.forward(processed, feat)
+        pred = self.forward(processed, feat, conditioning=conditioning)
         penalty_0 = torch.mean(-1 * torch.log10(pred*0.99))
         penalty_1 = torch.mean(-1 * torch.log10(1 - 0.99*pred))
         if not self.out_of_domain:
@@ -202,7 +238,7 @@ class CAFx(pl.LightningModule):
                     self.loss_weights = [1 - weight, weight]
                 elif self.trainer.current_epoch >= self.loss_stamps[1]:
                     self.loss_weights = [0, 1]
-        if True:
+        if self.loss_weights[1] != 0 or self.out_of_domain:
             pred = pred.to("cpu")
             self.pred = pred
             self.pred.retain_grad()
@@ -243,10 +279,14 @@ class CAFx(pl.LightningModule):
         if not self.out_of_domain:
             clean, processed, feat, label = batch
         else:
-            clean, processed, feat = batch
+            if self.with_film:
+                clean, processed, feat, conditioning = batch
+            else:
+                clean, processed, feat = batch
+                conditioning = None
         # clean = clean.to("cpu")
         batch_size = processed.shape[0]
-        pred = self.forward(processed, feat)
+        pred = self.forward(processed, feat, conditioning=conditioning)
         if not self.out_of_domain:
             loss = self.loss(pred, label)
             self.logger.experiment.add_scalar("Param_loss/test", loss, global_step=self.global_step)

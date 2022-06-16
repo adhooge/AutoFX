@@ -101,7 +101,8 @@ class FeatureInDomainDataset(Dataset):
 class FeatureOutDomainDataset(Dataset):
     def __init__(self, data_path: str,
                  clean_path: str = None, processed_path: str = None,
-                 pad_length: int = 35000, index_col: int = None):
+                 pad_length: int = 35000, index_col: int = None,
+                 conditioning: bool = False):
         self.data_path = pathlib.Path(data_path)
         self.clean_path = pathlib.Path(clean_path) if clean_path is not None else clean_path
         self.processed_path = pathlib.Path(processed_path) if processed_path is not None else processed_path
@@ -109,6 +110,7 @@ class FeatureOutDomainDataset(Dataset):
         self.fx2clean = pd.read_csv(self.data_path / "fx2clean.csv")
         self.pad_length = pad_length
         self.scaler = TorchStandardScaler()
+        self.conditioning = conditioning
 
     def __len__(self):
         return len(self.data)
@@ -130,9 +132,14 @@ class FeatureOutDomainDataset(Dataset):
                 prc_pad[0, :len(prc_sound)] = prc_sound
                 prc_pad[0, len(prc_sound):] = torch.randn(self.pad_length - len(prc_sound)) / 1e9
                 features = self.data.iloc[i, :]
+                if self.conditioning:
+                    features = features[:-1]
+                    conditioning = features[-1]
+                else:
+                    conditioning = None
                 features = torch.Tensor(features)
                 features = self.scaler.transform(features)
-                return cln_pad, prc_pad, features
+                return cln_pad, prc_pad, features, conditioning
         else:
             cln_snd_path = self.clean_path / (self.fx2clean.iloc[item, 1] + '.wav')
             fx_snd_path = self.processed_path / (self.fx2clean.iloc[item, 0] + '.wav')
@@ -147,6 +154,11 @@ class FeatureOutDomainDataset(Dataset):
             prc_pad[0, :len(prc_sound)] = prc_sound
             prc_pad[0, len(prc_sound):] = torch.randn(self.pad_length - len(prc_sound)) / 1e9
             features = self.data.iloc[item, :]
+            if self.conditioning:
+                features = features[:-1]
+                conditioning = features[-1]
+            else:
+                conditioning = None
             features = torch.Tensor(features)
             features = self.scaler.transform(features)
-            return cln_pad, prc_pad, features
+            return cln_pad, prc_pad, features, conditioning

@@ -13,7 +13,8 @@ class FeaturesDataModule(pl.LightningDataModule):
                  out_of_domain_dir: str, batch_size: int = 32, num_workers: int = 4,
                  in_scaler_mean: list = None, in_scaler_std: list = None,
                  out_scaler_mean: list = None, out_scaler_std: list = None,
-                 out_of_domain: bool = False, seed: int = None, reverb: bool = False, *args, **kwargs):
+                 out_of_domain: bool = False, seed: int = None, reverb: bool = False,
+                 conditioning: bool = False, *args, **kwargs):
         super(FeaturesDataModule, self).__init__()
         self.clean_dir = clean_dir
         self.processed_dir = processed_dir
@@ -29,6 +30,7 @@ class FeaturesDataModule(pl.LightningDataModule):
         self.in_scaler_std = in_scaler_std
         self.out_scaler_mean = out_scaler_mean
         self.out_scaler_std = out_scaler_std
+        self.conditioning = conditioning
         self.save_hyperparameters()
 
     def setup(self, stage: Optional[str] = None) -> None:
@@ -36,7 +38,7 @@ class FeaturesDataModule(pl.LightningDataModule):
                                                 clean_path=self.clean_dir, processed_path=self.processed_dir,
                                                 reverb=self.reverb)
         out_domain_full = FeatureOutDomainDataset(self.out_of_domain_dir, self.clean_dir, self.out_of_domain_dir,
-                                                  index_col=0)
+                                                  index_col=0, conditioning=self.conditioning)
         self.in_train, self.in_val = torch.utils.data.random_split(in_domain_full,
                                                                    [len(in_domain_full) - len(in_domain_full)//5, len(in_domain_full)//5],
                                                                    generator=torch.Generator().manual_seed(self.seed))
