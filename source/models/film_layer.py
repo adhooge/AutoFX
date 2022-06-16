@@ -11,5 +11,5 @@ class FilmLayer(nn.Module):
 
     def forward(self, x):
         out = self.linear(x)
-        out = torch.chunk(out, 2, -1)
-        return out
+        alpha, beta = torch.chunk(out, 2, -1)
+        return alpha, beta
