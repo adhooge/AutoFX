@@ -204,17 +204,16 @@ class CAFx(pl.LightningModule):
                     self.loss_weights = [0, 1]
         if True:
             pred = pred.to("cpu")
-            self.pred = pred
-            self.pred.retain_grad()
             rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)
             for (i, snd) in enumerate(clean):
-                snd_norm = snd / torch.max(torch.abs(snd))
-                snd_norm = snd_norm + torch.randn_like(snd_norm) * 1e-9
-                tmp = self.mbfx_layer.forward(snd_norm.cpu(), pred[i])
+                # snd_norm = snd / torch.max(torch.abs(snd))
+                # snd_norm = snd_norm + torch.randn_like(snd_norm) * 1e-9
+                tmp = self.mbfx_layer.forward(snd.cpu(), pred[i])
                 rec[i] = tmp.clone()
-            target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(
-                torch.abs(rec))
-            spec_loss = self.spectral_loss(pred_normalized, target_normalized)
+            # target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(
+            #    torch.abs(rec))
+            pred_normalized = rec / torch.max(torch.abs(rec), dim=-1, keepdim=True)[0]
+            spec_loss = self.spectral_loss(pred_normalized, processed[:, 0, :])
             features = self.compute_features(pred_normalized)
             feat_loss = self.feat_loss(features, feat)
             spectral_loss = self.feat_weight*feat_loss + self.mrstft_weight*spec_loss
@@ -256,13 +255,14 @@ class CAFx(pl.LightningModule):
             self.logger.experiment.add_scalars("Param_distance/test", scalars, global_step=self.global_step)
         if self.loss_weights[1] != 0 or self.out_of_domain:
             pred = pred.to("cpu")
-            rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)  # TODO: fix hardcoded value
+            rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)
             for (i, snd) in enumerate(clean):
                 rec[i] = self.mbfx_layer.forward(snd.cpu(), pred[i])
-            target_normalized, pred_normalized = processed[:, 0, :] / torch.max(
-                torch.abs(processed)), rec / torch.max(torch.abs(rec))
-            spec_loss = self.spectral_loss(pred_normalized, target_normalized)
-            features = self.compute_features(rec)
+                # target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(
+                #    torch.abs(rec))
+            pred_normalized = rec / torch.max(torch.abs(rec), dim=-1, keepdim=True)[0]
+            spec_loss = self.spectral_loss(pred_normalized, processed[:, 0, :])
+            features = self.compute_features(pred_normalized)
             feat_loss = self.loss(features, feat)
             spectral_loss = (spec_loss + 1 * feat_loss) / 2
         else:
