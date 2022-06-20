@@ -263,7 +263,7 @@ class FeatureExtractor(nn.Module):
         out = pd.DataFrame([])
         for f in tqdm.tqdm(folder_path.rglob('*.wav')):
             f = pathlib.Path(f)
-            audio, rate = torchaudio.load(f)
+            audio, rate = torchaudio.load(f, normalize=True)
             fx = f.name.split('-')[2][1:-1]
             fx = util.idmt_fx2class_number(util.idmt_fx(fx))
             try:
