@@ -249,7 +249,7 @@ class FeatureExtractor(nn.Module):
         :return:
         """
         # add some noise
-        audio = audio + torch.randn_like(audio) * (torch.max(torch.abs(audio)) / 1000)
+        audio = audio + torch.randn_like(audio) * (torch.max(torch.abs(audio)) / 100000)
         stft = self.spectrogram(audio)
         mag = torch.abs(stft)
         feat = FeatureExtractor._get_features(mag, rate)
