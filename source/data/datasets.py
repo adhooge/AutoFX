@@ -29,7 +29,8 @@ class TorchStandardScaler:
 class FeatureInDomainDataset(Dataset):
     def __init__(self, data_path: str, validation: bool = False,
                  clean_path: str = None, processed_path: str = None,
-                 pad_length: int = None, reverb: bool=False):
+                 pad_length: int = None, reverb: bool=False,
+                 conditioning: bool=False):
         if validation and (clean_path is None or processed_path is None):
             raise ValueError("Clean and Processed required for validation dataset.")
         self.data_path = pathlib.Path(data_path)
@@ -62,6 +63,7 @@ class FeatureInDomainDataset(Dataset):
         else:
             self.pad_length = pad_length
         self.reverb = reverb
+        self.conditioning = conditioning
 
     def __len__(self):
         return len(self.data)
@@ -88,11 +90,15 @@ class FeatureInDomainDataset(Dataset):
             params = torch.hstack([params, torch.zeros(1)])
         # print(params)
         features = self.data.iloc[item, self.feat_columns]
+        if self.conditioning:
+            conditioning = self.data.iloc[item, -1]
+        else:
+            conditioning = None
         features = torch.Tensor(features)
         features = self.scaler.transform(features)
         # print(features)
         if self.validation:
-            return cln_pad, prc_pad, features, params
+            return cln_pad, prc_pad, features, params, conditioning
         else:
             return features, params
 
@@ -155,8 +161,8 @@ class FeatureOutDomainDataset(Dataset):
             prc_pad[0, len(prc_sound):] = torch.randn(self.pad_length - len(prc_sound)) / 1e9
             features = self.data.iloc[item, :]
             if self.conditioning:
-                features = features[:-1]
                 conditioning = features[-1]
+                features = features[:-1]
             else:
                 conditioning = None
             features = torch.Tensor(features)

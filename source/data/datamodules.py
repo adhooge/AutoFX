@@ -36,7 +36,7 @@ class FeaturesDataModule(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = None) -> None:
         in_domain_full = FeatureInDomainDataset(self.processed_dir, validation=True,
                                                 clean_path=self.clean_dir, processed_path=self.processed_dir,
-                                                reverb=self.reverb)
+                                                reverb=self.reverb, conditioning=self.conditioning)
         out_domain_full = FeatureOutDomainDataset(self.out_of_domain_dir, self.clean_dir, self.out_of_domain_dir,
                                                   index_col=0, conditioning=self.conditioning)
         self.in_train, self.in_val = torch.utils.data.random_split(in_domain_full,
