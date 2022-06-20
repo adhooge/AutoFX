@@ -11,11 +11,11 @@ import tqdm
 
 
 def main(parser):
-    args = parser.parse_args()
+    args = vars(parser.parse_args())
     input_path = pathlib.Path(args['input_path'])
     name = args['name']
     if args['append']:
-        df = pd.read_csv(input_path / name + '.csv', index_col=0)
+        df = pd.read_csv((input_path / name).with_suffix('.csv'), index_col=0)
         df['conditioning'] = None
     else:
         df = pd.DataFrame(columns=['conditioning'])
@@ -26,8 +26,8 @@ def main(parser):
             to_pad = 44100 - audio.shape[-1]
             audio = F.pad(audio, (to_pad, 0))
         conditioning = clf(audio)
-        conditioning = conditioning / 10
-        df.loc[file.stem, 'conditioning'] = conditioning
+        conditioning = conditioning.detach().numpy() / 10
+        df.loc[df["Unnamed: 0"] == file.stem, 'conditioning'] = conditioning
     df.to_csv(input_path / 'data.csv')
     df.to_pickle(input_path / 'data.pkl')
 
