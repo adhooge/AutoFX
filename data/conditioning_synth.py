@@ -22,7 +22,7 @@ def main(parser):
     clf = torch.jit.load(args['model'])
     for file in tqdm.tqdm(input_path.rglob('*.wav')):
         audio, rate = torchaudio.load(input_path / file)
-        if audio.shape[-1] < 44100:
+        if audio.shape[-1] < 44100 and args['padding']:
             to_pad = 44100 - audio.shape[-1]
             audio = F.pad(audio, (to_pad, 0))
         conditioning = clf(audio)
@@ -43,4 +43,5 @@ if __name__ == '__main__':
     parser.add_argument('--name', '-n', default='data', type=str,
                         help="Name to give to the output file.")
     parser.add_argument('--append', '-a', action='store_true')
+    parser.add_argument('--padding', '-p', action='store_true')
     sys.exit(main(parser))
