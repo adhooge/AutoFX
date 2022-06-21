@@ -158,7 +158,7 @@ class MLPClassifier(pl.LightningModule):
     def validation_step(self, batch, batch_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
         feat, label = batch
         pred = self.forward(feat)
-        loss = self.loss(pred, label)
+        loss = self.loss(torch.log(pred), label)
         self.log("loss/test", loss)
         self.logger.experiment.add_scalar("Cross-entropy loss/test", loss, global_step=self.global_step)
         classes = MLPClassifier._to_one_hot(pred, self.output_size)
