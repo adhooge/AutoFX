@@ -277,7 +277,7 @@ class FeatureExtractor(nn.Module):
         :return:
         """
         # add some noise
-        audio = audio + torch.randn_like(audio) * (torch.max(torch.abs(audio)) / 100000)
+        # audio = audio + torch.randn_like(audio) * (torch.max(torch.abs(audio)) / 100000)
         stft = self.spectrogram(audio)
         mag = torch.abs(stft)
         feat = FeatureExtractor._get_features(mag, rate)
@@ -316,6 +316,7 @@ class SilenceRemover(nn.Module):
         self.end_thresh = end_threshold
 
     def forward(self, audio):
+        audio = audio / (torch.max(torch.abs(audio)))
         energy = torch.square(audio)
         start, end = util.find_attack_torch(energy, start_threshold=self.start_thresh, end_threshold=self.end_thresh)
         onset = int((start+end)/2)
@@ -333,6 +334,6 @@ class SilenceRemover(nn.Module):
         for f in tqdm.tqdm(in_path.rglob('*.wav')):
             f = pathlib.Path(f)
             audio, rate = torchaudio.load(f, normalize=True)
-            audio = self.forward(audio)
             audio = resampler(audio)
+            audio = self.forward(audio)
             torchaudio.save(out_path / f.name, audio, resampling_rate)
