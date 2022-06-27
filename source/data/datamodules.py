@@ -98,10 +98,32 @@ class FeaturesDataModule(pl.LightningDataModule):
             return in_dataloader
 
     def val_dataloader(self) -> EVAL_DATALOADERS:
-        in_dataloader = DataLoader(self.in_val, self.batch_size, num_workers=self.num_workers,
-                                   shuffle=True)
-        out_dataloader = DataLoader(self.out_val, self.batch_size, num_workers=self.num_workers,
-                                    shuffle=True)
+        if not self.conditioning:
+            in_dataloader = DataLoader(self.in_val, self.batch_size, num_workers=self.num_workers,
+                                       shuffle=True)
+            out_dataloader = DataLoader(self.out_val, self.batch_size, num_workers=self.num_workers,
+                                        shuffle=True)
+        else:
+            class_inds = [torch.where(self.in_val.target_classes == class_idx)[0]
+                          for class_idx in self.class_indices]
+            dataloaders = [
+                DataLoader(
+                    dataset=Subset(self.in_val, inds),
+                    batch_size=self.batch_size,
+                    shuffle=True,
+                    drop_last=True)
+                for inds in class_inds]
+            in_dataloader = dataloaders
+            class_inds = [torch.where(self.out_val.target_classes == class_idx)[0]
+                          for class_idx in self.class_indices]
+            dataloaders = [
+                DataLoader(
+                    dataset=Subset(self.out_val, inds),
+                    batch_size=self.batch_size,
+                    shuffle=True,
+                    drop_last=True)
+                for inds in class_inds]
+            out_dataloader = dataloaders
         if self.out_of_domain:
             return out_dataloader
         else:
