@@ -14,7 +14,7 @@ class FeaturesDataModule(pl.LightningDataModule):
                  in_scaler_mean: list = None, in_scaler_std: list = None,
                  out_scaler_mean: list = None, out_scaler_std: list = None,
                  out_of_domain: bool = False, seed: int = None, reverb: bool = False,
-                 conditioning: bool = False, *args, **kwargs):
+                 conditioning: bool = False, class_indices: list = None, *args, **kwargs):
         super(FeaturesDataModule, self).__init__()
         self.clean_dir = clean_dir
         self.processed_dir = processed_dir
@@ -31,14 +31,15 @@ class FeaturesDataModule(pl.LightningDataModule):
         self.out_scaler_mean = out_scaler_mean
         self.out_scaler_std = out_scaler_std
         self.conditioning = conditioning
+        self.class_indices = class_indices
         self.save_hyperparameters()
 
     def setup(self, stage: Optional[str] = None) -> None:
         in_domain_full = FeatureInDomainDataset(self.processed_dir, validation=True,
                                                 clean_path=self.clean_dir, processed_path=self.processed_dir,
-                                                reverb=self.reverb)
+                                                reverb=self.reverb, conditioning=self.conditioning)
         out_domain_full = FeatureOutDomainDataset(self.out_of_domain_dir, self.clean_dir, self.out_of_domain_dir,
-                                                  index_col=0)
+                                                  index_col=0, conditioning=self.conditioning)
         self.in_train, self.in_val = torch.utils.data.random_split(in_domain_full,
                                                                    [len(in_domain_full) - len(in_domain_full)//5, len(in_domain_full)//5],
                                                                    generator=torch.Generator().manual_seed(self.seed))
@@ -72,7 +73,7 @@ class FeaturesDataModule(pl.LightningDataModule):
                                         shuffle=True)
         else:
             class_inds = [torch.where(self.in_train.target_classes == class_idx)[0]
-                          for class_idx in [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]]
+                          for class_idx in self.class_indices]
             dataloaders = [
                 DataLoader(
                     dataset=Subset(self.in_train, inds),
@@ -82,7 +83,7 @@ class FeaturesDataModule(pl.LightningDataModule):
                 for inds in class_inds]
             in_dataloader = dataloaders
             class_inds = [torch.where(self.out_train.target_classes == class_idx)[0]
-                          for class_idx in [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]]
+                          for class_idx in self.class_indices]
             dataloaders = [
                 DataLoader(
                     dataset=Subset(self.out_train, inds),
