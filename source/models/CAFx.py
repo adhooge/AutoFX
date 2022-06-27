@@ -209,7 +209,11 @@ class CAFx(pl.LightningModule):
         num_steps_per_epoch = len(self.trainer.train_dataloader) / self.trainer.accumulate_grad_batches
         num_steps_per_epoch = num_steps_per_epoch * self.trainer.num_gpus
         if not self.out_of_domain:
-            clean, processed, feat, label = batch
+            if self.with_film:
+                clean, processed, feat, label, conditioning = batch
+            else:
+                clean, processed, feat, label = batch
+                conditioning = None
         else:
             if self.with_film:
                 clean, processed, feat, conditioning = batch
@@ -277,7 +281,11 @@ class CAFx(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
         if not self.out_of_domain:
-            clean, processed, feat, label = batch
+            if self.with_film:
+                clean, processed, feat, label, conditioning = batch
+            else:
+                clean, processed, feat, label = batch
+                conditioning = None
         else:
             if self.with_film:
                 clean, processed, feat, conditioning = batch
