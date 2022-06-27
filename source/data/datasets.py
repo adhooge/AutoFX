@@ -102,6 +102,12 @@ class FeatureInDomainDataset(Dataset):
         else:
             return features, params
 
+    @property
+    def target_classes(self):
+        if not self.conditioning:
+            return None
+        else:
+            torch.tensor(self.data["conditioning"])
 
 
 class FeatureOutDomainDataset(Dataset):
