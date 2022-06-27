@@ -2,7 +2,7 @@ import pathlib
 
 import pytorch_lightning as pl
 import torch.utils.data
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from cfgv import Optional
 from pytorch_lightning.utilities.types import TRAIN_DATALOADERS, EVAL_DATALOADERS
 from source.data.datasets import FeatureInDomainDataset, FeatureOutDomainDataset
@@ -36,9 +36,9 @@ class FeaturesDataModule(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = None) -> None:
         in_domain_full = FeatureInDomainDataset(self.processed_dir, validation=True,
                                                 clean_path=self.clean_dir, processed_path=self.processed_dir,
-                                                reverb=self.reverb, conditioning=self.conditioning)
+                                                reverb=self.reverb)
         out_domain_full = FeatureOutDomainDataset(self.out_of_domain_dir, self.clean_dir, self.out_of_domain_dir,
-                                                  index_col=0, conditioning=self.conditioning)
+                                                  index_col=0)
         self.in_train, self.in_val = torch.utils.data.random_split(in_domain_full,
                                                                    [len(in_domain_full) - len(in_domain_full)//5, len(in_domain_full)//5],
                                                                    generator=torch.Generator().manual_seed(self.seed))
@@ -65,10 +65,32 @@ class FeaturesDataModule(pl.LightningDataModule):
         print("Out Scaler std: ", out_domain_full.scaler.std)
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
-        in_dataloader = DataLoader(self.in_train, self.batch_size, num_workers=self.num_workers,
-                                   shuffle=True)
-        out_dataloader = DataLoader(self.out_train, self.batch_size, num_workers=self.num_workers,
-                                    shuffle=True)
+        if not self.conditioning:
+            in_dataloader = DataLoader(self.in_train, self.batch_size, num_workers=self.num_workers,
+                                       shuffle=True)
+            out_dataloader = DataLoader(self.out_train, self.batch_size, num_workers=self.num_workers,
+                                        shuffle=True)
+        else:
+            class_inds = [torch.where(self.in_train.target_classes == class_idx)[0]
+                          for class_idx in [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]]
+            dataloaders = [
+                DataLoader(
+                    dataset=Subset(self.in_train, inds),
+                    batch_size=self.batch_size,
+                    shuffle=True,
+                    drop_last=True)
+                for inds in class_inds]
+            in_dataloader = dataloaders
+            class_inds = [torch.where(self.out_train.target_classes == class_idx)[0]
+                          for class_idx in [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]]
+            dataloaders = [
+                DataLoader(
+                    dataset=Subset(self.out_train, inds),
+                    batch_size=self.batch_size,
+                    shuffle=True,
+                    drop_last=True)
+                for inds in class_inds]
+            out_dataloader = dataloaders
         if self.out_of_domain:
             return out_dataloader
         else:
