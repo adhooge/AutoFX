@@ -19,7 +19,7 @@ class TorchStandardScaler:
 
     def transform(self, x):
         if x.device != self.mean.device or x.device != self.std.device:
-            print('YO', x.device, self.mean.device)
+            # print('YO', x.device, self.mean.device)
             x.to(self.mean.device)
         x -= self.mean
         x /= (self.std + 1e-7)
@@ -113,8 +113,8 @@ class FeatureInDomainDataset(Dataset):
         if not self.conditioning:
             return None
         else:
-            # print(self.data[["conditioning"]].iloc[indices])
-            return torch.tensor(self.data[["conditioning"]].iloc[indices].values)
+            out = torch.tensor(self.data[["conditioning"]].iloc[indices].values)
+            return out.float()
 
 
 class FeatureOutDomainDataset(Dataset):
@@ -193,4 +193,5 @@ class FeatureOutDomainDataset(Dataset):
         if not self.conditioning:
             return None
         else:
-            return torch.tensor(self.data[["conditioning"]].iloc[indices].values)
+            out = torch.tensor(self.data[["conditioning"]].iloc[indices].values)
+            return out.float()

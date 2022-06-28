@@ -175,6 +175,7 @@ class CAFx(pl.LightningModule):
                 raise ValueError("Conditioning is not constant throughout batch.")
             else:
                 conditioning = conditioning[None, 0]
+                conditioning = conditioning.float()
             alphas = []
             betas = []
             alpha, beta = self.film1_1(conditioning)
