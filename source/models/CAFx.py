@@ -171,6 +171,10 @@ class CAFx(pl.LightningModule):
 
     def forward(self, x, feat, conditioning=None, *args, **kwargs) -> Any:
         if self.with_film:
+            if not((conditioning == conditioning[0]).all()):
+                raise ValueError("Conditioning is not constant throughout batch.")
+            else:
+                conditioning = conditioning[None, 0]
             alphas = []
             betas = []
             alpha, beta = self.film1_1(conditioning)
@@ -205,7 +209,7 @@ class CAFx(pl.LightningModule):
             out = torch.hstack([out, torch.zeros(out.shape[0], 1, device=out.device)])
         return out
 
-    def training_step(self, batch, batch_idx, *args, **kwargs) -> STEP_OUTPUT:
+    def training_step(self, batch, batch_idx, dataloader_idx, *args, **kwargs) -> STEP_OUTPUT:
         num_steps_per_epoch = len(self.trainer.train_dataloader) / self.trainer.accumulate_grad_batches
         num_steps_per_epoch = num_steps_per_epoch * self.trainer.num_gpus
         if not self.out_of_domain:
@@ -279,7 +283,7 @@ class CAFx(pl.LightningModule):
     def on_after_backward(self) -> None:
         pass
 
-    def validation_step(self, batch, batch_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
+    def validation_step(self, batch, batch_idx, dataloader_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
         if not self.out_of_domain:
             if self.with_film:
                 clean, processed, feat, label, conditioning = batch
