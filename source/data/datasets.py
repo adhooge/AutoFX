@@ -2,7 +2,7 @@ import torch
 import pathlib
 import pandas as pd
 import torchaudio
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, Subset
 
 
 class TorchStandardScaler:
@@ -27,7 +27,7 @@ class TorchStandardScaler:
 
 
 class FeatureInDomainDataset(Dataset):
-    def __init__(self, data_path: str, validation: bool = False,
+    def __init__(self, data_path: str = None, validation: bool = False,
                  clean_path: str = None, processed_path: str = None,
                  pad_length: int = None, reverb: bool=False,
                  conditioning: bool=False):
@@ -107,7 +107,14 @@ class FeatureInDomainDataset(Dataset):
         if not self.conditioning:
             return None
         else:
-            torch.tensor(self.data["conditioning"])
+            return torch.tensor(self.data["conditioning"])
+
+    def target_classes_subset(self, indices):
+        if not self.conditioning:
+            return None
+        else:
+            # print(self.data[["conditioning"]].iloc[indices])
+            return torch.tensor(self.data[["conditioning"]].iloc[indices].values)
 
 
 class FeatureOutDomainDataset(Dataset):
@@ -174,3 +181,16 @@ class FeatureOutDomainDataset(Dataset):
             features = torch.Tensor(features)
             features = self.scaler.transform(features)
             return cln_pad, prc_pad, features, conditioning
+
+    @property
+    def target_classes(self):
+        if not self.conditioning:
+            return None
+        else:
+            return torch.tensor(self.data["conditioning"])
+
+    def target_classes_subset(self, indices):
+        if not self.conditioning:
+            return None
+        else:
+            return torch.tensor(self.data[["conditioning"]].iloc[indices].values)

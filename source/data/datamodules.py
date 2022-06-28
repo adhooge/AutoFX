@@ -31,6 +31,7 @@ class FeaturesDataModule(pl.LightningDataModule):
         self.out_scaler_mean = out_scaler_mean
         self.out_scaler_std = out_scaler_std
         self.conditioning = conditioning
+        print("CONDITIONING!", conditioning)
         self.class_indices = class_indices
         self.save_hyperparameters()
 
@@ -48,7 +49,7 @@ class FeaturesDataModule(pl.LightningDataModule):
                                                                      generator=torch.Generator().manual_seed(self.seed))
         if self.in_scaler_mean is None or self.in_scaler_std is None:
             tmp_dataloader = DataLoader(self.in_train, batch_size=len(self.in_train),
-                                        num_workers=6)
+                                        num_workers=self.num_workers)
             in_domain_full.scaler.fit(next(iter(tmp_dataloader))[:][2])
         else:
             in_domain_full.scaler.mean = torch.tensor(self.in_scaler_mean)
@@ -57,7 +58,7 @@ class FeaturesDataModule(pl.LightningDataModule):
         print("Scaler std: ", in_domain_full.scaler.std)
         if self.out_scaler_std is None or self.out_scaler_mean is None:
             tmp_dataloader = DataLoader(self.out_train, batch_size=len(self.out_train),
-                                        num_workers=6)
+                                        num_workers=self.num_workers)
             out_domain_full.scaler.fit(next(iter(tmp_dataloader))[:][2])
         else:
             out_domain_full.scaler.mean = torch.tensor(self.out_scaler_mean)
@@ -72,8 +73,10 @@ class FeaturesDataModule(pl.LightningDataModule):
             out_dataloader = DataLoader(self.out_train, self.batch_size, num_workers=self.num_workers,
                                         shuffle=True)
         else:
-            class_inds = [torch.where(self.in_train.target_classes == class_idx)[0]
+            class_inds = [torch.nonzero(self.in_train.dataset.target_classes_subset(self.in_train.indices) == class_idx,
+                                        as_tuple=True)[0]
                           for class_idx in self.class_indices]
+            # class_inds = [torch.nonzero(inds in self.in_train.indices, as_tuple=True)[0] for inds in tmp]
             dataloaders = [
                 DataLoader(
                     dataset=Subset(self.in_train, inds),
@@ -82,8 +85,10 @@ class FeaturesDataModule(pl.LightningDataModule):
                     drop_last=True)
                 for inds in class_inds]
             in_dataloader = dataloaders
-            class_inds = [torch.where(self.out_train.target_classes == class_idx)[0]
+            class_inds = [torch.nonzero(self.out_train.dataset.target_classes_subset(self.out_train.indices) == class_idx,
+                                        as_tuple=True)[0]
                           for class_idx in self.class_indices]
+            # class_inds = [torch.nonzero(inds in self.in_train.indices, as_tuple=True)[0] for inds in tmp]
             dataloaders = [
                 DataLoader(
                     dataset=Subset(self.out_train, inds),
@@ -98,14 +103,21 @@ class FeaturesDataModule(pl.LightningDataModule):
             return in_dataloader
 
     def val_dataloader(self) -> EVAL_DATALOADERS:
+        # print("CONDITIONING: ", self.conditioning)
         if not self.conditioning:
             in_dataloader = DataLoader(self.in_val, self.batch_size, num_workers=self.num_workers,
                                        shuffle=True)
             out_dataloader = DataLoader(self.out_val, self.batch_size, num_workers=self.num_workers,
                                         shuffle=True)
         else:
-            class_inds = [torch.where(self.in_val.target_classes == class_idx)[0]
+            # print("AND HERE: ", self.in_val.dataset.conditioning)
+            # print(self.in_val.dataset.target_classes)
+            class_inds = [torch.nonzero(self.in_val.dataset.target_classes_subset(self.in_val.indices) == class_idx,
+                                        as_tuple=True)[0]
                           for class_idx in self.class_indices]
+            # print(tmp[0])
+            # class_inds = [torch.nonzero(inds in self.in_train.indices, as_tuple=True)[0] for inds in tmp]
+            print("BRUUUU: ", class_inds)
             dataloaders = [
                 DataLoader(
                     dataset=Subset(self.in_val, inds),
@@ -114,8 +126,10 @@ class FeaturesDataModule(pl.LightningDataModule):
                     drop_last=True)
                 for inds in class_inds]
             in_dataloader = dataloaders
-            class_inds = [torch.where(self.out_val.target_classes == class_idx)[0]
+            class_inds = [torch.nonzero(self.out_val.dataset.target_classes_subset(self.out_val.indices) == class_idx,
+                                        as_tuple=True)[0]
                           for class_idx in self.class_indices]
+            # class_inds = [torch.nonzero(inds in self.in_train.indices, as_tuple=True)[0] for inds in tmp]
             dataloaders = [
                 DataLoader(
                     dataset=Subset(self.out_val, inds),
