@@ -210,9 +210,9 @@ class CAFx(pl.LightningModule):
             out = torch.hstack([out, torch.zeros(out.shape[0], 1, device=out.device)])
         return out
 
-    def training_step(self, batch, batch_idx, dataloader_idx, *args, **kwargs) -> STEP_OUTPUT:
+    def training_step(self, batch, batch_idx, *args, **kwargs) -> STEP_OUTPUT:
         num_steps_per_epoch = len(self.trainer.train_dataloader) / self.trainer.accumulate_grad_batches
-        num_steps_per_epoch = num_steps_per_epoch * self.trainer.num_gpus
+        num_steps_per_epoch = num_steps_per_epoch * self.trainer.num_devices
         if not self.out_of_domain:
             if self.with_film:
                 clean, processed, feat, label, conditioning = batch
@@ -337,10 +337,14 @@ class CAFx(pl.LightningModule):
 
     def on_validation_end(self) -> None:
         if not self.out_of_domain:
-            clean, processed, feat, label = next(iter(self.trainer.val_dataloaders[0]))
+            if self.with_film:
+                clean, processed, feat, label, conditioning = next(iter(self.trainer.val_dataloaders[0]))
+            else:
+                clean, processed, feat, label = next(iter(self.trainer.val_dataloaders[0]))
+                conditioning = None
         else:
             clean, processed, feat = next(iter(self.trainer.val_dataloaders[0]))
-        pred = self.forward(processed.to(self.device), feat.to(self.device))
+        pred = self.forward(processed.to(self.device), feat.to(self.device), conditioning=conditioning.to(self.device))
         pred = pred.to("cpu")
         rec = torch.zeros(clean.shape[0], clean.shape[-1], device=self.device)  # TODO: fix hardcoded value
         features = self.compute_features(processed[:, 0, :].to(self.device))
