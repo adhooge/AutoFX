@@ -102,17 +102,24 @@ class CAFx(pl.LightningModule):
         self.scaler = TorchStandardScaler()
         self.scaler.mean = torch.tensor(scaler_mean, device=torch.device('cuda'))
         self.scaler.std = torch.tensor(scaler_std, device=torch.device('cuda'))
+        print(self.scaler.mean)
+        print(self.scaler.std)
         if reverb:
             self.num_params -= 1
-        self.resnet = ResNet(self.num_params, end_with_fcl=False)
+        self.resnet = ResNet(self.num_params, end_with_fcl=False, num_channels=64)
         self.cond_feat = cond_feat
         # TODO: Make this cleaner
         if reverb:
             fcl_size = 4096
         else:
-            fcl_size = 2048
-        self.fcl = nn.Linear(fcl_size + cond_feat, self.num_params)
-        nn.init.xavier_normal_(self.fcl.weight, gain=math.sqrt(2))
+            fcl_size = fft_size * 256 // hop_size
+        self.fcl1 = nn.Linear(fcl_size + cond_feat, fcl_size // 2)
+        self.fcl2 = nn.Linear(fcl_size//2, self.num_params)
+        # self.fcl = nn.Linear(fcl_size + cond_feat, self.num_params)
+        # nn.init.xavier_normal_(self.fcl.weight, gain=math.sqrt(2))
+        nn.init.xavier_normal_(self.fcl1.weight, gain=math.sqrt(2))
+        nn.init.xavier_normal_(self.fcl2.weight, gain=math.sqrt(2))
+        self.relu = nn.ReLU(inplace=True)
         self.activation = nn.Sigmoid()
         self.learning_rate = learning_rate
         self.loss = nn.MSELoss()
@@ -164,8 +171,11 @@ class CAFx(pl.LightningModule):
         out = self.spectro(x)
         out = self.resnet(out)
         out = torch.cat((out, feat), dim=-1)
-        out = self.fcl(out)
+        out = self.fcl1(out)
         # print("before:", out)
+        out = self.relu(out)
+        out = self.fcl2(out)
+        ## out = self.fcl(out)
         out = self.activation(out)
         # print("after: ", out)
         if self.reverb:
@@ -320,7 +330,8 @@ class CAFx(pl.LightningModule):
             self.tracker.epoch_end()
 
     def configure_optimizers(self):
-        optimizer = torch.optim.SGD(self.parameters(), lr=self.learning_rate)  # TODO: Remove hardcoded values
+        # optimizer = torch.optim.SGD(self.parameters(), lr=self.learning_rate)  # TODO: Remove hardcoded values
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
         # lr_schedulers = {"scheduler": scheduler, "interval": "epoch"}
         # return {"optimizer": optimizer, "lr_scheduler": lr_schedulers}

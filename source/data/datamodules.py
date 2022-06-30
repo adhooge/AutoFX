@@ -2,7 +2,7 @@ import pathlib
 
 import pytorch_lightning as pl
 import torch.utils.data
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from cfgv import Optional
 from pytorch_lightning.utilities.types import TRAIN_DATALOADERS, EVAL_DATALOADERS
 from source.data.datasets import FeatureInDomainDataset, FeatureOutDomainDataset
@@ -13,7 +13,8 @@ class FeaturesDataModule(pl.LightningDataModule):
                  out_of_domain_dir: str, batch_size: int = 32, num_workers: int = 4,
                  in_scaler_mean: list = None, in_scaler_std: list = None,
                  out_scaler_mean: list = None, out_scaler_std: list = None,
-                 out_of_domain: bool = False, seed: int = None, reverb: bool = False, *args, **kwargs):
+                 out_of_domain: bool = False, seed: int = None, reverb: bool = False,
+                 conditioning: bool = False, class_indices: list = None, *args, **kwargs):
         super(FeaturesDataModule, self).__init__()
         self.clean_dir = clean_dir
         self.processed_dir = processed_dir
@@ -29,6 +30,9 @@ class FeaturesDataModule(pl.LightningDataModule):
         self.in_scaler_std = in_scaler_std
         self.out_scaler_mean = out_scaler_mean
         self.out_scaler_std = out_scaler_std
+        self.conditioning = conditioning
+        # print("CONDITIONING!", conditioning)
+        self.class_indices = class_indices
         self.save_hyperparameters()
 
     def setup(self, stage: Optional[str] = None) -> None:
@@ -45,7 +49,7 @@ class FeaturesDataModule(pl.LightningDataModule):
                                                                      generator=torch.Generator().manual_seed(self.seed))
         if self.in_scaler_mean is None or self.in_scaler_std is None:
             tmp_dataloader = DataLoader(self.in_train, batch_size=len(self.in_train),
-                                        num_workers=6)
+                                        num_workers=self.num_workers)
             in_domain_full.scaler.fit(next(iter(tmp_dataloader))[:][2])
         else:
             in_domain_full.scaler.mean = torch.tensor(self.in_scaler_mean)
@@ -54,7 +58,7 @@ class FeaturesDataModule(pl.LightningDataModule):
         print("Scaler std: ", in_domain_full.scaler.std)
         if self.out_scaler_std is None or self.out_scaler_mean is None:
             tmp_dataloader = DataLoader(self.out_train, batch_size=len(self.out_train),
-                                        num_workers=6)
+                                        num_workers=self.num_workers)
             out_domain_full.scaler.fit(next(iter(tmp_dataloader))[:][2])
         else:
             out_domain_full.scaler.mean = torch.tensor(self.out_scaler_mean)
@@ -63,20 +67,74 @@ class FeaturesDataModule(pl.LightningDataModule):
         print("Out Scaler std: ", out_domain_full.scaler.std)
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
-        in_dataloader = DataLoader(self.in_train, self.batch_size, num_workers=self.num_workers,
-                                   shuffle=True)
-        out_dataloader = DataLoader(self.out_train, self.batch_size, num_workers=self.num_workers,
-                                    shuffle=True)
+        if not self.conditioning:
+            in_dataloader = DataLoader(self.in_train, self.batch_size, num_workers=self.num_workers,
+                                       shuffle=True)
+            out_dataloader = DataLoader(self.out_train, self.batch_size, num_workers=self.num_workers,
+                                        shuffle=True)
+        else:
+            class_inds = [torch.nonzero(self.in_train.dataset.target_classes_subset(self.in_train.indices) == class_idx,
+                                        as_tuple=True)[0]
+                          for class_idx in self.class_indices]
+            # class_inds = [torch.nonzero(inds in self.in_train.indices, as_tuple=True)[0] for inds in tmp]
+            in_dataloader = [
+                DataLoader(
+                    dataset=Subset(self.in_train, inds),
+                    batch_size=self.batch_size,
+                    shuffle=True,
+                    drop_last=True)
+                for inds in class_inds]
+            class_inds = [torch.nonzero(self.out_train.dataset.target_classes_subset(self.out_train.indices) == class_idx,
+                                        as_tuple=True)[0]
+                          for class_idx in self.class_indices]
+            # class_inds = [torch.nonzero(inds in self.in_train.indices, as_tuple=True)[0] for inds in tmp]
+            out_dataloader = [
+                DataLoader(
+                    dataset=Subset(self.out_train, inds),
+                    batch_size=self.batch_size,
+                    shuffle=True,
+                    drop_last=True)
+                for inds in class_inds]
         if self.out_of_domain:
             return out_dataloader
         else:
+            print("PLOP", in_dataloader)
             return in_dataloader
 
     def val_dataloader(self) -> EVAL_DATALOADERS:
-        in_dataloader = DataLoader(self.in_val, self.batch_size, num_workers=self.num_workers,
-                                   shuffle=True)
-        out_dataloader = DataLoader(self.out_val, self.batch_size, num_workers=self.num_workers,
-                                    shuffle=True)
+        # print("CONDITIONING: ", self.conditioning)
+        if not self.conditioning:
+            in_dataloader = DataLoader(self.in_val, self.batch_size, num_workers=self.num_workers,
+                                       shuffle=True)
+            out_dataloader = DataLoader(self.out_val, self.batch_size, num_workers=self.num_workers,
+                                        shuffle=True)
+        else:
+            # print("AND HERE: ", self.in_val.dataset.conditioning)
+            # print(self.in_val.dataset.target_classes)
+            class_inds = [torch.nonzero(self.in_val.dataset.target_classes_subset(self.in_val.indices) == class_idx,
+                                        as_tuple=True)[0]
+                          for class_idx in self.class_indices]
+            # print(tmp[0])
+            # class_inds = [torch.nonzero(inds in self.in_train.indices, as_tuple=True)[0] for inds in tmp]
+            # print("BRUUUU: ", class_inds)
+            in_dataloader = [
+                DataLoader(
+                    dataset=Subset(self.in_val, inds),
+                    batch_size=self.batch_size,
+                    shuffle=True,
+                    drop_last=True)
+                for inds in class_inds]
+            class_inds = [torch.nonzero(self.out_val.dataset.target_classes_subset(self.out_val.indices) == class_idx,
+                                        as_tuple=True)[0]
+                          for class_idx in self.class_indices]
+            # class_inds = [torch.nonzero(inds in self.in_train.indices, as_tuple=True)[0] for inds in tmp]
+            out_dataloader = [
+                DataLoader(
+                    dataset=Subset(self.out_val, inds),
+                    batch_size=self.batch_size,
+                    shuffle=True,
+                    drop_last=True)
+                for inds in class_inds]
         if self.out_of_domain:
             return out_dataloader
         else:

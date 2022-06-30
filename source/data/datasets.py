@@ -108,6 +108,8 @@ class FeatureOutDomainDataset(Dataset):
         self.clean_path = pathlib.Path(clean_path) if clean_path is not None else clean_path
         self.processed_path = pathlib.Path(processed_path) if processed_path is not None else processed_path
         self.data = pd.read_csv(self.data_path / "data.csv", index_col=index_col)
+        if "conditioning" in self.data.columns:
+            self.data = self.data.drop(columns=["conditioning"])
         self.fx2clean = pd.read_csv(self.data_path / "fx2clean.csv")
         self.pad_length = pad_length
         self.scaler = TorchStandardScaler()
