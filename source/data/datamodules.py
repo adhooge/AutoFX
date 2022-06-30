@@ -67,36 +67,10 @@ class FeaturesDataModule(pl.LightningDataModule):
         print("Out Scaler std: ", out_domain_full.scaler.std)
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
-        if not self.conditioning:
-            in_dataloader = DataLoader(self.in_train, self.batch_size, num_workers=self.num_workers,
-                                       shuffle=True)
-            out_dataloader = DataLoader(self.out_train, self.batch_size, num_workers=self.num_workers,
-                                        shuffle=True)
-        else:
-            class_inds = [torch.nonzero(self.in_train.dataset.target_classes_subset(self.in_train.indices) == class_idx,
-                                        as_tuple=True)[0]
-                          for class_idx in self.class_indices]
-            # class_inds = [torch.nonzero(inds in self.in_train.indices, as_tuple=True)[0] for inds in tmp]
-            dataloaders = [
-                DataLoader(
-                    dataset=Subset(self.in_train, inds),
-                    batch_size=self.batch_size,
-                    shuffle=True,
-                    drop_last=True)
-                for inds in class_inds]
-            in_dataloader = dataloaders
-            class_inds = [torch.nonzero(self.out_train.dataset.target_classes_subset(self.out_train.indices) == class_idx,
-                                        as_tuple=True)[0]
-                          for class_idx in self.class_indices]
-            # class_inds = [torch.nonzero(inds in self.in_train.indices, as_tuple=True)[0] for inds in tmp]
-            dataloaders = [
-                DataLoader(
-                    dataset=Subset(self.out_train, inds),
-                    batch_size=self.batch_size,
-                    shuffle=True,
-                    drop_last=True)
-                for inds in class_inds]
-            out_dataloader = dataloaders
+        in_dataloader = DataLoader(self.in_train, self.batch_size, num_workers=self.num_workers,
+                                   shuffle=True)
+        out_dataloader = DataLoader(self.out_train, self.batch_size, num_workers=self.num_workers,
+                                    shuffle=True)
         if self.out_of_domain:
             return out_dataloader
         else:
@@ -104,40 +78,10 @@ class FeaturesDataModule(pl.LightningDataModule):
 
     def val_dataloader(self) -> EVAL_DATALOADERS:
         # print("CONDITIONING: ", self.conditioning)
-        if not self.conditioning:
-            in_dataloader = DataLoader(self.in_val, self.batch_size, num_workers=self.num_workers,
-                                       shuffle=True)
-            out_dataloader = DataLoader(self.out_val, self.batch_size, num_workers=self.num_workers,
-                                        shuffle=True)
-        else:
-            # print("AND HERE: ", self.in_val.dataset.conditioning)
-            # print(self.in_val.dataset.target_classes)
-            class_inds = [torch.nonzero(self.in_val.dataset.target_classes_subset(self.in_val.indices) == class_idx,
-                                        as_tuple=True)[0]
-                          for class_idx in self.class_indices]
-            # print(tmp[0])
-            # class_inds = [torch.nonzero(inds in self.in_train.indices, as_tuple=True)[0] for inds in tmp]
-            print("BRUUUU: ", class_inds)
-            dataloaders = [
-                DataLoader(
-                    dataset=Subset(self.in_val, inds),
-                    batch_size=self.batch_size,
-                    shuffle=True,
-                    drop_last=True)
-                for inds in class_inds]
-            in_dataloader = dataloaders
-            class_inds = [torch.nonzero(self.out_val.dataset.target_classes_subset(self.out_val.indices) == class_idx,
-                                        as_tuple=True)[0]
-                          for class_idx in self.class_indices]
-            # class_inds = [torch.nonzero(inds in self.in_train.indices, as_tuple=True)[0] for inds in tmp]
-            dataloaders = [
-                DataLoader(
-                    dataset=Subset(self.out_val, inds),
-                    batch_size=self.batch_size,
-                    shuffle=True,
-                    drop_last=True)
-                for inds in class_inds]
-            out_dataloader = dataloaders
+        in_dataloader = DataLoader(self.in_val, self.batch_size, num_workers=self.num_workers,
+                                   shuffle=True)
+        out_dataloader = DataLoader(self.out_val, self.batch_size, num_workers=self.num_workers,
+                                    shuffle=True)
         if self.out_of_domain:
             return out_dataloader
         else:
