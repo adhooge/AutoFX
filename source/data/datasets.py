@@ -9,6 +9,7 @@ class TorchStandardScaler:
     """
     from    https://discuss.pytorch.org/t/pytorch-tensor-scaling/38576/8
     """
+
     def __init__(self):
         self.mean = torch.tensor(0)
         self.std = torch.tensor(1)
@@ -57,7 +58,7 @@ class FeatureInDomainDataset(Dataset):
         self.scaler = TorchStandardScaler()
         if pad_length is None:
             if reverb:
-                self.pad_length = 2**17
+                self.pad_length = 2 ** 17
             else:
                 self.pad_length = 35000
         else:
@@ -77,9 +78,11 @@ class FeatureInDomainDataset(Dataset):
             prc_sound, rate = torchaudio.load(prc_snd_path, normalize=True)
             cln_sound = cln_sound[0]
             prc_sound = prc_sound[0]
+            cln_sound = cln_sound / torch.max(torch.abs(cln_sound))
+            prc_sound = prc_sound / torch.max(torch.abs(prc_sound))
             cln_pad = torch.zeros((1, self.pad_length))
             cln_pad[0, :len(cln_sound)] = cln_sound
-            cln_pad[0, len(cln_sound):] = torch.randn(self.pad_length-len(cln_sound)) / 1e9
+            cln_pad[0, len(cln_sound):] = torch.randn(self.pad_length - len(cln_sound)) / 1e9
             prc_pad = torch.zeros((1, self.pad_length))
             prc_pad[0, :len(prc_sound)] = prc_sound
             prc_pad[0, len(prc_sound):] = torch.randn(self.pad_length - len(prc_sound)) / 1e9
@@ -116,7 +119,6 @@ class FeatureInDomainDataset(Dataset):
             out = torch.tensor(self.data[["conditioning"]].iloc[indices].values)
             return out.float()
 
-
 class FeatureOutDomainDataset(Dataset):
     def __init__(self, data_path: str,
                  clean_path: str = None, processed_path: str = None,
@@ -126,6 +128,8 @@ class FeatureOutDomainDataset(Dataset):
         self.clean_path = pathlib.Path(clean_path) if clean_path is not None else clean_path
         self.processed_path = pathlib.Path(processed_path) if processed_path is not None else processed_path
         self.data = pd.read_csv(self.data_path / "data.csv", index_col=index_col)
+        if "conditioning" in self.data.columns:
+            self.data = self.data.drop(columns=["conditioning"])
         self.fx2clean = pd.read_csv(self.data_path / "fx2clean.csv")
         self.pad_length = pad_length
         self.scaler = TorchStandardScaler()
@@ -144,6 +148,8 @@ class FeatureOutDomainDataset(Dataset):
                 prc_sound, rate = torchaudio.load(fx_snd_path, normalize=True)
                 cln_sound = cln_sound[0]
                 prc_sound = prc_sound[0]
+                cln_sound = cln_sound / torch.max(torch.abs(cln_sound))
+                prc_sound = prc_sound / torch.max(torch.abs(prc_sound))
                 cln_pad = torch.zeros((1, self.pad_length))
                 cln_pad[0, :len(cln_sound)] = cln_sound
                 cln_pad[0, len(cln_sound):] = torch.randn(self.pad_length - len(cln_sound)) / 1e9
@@ -166,6 +172,8 @@ class FeatureOutDomainDataset(Dataset):
             prc_sound, rate = torchaudio.load(fx_snd_path, normalize=True)
             cln_sound = cln_sound[0]
             prc_sound = prc_sound[0]
+            cln_sound = cln_sound / torch.max(torch.abs(cln_sound))
+            prc_sound = prc_sound / torch.max(torch.abs(prc_sound))
             cln_pad = torch.zeros((1, self.pad_length))
             cln_pad[0, :len(cln_sound)] = cln_sound
             cln_pad[0, len(cln_sound):] = torch.randn(self.pad_length - len(cln_sound)) / 1e9
