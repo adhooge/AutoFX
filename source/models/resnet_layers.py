@@ -51,8 +51,10 @@ class ResNetBlock(nn.Module):
         out = self.conv2(out)
         out = self.bn2(out)
         if self.with_film:
-            alpha = torch.reshape(alpha[None, :], (1, out.shape[1], out.shape[2], out.shape[3]))
-            beta = torch.reshape(beta[None, :], (1, out.shape[1], out.shape[2], out.shape[3]))
+            alpha = torch.reshape(alpha, (out.shape[0], out.shape[1]))
+            alpha = alpha[:, :, None, None].expand(-1, -1, out.shape[2], out.shape[3])
+            beta = torch.reshape(beta, (out.shape[0], out.shape[1]))
+            beta = beta[:, :, None, None].expand(-1, -1, out.shape[2], out.shape[3])
             out = alpha*out + beta
         out = self.relu(out)
         if self.downsample:
