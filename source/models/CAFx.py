@@ -110,12 +110,24 @@ class CAFx(pl.LightningModule):
         self.resnet = ResNet(self.num_params, end_with_fcl=False, num_channels=64, with_film=with_film)
         self.with_film = with_film
         if self.with_film:
-            self.film1_1 = FilmLayer(1, 577920)
-            self.film1_2 = FilmLayer(1, 577920)
-            self.film2_1 = FilmLayer(1, 299520)
-            self.film2_2 = FilmLayer(1, 299520)
-            self.film3_1 = FilmLayer(1, 152064)
-            self.film3_2 = FilmLayer(1, 152064)
+            self.film1_1 = FilmLayer(1, 64)
+            self.film1_2 = FilmLayer(1, 64)
+            self.film2_1 = FilmLayer(1, 128)
+            self.film2_2 = FilmLayer(1, 128)
+            self.film3_1 = FilmLayer(1, 256)
+            self.film3_2 = FilmLayer(1, 256)
+            nn.init.normal_(self.film1_1.linear1.weight, mean=1, std=0.1)
+            nn.init.normal_(self.film1_1.linear2.weight, mean=0, std=0.1)
+            nn.init.normal_(self.film1_2.linear1.weight, mean=1, std=0.1)
+            nn.init.normal_(self.film1_2.linear2.weight, mean=0, std=0.1)
+            nn.init.normal_(self.film2_1.linear1.weight, mean=1, std=0.1)
+            nn.init.normal_(self.film2_1.linear2.weight, mean=0, std=0.1)
+            nn.init.normal_(self.film2_2.linear1.weight, mean=1, std=0.1)
+            nn.init.normal_(self.film2_2.linear2.weight, mean=0, std=0.1)
+            nn.init.normal_(self.film3_1.linear1.weight, mean=1, std=0.1)
+            nn.init.normal_(self.film3_1.linear2.weight, mean=0, std=0.1)
+            nn.init.normal_(self.film3_2.linear1.weight, mean=1, std=0.1)
+            nn.init.normal_(self.film3_2.linear2.weight, mean=0, std=0.1)
         self.cond_feat = cond_feat
         # TODO: Make this cleaner
         if reverb:
@@ -178,8 +190,8 @@ class CAFx(pl.LightningModule):
 
     def forward(self, x, feat, conditioning=None, *args, **kwargs) -> Any:
         if self.with_film:
-            conditioning = conditioning[None, 0]
-            conditioning = conditioning.float()
+            # conditioning = conditioning[None, 0]
+            conditioning = conditioning[:, None]
             alphas = []
             betas = []
             alpha, beta = self.film1_1(conditioning)
