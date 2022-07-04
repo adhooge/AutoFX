@@ -95,6 +95,7 @@ class FeatureInDomainDataset(Dataset):
         features = self.data.iloc[item, self.feat_columns]
         if self.conditioning:
             conditioning = self.data.iloc[item, -1]
+            conditioning = torch.tensor(conditioning, dtype=torch.float)
         else:
             conditioning = None
         features = torch.Tensor(features)
@@ -159,7 +160,7 @@ class FeatureOutDomainDataset(Dataset):
                 features = self.data.iloc[i, :]
                 if self.conditioning:
                     features = features[:-1]
-                    conditioning = features[-1]
+                    conditioning = torch.tensor(features[-1], dtype=torch.float)
                 else:
                     conditioning = None
                 features = torch.Tensor(features)
