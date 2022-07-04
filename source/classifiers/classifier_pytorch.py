@@ -260,12 +260,14 @@ class FeatureExtractor(nn.Module):
         func = torch.cat([func, mfcc_means, mfcc_maxs], dim=1)
         return func
 
-    def process_folder(self, folder_path: str, n_mfcc: int = 10):
+    def process_folder(self, folder_path: str, n_mfcc: int = 10, add_noise: bool = False):
         folder_path = pathlib.Path(folder_path)
         out = pd.DataFrame([])
         for f in tqdm.tqdm(folder_path.rglob('*.wav')):
             f = pathlib.Path(f)
             audio, rate = torchaudio.load(f)
+            if add_noise:
+                audio = audio + torch.randn_like(audio)*1e-6
             fx = f.name.split('-')[2][1:-1]
             fx = util.idmt_fx2class_number(util.idmt_fx(fx))
             mfcc_transform = torchaudio.transforms.MFCC(sample_rate=rate,
