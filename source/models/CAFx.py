@@ -359,12 +359,13 @@ class CAFx(pl.LightningModule):
         if not self.out_of_domain:
             if self.with_film:
                 clean, processed, feat, label, conditioning = next(iter(self.trainer.val_dataloaders[0]))
+                conditioning = conditioning.to(self.device)
             else:
                 clean, processed, feat, label = next(iter(self.trainer.val_dataloaders[0]))
                 conditioning = None
         else:
             clean, processed, feat = next(iter(self.trainer.val_dataloaders[0]))
-        pred = self.forward(processed.to(self.device), feat.to(self.device), conditioning=conditioning.to(self.device))
+        pred = self.forward(processed.to(self.device), feat.to(self.device), conditioning=conditioning)
         pred = pred.to("cpu")
         rec = torch.zeros(clean.shape[0], clean.shape[-1], device=self.device)  # TODO: fix hardcoded value
         features = self.compute_features(processed[:, 0, :].to(self.device))
