@@ -241,7 +241,7 @@ class FeatureExtractor(nn.Module):
         super(FeatureExtractor, self).__init__()
         self.spectrogram = torchaudio.transforms.Spectrogram(8192, hop_length=512, power=None)
 
-    def forward(self, audio, rate: int = 22050):
+    def forward(self, audio, rate: int = 22050, transform = None):
         """
 
         :param audio: (batch, num_samples), mono only for now
@@ -249,16 +249,18 @@ class FeatureExtractor(nn.Module):
         :return:
         """
         # add some noise
-        audio = audio + torch.randn_like(audio) * (torch.max(torch.abs(audio)) / 1000)
+        # audio = audio + torch.randn_like(audio) * (torch.max(torch.abs(audio)) / 1000)
+        mfcc_means, mfcc_maxs = Ft.mfcc_torch(audio, rate, transform=transform)
         stft = self.spectrogram(audio)
         mag = torch.abs(stft)
         feat = FeatureExtractor._get_features(mag, rate)
         pitch = Ft.pitch_curve(audio, rate)
         pitch = torch.mean(pitch, dim=-1)
         func = FeatureExtractor._get_functionals(feat, pitch)
+        func = torch.stack([func, mfcc_means, mfcc_maxs], dim=-1)
         return func
 
-    def process_folder(self, folder_path: str):
+    def process_folder(self, folder_path: str, n_mfcc: int = 10):
         folder_path = pathlib.Path(folder_path)
         out = pd.DataFrame([])
         for f in tqdm.tqdm(folder_path.rglob('*.wav')):
@@ -266,8 +268,10 @@ class FeatureExtractor(nn.Module):
             audio, rate = torchaudio.load(f)
             fx = f.name.split('-')[2][1:-1]
             fx = util.idmt_fx2class_number(util.idmt_fx(fx))
+            mfcc_transform = torchaudio.transforms.MFCC(sample_rate=rate,
+                                                        n_mfcc=n_mfcc)
             try:
-                func = self.forward(audio, rate)
+                func = self.forward(audio, rate, transform=mfcc_transform)
             except ValueError:
                 print(f"One std was zero, this will return NaNs. File was {f}")
             if torch.isnan(func).any():
