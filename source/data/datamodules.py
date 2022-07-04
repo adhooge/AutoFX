@@ -66,38 +66,13 @@ class FeaturesDataModule(pl.LightningDataModule):
         print("Out Scaler std: ", out_domain_full.scaler.std)
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
-        if not self.conditioning:
-            in_dataloader = DataLoader(self.in_train, self.batch_size, num_workers=self.num_workers,
-                                       shuffle=True)
-            out_dataloader = DataLoader(self.out_train, self.batch_size, num_workers=self.num_workers,
-                                        shuffle=True)
-        else:
-            class_inds = [torch.nonzero(self.in_train.dataset.target_classes_subset(self.in_train.indices) == class_idx,
-                                        as_tuple=True)[0]
-                          for class_idx in self.class_indices]
-            # class_inds = [torch.nonzero(inds in self.in_train.indices, as_tuple=True)[0] for inds in tmp]
-            in_dataloader = [
-                DataLoader(
-                    dataset=Subset(self.in_train, inds),
-                    batch_size=self.batch_size,
-                    shuffle=True,
-                    drop_last=True)
-                for inds in class_inds]
-            class_inds = [torch.nonzero(self.out_train.dataset.target_classes_subset(self.out_train.indices) == class_idx,
-                                        as_tuple=True)[0]
-                          for class_idx in self.class_indices]
-            # class_inds = [torch.nonzero(inds in self.in_train.indices, as_tuple=True)[0] for inds in tmp]
-            out_dataloader = [
-                DataLoader(
-                    dataset=Subset(self.out_train, inds),
-                    batch_size=self.batch_size,
-                    shuffle=True,
-                    drop_last=True)
-                for inds in class_inds]
+        in_dataloader = DataLoader(self.in_train, self.batch_size, num_workers=self.num_workers,
+                                   shuffle=True)
+        out_dataloader = DataLoader(self.out_train, self.batch_size, num_workers=self.num_workers,
+                                    shuffle=True)
         if self.out_of_domain:
             return out_dataloader
         else:
-            print("PLOP", in_dataloader)
             return in_dataloader
 
     def val_dataloader(self) -> EVAL_DATALOADERS:
