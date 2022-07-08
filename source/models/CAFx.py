@@ -110,12 +110,24 @@ class CAFx(pl.LightningModule):
         self.resnet = ResNet(self.num_params, end_with_fcl=False, num_channels=64, with_film=with_film)
         self.with_film = with_film
         if self.with_film:
-            self.film1_1 = FilmLayer(1, 577920)
-            self.film1_2 = FilmLayer(1, 577920)
-            self.film2_1 = FilmLayer(1, 299520)
-            self.film2_2 = FilmLayer(1, 299520)
-            self.film3_1 = FilmLayer(1, 152064)
-            self.film3_2 = FilmLayer(1, 152064)
+            self.film1_1 = FilmLayer(1, 64)
+            self.film1_2 = FilmLayer(1, 64)
+            self.film2_1 = FilmLayer(1, 128)
+            self.film2_2 = FilmLayer(1, 128)
+            self.film3_1 = FilmLayer(1, 256)
+            self.film3_2 = FilmLayer(1, 256)
+            nn.init.normal_(self.film1_1.linear1.weight, mean=1, std=0.1)
+            nn.init.normal_(self.film1_1.linear2.weight, mean=0, std=0.1)
+            nn.init.normal_(self.film1_2.linear1.weight, mean=1, std=0.1)
+            nn.init.normal_(self.film1_2.linear2.weight, mean=0, std=0.1)
+            nn.init.normal_(self.film2_1.linear1.weight, mean=1, std=0.1)
+            nn.init.normal_(self.film2_1.linear2.weight, mean=0, std=0.1)
+            nn.init.normal_(self.film2_2.linear1.weight, mean=1, std=0.1)
+            nn.init.normal_(self.film2_2.linear2.weight, mean=0, std=0.1)
+            nn.init.normal_(self.film3_1.linear1.weight, mean=1, std=0.1)
+            nn.init.normal_(self.film3_1.linear2.weight, mean=0, std=0.1)
+            nn.init.normal_(self.film3_2.linear1.weight, mean=1, std=0.1)
+            nn.init.normal_(self.film3_2.linear2.weight, mean=0, std=0.1)
         self.cond_feat = cond_feat
         # TODO: Make this cleaner
         if reverb:
@@ -178,11 +190,8 @@ class CAFx(pl.LightningModule):
 
     def forward(self, x, feat, conditioning=None, *args, **kwargs) -> Any:
         if self.with_film:
-            if not((conditioning == conditioning[0]).all()):
-                raise ValueError("Conditioning is not constant throughout batch.")
-            else:
-                conditioning = conditioning[None, 0]
-                conditioning = conditioning.float()
+            # conditioning = conditioning[None, 0]
+            conditioning = conditioning[:, None]
             alphas = []
             betas = []
             alpha, beta = self.film1_1(conditioning)
@@ -223,142 +232,78 @@ class CAFx(pl.LightningModule):
     def training_step(self, batch, batch_idx, *args, **kwargs) -> STEP_OUTPUT:
         num_steps_per_epoch = len(self.trainer.train_dataloader) / self.trainer.accumulate_grad_batches
         num_steps_per_epoch = num_steps_per_epoch * self.trainer.num_devices
-        if self.with_film:
-            i = 0
-            cumulated_loss = 0
-            while i < len(batch):
-                if not self.out_of_domain:
-                    if self.with_film:
-                        clean, processed, feat, label, conditioning = batch[i]
-                        i += 1
-                        batch_size = processed.shape[0]
-                        pred = self.forward(processed, feat, conditioning=conditioning)
-                        penalty_0 = torch.mean(-1 * torch.log10(pred * 0.99))
-                        penalty_1 = torch.mean(-1 * torch.log10(1 - 0.99 * pred))
-                        if not self.out_of_domain:
-                            loss = self.loss(pred, label)
-                            # loss = 0
-                            self.logger.experiment.add_scalar("Param_loss/Train", loss, global_step=self.global_step)
-                            scalars = {}
-                            for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
-                                scalars[f'{i}'] = val
-                            self.logger.experiment.add_scalars("Param_distance/Train", scalars,
-                                                               global_step=self.global_step)
-                            if self.loss_stamps is not None:
-                                # TODO: could be moved to optimizers
-                                if self.trainer.current_epoch < self.loss_stamps[0]:
-                                    self.loss_weights = [1, 0]
-                                elif self.trainer.current_epoch < self.loss_stamps[1]:
-                                    weight = (self.trainer.global_step - (self.loss_stamps[0] * num_steps_per_epoch)) \
-                                             / ((self.loss_stamps[1] - self.loss_stamps[0]) * num_steps_per_epoch)
-                                    self.loss_weights = [1 - weight, weight]
-                                elif self.trainer.current_epoch >= self.loss_stamps[1]:
-                                    self.loss_weights = [0, 1]
-                        if self.loss_weights[1] != 0 or self.out_of_domain:
-                            pred = pred.to("cpu")
-                            self.pred = pred
-                            self.pred.retain_grad()
-                            rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)
-                            for (i, snd) in enumerate(clean):
-                                snd_norm = snd / torch.max(torch.abs(snd))
-                                snd_norm = snd_norm + torch.randn_like(snd_norm) * 1e-9
-                                tmp = self.mbfx_layer.forward(snd_norm.cpu(), pred[i])
-                                rec[i] = tmp.clone()
-                            target_normalized, pred_normalized = processed[:, 0, :] / torch.max(
-                                torch.abs(processed)), rec / torch.max(
-                                torch.abs(rec))
-                            spec_loss = self.spectral_loss(pred_normalized, target_normalized)
-                            features = self.compute_features(pred_normalized)
-                            feat_loss = self.feat_loss(features, feat)
-                            spectral_loss = self.feat_weight * feat_loss + self.mrstft_weight * spec_loss
-                        else:
-                            spectral_loss = 0
-                            spec_loss = 0
-                            feat_loss = 0
-                        self.logger.experiment.add_scalar("Feature_loss/Train",
-                                                          feat_loss, global_step=self.global_step)
-                        self.logger.experiment.add_scalar("MRSTFT_loss/Train",
-                                                          spec_loss, global_step=self.global_step)
-                        self.logger.experiment.add_scalar("Total_Spectral_loss/Train",
-                                                          spectral_loss, global_step=self.global_step)
-                        if not self.out_of_domain:
-                            total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
-                        else:
-                            total_loss = spectral_loss + self.penalty_0 * penalty_0 + self.penalty_1 * penalty_1
-                        self.logger.experiment.add_scalar("Total_loss/Train", total_loss, global_step=self.global_step)
-                        # print("MAYBE", target_normalized==pred_normalized)
-                        cumulated_loss += total_loss
-            return cumulated_loss / i
-        else:
-            if not self.out_of_domain:
+        if not self.out_of_domain:
+            if self.with_film:
+                clean, processed, feat, label, conditioning = batch
+            else:
                 clean, processed, feat, label = batch
                 conditioning = None
+        else:
+            if self.with_film:
+                clean, processed, feat, conditioning = batch
             else:
-                if self.with_film:
-                    clean, processed, feat, conditioning = batch
-                else:
-                    clean, processed, feat = batch
-                    conditioning = None
-            batch_size = processed.shape[0]
-            pred = self.forward(processed, feat, conditioning=conditioning)
-            penalty_0 = torch.mean(-1 * torch.log10(pred*0.99))
-            penalty_1 = torch.mean(-1 * torch.log10(1 - 0.99*pred))
-            if not self.out_of_domain:
-                loss = self.loss(pred, label)
-                # loss = 0
-                self.logger.experiment.add_scalar("Param_loss/Train", loss, global_step=self.global_step)
-                scalars = {}
-                for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
-                    scalars[f'{i}'] = val
-                self.logger.experiment.add_scalars("Param_distance/Train", scalars, global_step=self.global_step)
-                if self.loss_stamps is not None:
-                    # TODO: could be moved to optimizers
-                    if self.trainer.current_epoch < self.loss_stamps[0]:
-                        self.loss_weights = [1, 0]
-                    elif self.trainer.current_epoch < self.loss_stamps[1]:
-                        weight = (self.trainer.global_step - (self.loss_stamps[0] * num_steps_per_epoch)) \
-                                 / ((self.loss_stamps[1] - self.loss_stamps[0]) * num_steps_per_epoch)
-                        self.loss_weights = [1 - weight, weight]
-                    elif self.trainer.current_epoch >= self.loss_stamps[1]:
-                        self.loss_weights = [0, 1]
-            if self.loss_weights[1] != 0 or self.out_of_domain:
-                pred = pred.to("cpu")
-                self.pred = pred
-                self.pred.retain_grad()
-                rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)
-                for (i, snd) in enumerate(clean):
-                    snd_norm = snd / torch.max(torch.abs(snd))
-                    snd_norm = snd_norm + torch.randn_like(snd_norm) * 1e-9
-                    tmp = self.mbfx_layer.forward(snd_norm.cpu(), pred[i])
-                    rec[i] = tmp.clone()
-                target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(
-                    torch.abs(rec))
-                spec_loss = self.spectral_loss(pred_normalized, target_normalized)
-                features = self.compute_features(pred_normalized)
-                feat_loss = self.feat_loss(features, feat)
-                spectral_loss = self.feat_weight*feat_loss + self.mrstft_weight*spec_loss
-            else:
-                spectral_loss = 0
-                spec_loss = 0
-                feat_loss = 0
-            self.logger.experiment.add_scalar("Feature_loss/Train",
-                                              feat_loss, global_step=self.global_step)
-            self.logger.experiment.add_scalar("MRSTFT_loss/Train",
-                                              spec_loss, global_step=self.global_step)
-            self.logger.experiment.add_scalar("Total_Spectral_loss/Train",
-                                              spectral_loss, global_step=self.global_step)
-            if not self.out_of_domain:
-                total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
-            else:
-                total_loss = spectral_loss + self.penalty_0*penalty_0 + self.penalty_1*penalty_1
-            self.logger.experiment.add_scalar("Total_loss/Train", total_loss, global_step=self.global_step)
-            # print("MAYBE", target_normalized==pred_normalized)
-            return total_loss
+                clean, processed, feat = batch
+                conditioning = None
+        batch_size = processed.shape[0]
+        pred = self.forward(processed, feat, conditioning=conditioning)
+        penalty_0 = torch.mean(-1 * torch.log10(pred*0.99))
+        penalty_1 = torch.mean(-1 * torch.log10(1 - 0.99*pred))
+        if not self.out_of_domain:
+            loss = self.loss(pred, label)
+            # loss = 0
+            self.logger.experiment.add_scalar("Param_loss/Train", loss, global_step=self.global_step)
+            scalars = {}
+            for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
+                scalars[f'{i}'] = val
+            self.logger.experiment.add_scalars("Param_distance/Train", scalars, global_step=self.global_step)
+            if self.loss_stamps is not None:
+                # TODO: could be moved to optimizers
+                if self.trainer.current_epoch < self.loss_stamps[0]:
+                    self.loss_weights = [1, 0]
+                elif self.trainer.current_epoch < self.loss_stamps[1]:
+                    weight = (self.trainer.global_step - (self.loss_stamps[0] * num_steps_per_epoch)) \
+                             / ((self.loss_stamps[1] - self.loss_stamps[0]) * num_steps_per_epoch)
+                    self.loss_weights = [1 - weight, weight]
+                elif self.trainer.current_epoch >= self.loss_stamps[1]:
+                    self.loss_weights = [0, 1]
+        if self.loss_weights[1] != 0 or self.out_of_domain:
+            pred = pred.to("cpu")
+            self.pred = pred
+            self.pred.retain_grad()
+            rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)
+            for (i, snd) in enumerate(clean):
+                snd_norm = snd / torch.max(torch.abs(snd))
+                snd_norm = snd_norm + torch.randn_like(snd_norm) * 1e-9
+                tmp = self.mbfx_layer.forward(snd_norm.cpu(), pred[i])
+                rec[i] = tmp.clone()
+            target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(
+                torch.abs(rec))
+            spec_loss = self.spectral_loss(pred_normalized, target_normalized)
+            features = self.compute_features(pred_normalized)
+            feat_loss = self.feat_loss(features, feat)
+            spectral_loss = self.feat_weight*feat_loss + self.mrstft_weight*spec_loss
+        else:
+            spectral_loss = 0
+            spec_loss = 0
+            feat_loss = 0
+        self.logger.experiment.add_scalar("Feature_loss/Train",
+                                          feat_loss, global_step=self.global_step)
+        self.logger.experiment.add_scalar("MRSTFT_loss/Train",
+                                          spec_loss, global_step=self.global_step)
+        self.logger.experiment.add_scalar("Total_Spectral_loss/Train",
+                                          spectral_loss, global_step=self.global_step)
+        if not self.out_of_domain:
+            total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
+        else:
+            total_loss = spectral_loss + self.penalty_0*penalty_0 + self.penalty_1*penalty_1
+        self.logger.experiment.add_scalar("Total_loss/Train", total_loss, global_step=self.global_step)
+        # print("MAYBE", target_normalized==pred_normalized)
+        return total_loss
 
     def on_after_backward(self) -> None:
         pass
 
-    def validation_step(self, batch, batch_idx, dataloader_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
+    def validation_step(self, batch, batch_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
         if not self.out_of_domain:
             if self.with_film:
                 clean, processed, feat, label, conditioning = batch
@@ -414,12 +359,13 @@ class CAFx(pl.LightningModule):
         if not self.out_of_domain:
             if self.with_film:
                 clean, processed, feat, label, conditioning = next(iter(self.trainer.val_dataloaders[0]))
+                conditioning = conditioning.to(self.device)
             else:
                 clean, processed, feat, label = next(iter(self.trainer.val_dataloaders[0]))
                 conditioning = None
         else:
             clean, processed, feat = next(iter(self.trainer.val_dataloaders[0]))
-        pred = self.forward(processed.to(self.device), feat.to(self.device), conditioning=conditioning.to(self.device))
+        pred = self.forward(processed.to(self.device), feat.to(self.device), conditioning=conditioning)
         pred = pred.to("cpu")
         rec = torch.zeros(clean.shape[0], clean.shape[-1], device=self.device)  # TODO: fix hardcoded value
         features = self.compute_features(processed[:, 0, :].to(self.device))

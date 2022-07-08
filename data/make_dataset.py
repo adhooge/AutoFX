@@ -8,10 +8,10 @@ import sys
 
 from tqdm import tqdm
 
-import config as c
+import source.config as c
 import pandas as pd
 
-import util
+import source.util as util
 import functional
 from soundsample import SoundSample
 import pickle

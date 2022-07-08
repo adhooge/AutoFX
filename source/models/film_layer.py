@@ -7,9 +7,10 @@ class FilmLayer(nn.Module):
         super(FilmLayer, self).__init__()
         self.input_size = input_size
         self.output_size = output_size
-        self.linear = nn.Linear(self.input_size, 2 * self.output_size)      # for bias and slope
+        self.linear1 = nn.Linear(self.input_size, self.output_size)
+        self.linear2 = nn.Linear(self.input_size, self.output_size)
 
     def forward(self, x):
-        out = self.linear(x)
-        alpha, beta = torch.chunk(out, 2, -1)
-        return alpha, beta
+        gamma = self.linear1(x)
+        beta = self.linear2(x)
+        return gamma, beta

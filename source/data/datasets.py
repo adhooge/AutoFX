@@ -95,13 +95,17 @@ class FeatureInDomainDataset(Dataset):
         features = self.data.iloc[item, self.feat_columns]
         if self.conditioning:
             conditioning = self.data.iloc[item, -1]
+            conditioning = torch.tensor(conditioning, dtype=torch.float)
         else:
             conditioning = None
         features = torch.Tensor(features)
         features = self.scaler.transform(features)
         # print(features)
         if self.validation:
-            return cln_pad, prc_pad, features, params, conditioning
+            if self.conditioning:
+                return cln_pad, prc_pad, features, params, conditioning
+            else:
+                return cln_pad, prc_pad, features, params
         else:
             return features, params
 
@@ -159,12 +163,15 @@ class FeatureOutDomainDataset(Dataset):
                 features = self.data.iloc[i, :]
                 if self.conditioning:
                     features = features[:-1]
-                    conditioning = features[-1]
+                    conditioning = torch.tensor(features[-1], dtype=torch.float)
                 else:
                     conditioning = None
                 features = torch.Tensor(features)
                 features = self.scaler.transform(features)
-                return cln_pad, prc_pad, features, conditioning
+                if self.conditioning:
+                    return cln_pad, prc_pad, features, conditioning
+                else:
+                    return cln_pad, prc_pad, features
         else:
             cln_snd_path = self.clean_path / (self.fx2clean.iloc[item, 1] + '.wav')
             fx_snd_path = self.processed_path / (self.fx2clean.iloc[item, 0] + '.wav')
@@ -188,7 +195,10 @@ class FeatureOutDomainDataset(Dataset):
                 conditioning = None
             features = torch.Tensor(features)
             features = self.scaler.transform(features)
-            return cln_pad, prc_pad, features, conditioning
+            if self.conditioning:
+                return cln_pad, prc_pad, features, conditioning
+            else:
+                return cln_pad, prc_pad, features
 
     @property
     def target_classes(self):

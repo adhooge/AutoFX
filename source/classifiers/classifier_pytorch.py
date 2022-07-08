@@ -1,6 +1,6 @@
 import pathlib
 import pickle
-from typing import Any
+from typing import Any, Optional
 
 import pandas as pd
 import torch
@@ -124,9 +124,9 @@ class MLPClassifier(pl.LightningModule):
     def training_step(self, batch, batch_idx, *args, **kwargs) -> STEP_OUTPUT:
         feat, label = batch
         pred = self.forward(feat)
-        loss = self.loss(pred, label)
-        self.log("train_loss", loss)
-        self.logger.experiment.add_scalar("Cross-entropy loss", loss, global_step=self.global_step)
+        loss = self.loss(torch.log(pred), label)
+        self.log("loss/Train", loss)
+        self.logger.experiment.add_scalar("Cross-entropy loss/Train", loss, global_step=self.global_step)
         classes = MLPClassifier._to_one_hot(pred, self.output_size)
         self.prec.reset()
         self.accuracy.reset()
@@ -137,15 +137,15 @@ class MLPClassifier(pl.LightningModule):
         self.recall.update((classes, label))
         # self.confusion_matrix.update((classes, label))
         precision = self.prec.compute()
-        self.logger.experiment.add_scalars("Metrics/Precision",
+        self.logger.experiment.add_scalars("Metrics/Precision_Train",
                                            dict(zip(util.CLASSES, precision)),
                                            global_step=self.global_step)
         accuracy = self.accuracy.compute()
-        self.logger.experiment.add_scalar("Metrics/Accuracy",
+        self.logger.experiment.add_scalar("Metrics/Accuracy_Train",
                                           accuracy,
                                           global_step=self.global_step)
         recall = self.recall.compute()
-        self.logger.experiment.add_scalars("Metrics/Recall",
+        self.logger.experiment.add_scalars("Metrics/Recall_Train",
                                            dict(zip(util.CLASSES, recall)),
                                            global_step=self.global_step)
         # confusion_matrix = self.confusion_matrix.compute()
@@ -154,6 +154,34 @@ class MLPClassifier(pl.LightningModule):
         # self.logger.experiment.add_figure("Metrics/Confusion_matrix",
         #                                  fig, global_step=self.global_step)
         return loss
+
+    def validation_step(self, batch, batch_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
+        feat, label = batch
+        pred = self.forward(feat)
+        loss = self.loss(torch.log(pred), label)
+        self.log("loss/test", loss)
+        self.logger.experiment.add_scalar("Cross-entropy loss/test", loss, global_step=self.global_step)
+        classes = MLPClassifier._to_one_hot(pred, self.output_size)
+        self.prec.reset()
+        self.accuracy.reset()
+        self.recall.reset()
+        self.confusion_matrix.reset()
+        self.prec.update((classes, label))
+        self.accuracy.update((classes, label))
+        self.recall.update((classes, label))
+        # self.confusion_matrix.update((classes, label))
+        precision = self.prec.compute()
+        self.logger.experiment.add_scalars("Metrics/Precision_test",
+                                           dict(zip(util.CLASSES, precision)),
+                                           global_step=self.global_step)
+        accuracy = self.accuracy.compute()
+        self.logger.experiment.add_scalar("Metrics/Accuracy_test",
+                                          accuracy,
+                                          global_step=self.global_step)
+        recall = self.recall.compute()
+        self.logger.experiment.add_scalars("Metrics/Recall_test",
+                                           dict(zip(util.CLASSES, recall)),
+                                           global_step=self.global_step)
 
     def configure_optimizers(self):
         if self.solver == 'adam':
@@ -241,7 +269,7 @@ class FeatureExtractor(nn.Module):
         super(FeatureExtractor, self).__init__()
         self.spectrogram = torchaudio.transforms.Spectrogram(8192, hop_length=512, power=None)
 
-    def forward(self, audio, rate: int = 22050):
+    def forward(self, audio, rate: int = 22050, n_mfcc: int = None, transform = None):
         """
 
         :param audio: (batch, num_samples), mono only for now
@@ -249,25 +277,31 @@ class FeatureExtractor(nn.Module):
         :return:
         """
         # add some noise
-        audio = audio + torch.randn_like(audio) * (torch.max(torch.abs(audio)) / 1000)
+        # audio = audio + torch.randn_like(audio) * (torch.max(torch.abs(audio)) / 1000)
+        mfcc_means, mfcc_maxs = Ft.mfcc_torch(audio, rate, num_coeff=n_mfcc, transform=transform)
         stft = self.spectrogram(audio)
         mag = torch.abs(stft)
         feat = FeatureExtractor._get_features(mag, rate)
         pitch = Ft.pitch_curve(audio, rate)
         pitch = torch.mean(pitch, dim=-1)
         func = FeatureExtractor._get_functionals(feat, pitch)
+        func = torch.cat([func, mfcc_means, mfcc_maxs], dim=1)
         return func
 
-    def process_folder(self, folder_path: str):
+    def process_folder(self, folder_path: str, n_mfcc: int = 10, add_noise: bool = False):
         folder_path = pathlib.Path(folder_path)
         out = pd.DataFrame([])
         for f in tqdm.tqdm(folder_path.rglob('*.wav')):
             f = pathlib.Path(f)
             audio, rate = torchaudio.load(f)
+            if add_noise:
+                audio = audio + torch.randn_like(audio)*1e-6
             fx = f.name.split('-')[2][1:-1]
             fx = util.idmt_fx2class_number(util.idmt_fx(fx))
+            mfcc_transform = torchaudio.transforms.MFCC(sample_rate=rate,
+                                                        n_mfcc=n_mfcc)
             try:
-                func = self.forward(audio, rate)
+                func = self.forward(audio, rate, n_mfcc=n_mfcc, transform=mfcc_transform)
             except ValueError:
                 print(f"One std was zero, this will return NaNs. File was {f}")
             if torch.isnan(func).any():
