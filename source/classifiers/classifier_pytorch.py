@@ -1,6 +1,6 @@
 import pathlib
 import pickle
-from typing import Any
+from typing import Any, Optional
 
 import pandas as pd
 import torch
@@ -124,9 +124,9 @@ class MLPClassifier(pl.LightningModule):
     def training_step(self, batch, batch_idx, *args, **kwargs) -> STEP_OUTPUT:
         feat, label = batch
         pred = self.forward(feat)
-        loss = self.loss(pred, label)
-        self.log("train_loss", loss)
-        self.logger.experiment.add_scalar("Cross-entropy loss", loss, global_step=self.global_step)
+        loss = self.loss(torch.log(pred), label)
+        self.log("loss/Train", loss)
+        self.logger.experiment.add_scalar("Cross-entropy loss/Train", loss, global_step=self.global_step)
         classes = MLPClassifier._to_one_hot(pred, self.output_size)
         self.prec.reset()
         self.accuracy.reset()
@@ -137,15 +137,15 @@ class MLPClassifier(pl.LightningModule):
         self.recall.update((classes, label))
         # self.confusion_matrix.update((classes, label))
         precision = self.prec.compute()
-        self.logger.experiment.add_scalars("Metrics/Precision",
+        self.logger.experiment.add_scalars("Metrics/Precision_Train",
                                            dict(zip(util.CLASSES, precision)),
                                            global_step=self.global_step)
         accuracy = self.accuracy.compute()
-        self.logger.experiment.add_scalar("Metrics/Accuracy",
+        self.logger.experiment.add_scalar("Metrics/Accuracy_Train",
                                           accuracy,
                                           global_step=self.global_step)
         recall = self.recall.compute()
-        self.logger.experiment.add_scalars("Metrics/Recall",
+        self.logger.experiment.add_scalars("Metrics/Recall_Train",
                                            dict(zip(util.CLASSES, recall)),
                                            global_step=self.global_step)
         # confusion_matrix = self.confusion_matrix.compute()
@@ -154,6 +154,34 @@ class MLPClassifier(pl.LightningModule):
         # self.logger.experiment.add_figure("Metrics/Confusion_matrix",
         #                                  fig, global_step=self.global_step)
         return loss
+
+    def validation_step(self, batch, batch_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
+        feat, label = batch
+        pred = self.forward(feat)
+        loss = self.loss(torch.log(pred), label)
+        self.log("loss/test", loss)
+        self.logger.experiment.add_scalar("Cross-entropy loss/test", loss, global_step=self.global_step)
+        classes = MLPClassifier._to_one_hot(pred, self.output_size)
+        self.prec.reset()
+        self.accuracy.reset()
+        self.recall.reset()
+        self.confusion_matrix.reset()
+        self.prec.update((classes, label))
+        self.accuracy.update((classes, label))
+        self.recall.update((classes, label))
+        # self.confusion_matrix.update((classes, label))
+        precision = self.prec.compute()
+        self.logger.experiment.add_scalars("Metrics/Precision_test",
+                                           dict(zip(util.CLASSES, precision)),
+                                           global_step=self.global_step)
+        accuracy = self.accuracy.compute()
+        self.logger.experiment.add_scalar("Metrics/Accuracy_test",
+                                          accuracy,
+                                          global_step=self.global_step)
+        recall = self.recall.compute()
+        self.logger.experiment.add_scalars("Metrics/Recall_test",
+                                           dict(zip(util.CLASSES, recall)),
+                                           global_step=self.global_step)
 
     def configure_optimizers(self):
         if self.solver == 'adam':
