@@ -111,11 +111,13 @@ class Filter(object):
         height = 1
         if equal:
             height = 2 / (stop - start)
-        triangular_filter = torch.empty(stop - start)
-        rising = torch.linspace(0, height, (mid - start) - 1)
-        triangular_filter[:mid - start] = rising
-        falling = torch.linspace(height, 0, (stop - mid) - 1)
-        triangular_filter[mid - start:] = falling
+        triangular_filter = torch.empty((int(stop - start),))
+        rising = torch.linspace(0, height - int(height/(mid-start)),
+                                int(mid - start))
+        triangular_filter[:int(mid - start)] = rising
+        falling = torch.linspace(height, 0 + int(height/(stop - mid)),
+                                 int(stop - mid))
+        triangular_filter[int(mid - start):] = falling
         return triangular_filter
 
     def __init__(self, num_fft_bins, rate, bands: int = 24,
@@ -132,6 +134,7 @@ class Filter(object):
         self.rate = rate
         fmax = rate / 2 if fmax > rate / 2 else fmax
         frequencies = self.frequencies(bands, fmin, fmax)
+        print(frequencies)
         # conversion factor for mapping of frequencies to spectrogram bins
         factor = (rate / 2.0) / num_fft_bins
         # map frequencies to spectro bins
@@ -142,9 +145,10 @@ class Filter(object):
         bands = len(frequencies) - 2
         self.filterbank = torch.zeros((num_fft_bins, bands), dtype=torch.float)
         for band in range(bands):
+            print(frequencies)
             start, mid, stop = frequencies[band:band + 3]
             triangular_filter = self.triangular_filter(start, mid, stop, equal)
-            self.filterbank[start:stop, band] = triangular_filter
+            self.filterbank[int(start):int(stop), band] = triangular_filter
 
 
 class Spectrogram(object):
