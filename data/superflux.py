@@ -330,7 +330,7 @@ class Onset(object):
     """
     Onset Class.
     """
-    def __init__(self, activations, fps, online=True, sep=''):
+    def __init__(self, activations, fps, online=False, sep=''):
         """
         Creates a new Onset object instance with the given activations of the
         ODF (OnsetDetectionFunction). The activations can be read from a file.
