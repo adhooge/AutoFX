@@ -134,7 +134,7 @@ class Filter(object):
         self.rate = rate
         fmax = rate / 2 if fmax > rate / 2 else fmax
         frequencies = self.frequencies(bands, fmin, fmax)
-        print(frequencies)
+        # print(frequencies)
         # conversion factor for mapping of frequencies to spectrogram bins
         factor = (rate / 2.0) / num_fft_bins
         # map frequencies to spectro bins
@@ -145,7 +145,7 @@ class Filter(object):
         bands = len(frequencies) - 2
         self.filterbank = torch.zeros((num_fft_bins, bands), dtype=torch.float)
         for band in range(bands):
-            print(frequencies)
+            # print(frequencies)
             start, mid, stop = frequencies[band:band + 3]
             triangular_filter = self.triangular_filter(start, mid, stop, equal)
             self.filterbank[int(start):int(stop), band] = triangular_filter
@@ -190,7 +190,7 @@ class Spectrogram(object):
                              "taking the logarithm")
         self.hop_size = rate // fps
         self.num_frames = audio.shape[-1] // self.hop_size
-        self.num_fft_bins = int(frame_size / 2)
+        self.num_fft_bins = int(frame_size / 2) + 1
         self.num_bins = self.num_fft_bins
         if filterbank is None:
             self.spec = torch.empty((self.num_frames, self.num_fft_bins), dtype=torch.float32)
@@ -203,13 +203,16 @@ class Spectrogram(object):
         if lgd:
             warnings.warn("Local group delay not implemented yet.", UserWarning)
         self.window = torch.hann_window(frame_size)
-        transform = torchaudio.transforms.Spectrogram(self.num_fft_bins, frame_size, self.hop_size, power=1)
+        transform = torchaudio.transforms.Spectrogram(frame_size, frame_size, self.hop_size, power=1)
         stft = transform(audio)
         stft = torch.abs(stft)
+        # print(stft.shape)
+        # print(filterbank.shape)
+        # print(stft.T.shape)
         if filterbank is None:
             self.spec = stft
         else:
-            self.spec = stft.T @ filterbank
+            self.spec = stft[0].T @ filterbank
         if log:
             self.spec = torch.log10(mul * self.spec + add)
 
