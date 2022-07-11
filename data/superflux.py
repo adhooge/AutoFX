@@ -244,10 +244,10 @@ class SpectralODF(object):
         # determine the number off diff frames
         if diff_frames is None:
             # get the first sample with a higher magnitude than given ratio
-            sample = torch.argmax(self.s.window > ratio)
-            diff_samples = self.s.window.size / 2 - sample
+            sample = torch.argmax(torch.where(self.s.window > ratio, 1, 0))
+            diff_samples = len(self.s.window) / 2 - sample
             # convert to frames
-            diff_frames = int(round(diff_samples / self.s.hop_size))
+            diff_frames = int(diff_samples / self.s.hop_size)
             # set the minimum to 1
             if diff_frames < 1:
                 diff_frames = 1
