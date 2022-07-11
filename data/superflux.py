@@ -52,10 +52,14 @@ def maximum_filter1d(input, size, mode, origin):
         raise NotImplementedError("Only constant zero padding is available now")
     pad_length_start = origin + size // 2
     pad_length_end = size // 2 - origin
+    print(pad_length_end, pad_length_start)
     # Prepare tensor
     padded_input = torch.zeros((input.shape[0], input.shape[1] + pad_length_start + pad_length_end))
     # fill values
-    padded_input[:, pad_length_start:-pad_length_end] = input
+    if pad_length_end == 0:
+        padded_input[:, pad_length_start:] = input
+    else:
+        padded_input[:, pad_length_start:-pad_length_end] = input
     output = torch.nn.functional.max_pool1d(padded_input, size, stride=1)
     return output
 
@@ -73,10 +77,14 @@ def uniform_filter1d(input, size, mode, origin):
         raise NotImplementedError("Only constant zero padding is available now")
     pad_length_start = origin + size // 2
     pad_length_end = size // 2 - origin
+    print(pad_length_end, pad_length_start)
     # Prepare tensor
     padded_input = torch.zeros((input.shape[0], input.shape[1] + pad_length_start + pad_length_end))
     # fill values
-    padded_input[:, pad_length_start:-pad_length_end] = input
+    if pad_length_end == 0:
+        padded_input[:, pad_length_start:] = input
+    else:
+        padded_input[:, pad_length_start:-pad_length_end] = input
     output = torch.nn.functional.avg_pool1d(padded_input, size, stride=1)
     return output
 
@@ -343,6 +351,7 @@ class Onset(object):
         self.fps = fps              # frame rate of the activation function
         self.online = online        # online peak-picking
         self.detections = []        # list of detected onsets (in seconds)
+        self.detect_activations = []
         # set / load activations
         if isinstance(activations, torch.Tensor):
             # activations are given as an array
@@ -386,31 +395,37 @@ class Onset(object):
         # moving maximum
         max_length = pre_max + post_max + 1
         max_origin = int(math.floor((pre_max - post_max) / 2))
-        mov_max = maximum_filter1d(self.activations, max_length,
+        mov_max = maximum_filter1d(self.activations[None, :], max_length,
                                    mode='constant', origin=max_origin)
         # moving average
         avg_length = pre_avg + post_avg + 1
         avg_origin = int(math.floor((pre_avg - post_avg) / 2))
-        mov_avg = uniform_filter1d(self.activations, avg_length,
+        mov_avg = uniform_filter1d(self.activations[None, :], avg_length,
                                    mode='constant', origin=avg_origin)
         # detections are activation equal to the moving maximum
         detections = self.activations * (self.activations == mov_max)
         # detections must be greater or equal than the mov. average + threshold
         detections *= (detections >= mov_avg + threshold)
         # convert detected onsets to a list of timestamps
-        detections = torch.nonzero(detections)[0] / self.fps
+        onset_activations = self.activations[torch.nonzero(detections[0])]
+        onset_activations = onset_activations[:, 0]
+        detections = torch.nonzero(detections[0]) / self.fps
+        detections = detections[:, 0]
         # shift if necessary
         if delay != 0:
             detections += delay
         # always use the first detection and all others if none was reported
         # within the last `combine` seconds
-        if detections.size > 1:
+        if len(detections) > 1:
             # filter all detections which occur within `combine` seconds
             combined_detections = detections[1:][torch.diff(detections) > combine]
+            combined_activations = onset_activations[1:][torch.diff(detections) > combine]
             # add them after the first detection
-            self.detections = torch.append(detections[0], combined_detections)
+            self.detections = torch.cat([detections[0][None, None], combined_detections[None, :]], dim=1)
+            self.detect_activations = torch.cat([onset_activations[0][None, None], combined_activations[None, :]], dim=1)
         else:
             self.detections = detections
+            self.detect_activations = onset_activations
 
     def write(self, filename):
         """
