@@ -280,7 +280,7 @@ class SpectralODF(object):
         if diff_frames < 1:
             raise ValueError("number of diff_frames must be >= 1")
         # widen the spectrogram in frequency dimension by `max_bins`
-        max_spec = maximum_filter(spec, size=[1, max_bins])
+        max_spec = maximum_filter(spec[None, :, :], size=[1, max_bins])
         # calculate the diff
         diff_spec[diff_frames:] = spec[diff_frames:] - max_spec[0:-diff_frames]
         # keep only positive values
