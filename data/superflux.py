@@ -9,15 +9,33 @@ import numpy as np
 import torch, torchaudio
 
 
-def maximum_filter(input, size):
+def maximum_filter(input, size, mode: str='constant', origin: list=[0, 0]):
     """
-    Apply maximum filtering with kernels of size `size`.
+    Apply maximum filtering with kernels of size `size` like
+    scipy.ndimage.maximum_filter
 
     :param input:
     :param size: tuple representing the size of the filter kernels.
     :return:
     """
-    max_input = torch.nn.functional.max_pool2d(input, size, stride=1)
+    if mode != 'constant':
+        raise NotImplementedError("Only constant zero padding is available now")
+    tensor_size = torch.tensor(size)
+    origin = torch.tensor(origin)
+    pad_length_start = origin + tensor_size // 2
+    pad_length_end = tensor_size // 2 - origin
+    # Prepare tensor
+    padded_input = torch.zeros((1, input.shape[1] + pad_length_start[0] + pad_length_end[0],
+                                input.shape[2] + pad_length_start[1] + pad_length_end[1]))
+    # fill values
+    if pad_length_start[0] == 0 and pad_length_end[0] == 0:
+        padded_input[:, :, pad_length_start[1]:-pad_length_end[1]] = input
+    elif pad_length_start[1] == 0 and pad_length_end[1] == 0:
+        padded_input[:, pad_length_start[0]:-pad_length_end[0], :] = input
+    else:
+        padded_input[:, pad_length_start[0]:-pad_length_end[0],
+                     pad_length_start[1]:-pad_length_end[1]] = input
+    max_input = torch.nn.functional.max_pool2d(padded_input, size, stride=1)
     return max_input
 
 
@@ -282,7 +300,10 @@ class SpectralODF(object):
         # widen the spectrogram in frequency dimension by `max_bins`
         max_spec = maximum_filter(spec[None, :, :], size=[1, max_bins])
         # calculate the diff
-        diff_spec[diff_frames:] = spec[diff_frames:] - max_spec[0:-diff_frames]
+        print(diff_frames)
+        print(spec.shape)
+        print(max_spec.shape)
+        diff_spec[diff_frames:] = spec[diff_frames:] - max_spec[0, 0:-diff_frames]
         # keep only positive values
         diff_spec = torch.nn.functional.relu(diff_spec)
         # return diff spec
