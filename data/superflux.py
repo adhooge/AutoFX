@@ -52,7 +52,6 @@ def maximum_filter1d(input, size, mode, origin):
         raise NotImplementedError("Only constant zero padding is available now")
     pad_length_start = origin + size // 2
     pad_length_end = size // 2 - origin
-    print(pad_length_end, pad_length_start)
     # Prepare tensor
     padded_input = torch.zeros((input.shape[0], input.shape[1] + pad_length_start + pad_length_end))
     # fill values
@@ -77,7 +76,6 @@ def uniform_filter1d(input, size, mode, origin):
         raise NotImplementedError("Only constant zero padding is available now")
     pad_length_start = origin + size // 2
     pad_length_end = size // 2 - origin
-    print(pad_length_end, pad_length_start)
     # Prepare tensor
     padded_input = torch.zeros((input.shape[0], input.shape[1] + pad_length_start + pad_length_end))
     # fill values
@@ -230,7 +228,7 @@ class Spectrogram(object):
             warnings.warn("Local group delay not implemented yet.", UserWarning)
         self.window = torch.hann_window(frame_size)
         transform = torchaudio.transforms.Spectrogram(frame_size, frame_size, self.hop_size, power=1)
-        stft = transform(audio)
+        stft = transform(audio.to('cpu'))
         stft = torch.abs(stft)
         # print(stft.shape)
         # print(filterbank.shape)
@@ -308,9 +306,6 @@ class SpectralODF(object):
         # widen the spectrogram in frequency dimension by `max_bins`
         max_spec = maximum_filter(spec[None, :, :], size=[1, max_bins])
         # calculate the diff
-        print(diff_frames)
-        print(spec.shape)
-        print(max_spec.shape)
         diff_spec[diff_frames:] = spec[diff_frames:] - max_spec[0, 0:-diff_frames]
         # keep only positive values
         diff_spec = torch.nn.functional.relu(diff_spec)
