@@ -15,7 +15,7 @@ def main(parser):
     out_path = pathlib.Path(args['output_path'])
     df = pd.read_csv(in_path / "data.csv")
     for file in tqdm(in_path.rglob('*.wav')):
-        conditioning = df.loc[df["Unnamed: 0"] == file.stem, 'conditioning']
+        conditioning = df.loc[df["Unnamed: 0"] == file.stem, 'fx_class']
         conditioning = str(conditioning.item())
         if not (out_path / conditioning).exists():
             os.mkdir(out_path / conditioning)
