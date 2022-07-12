@@ -576,6 +576,8 @@ def str2pdb(fx: str):
     match fx:
         case "chorus":
             return pdb.Chorus
+        case "delay":
+            return pdb.Delay
         case _:
             raise NotImplementedError
 
