@@ -9,6 +9,7 @@ import soundfile as sf
 import data.features as Ft
 import data.functional as Fc
 from tqdm import tqdm
+from data import superflux
 import pandas as pd
 
 import source.util as util
@@ -19,7 +20,10 @@ FEATURES = ['f-phase_fft_max', 'f-phase_freq', 'f-rms_fft_max', 'f-rms_freq',
             'f-phase_delta_fft_max', 'f-phase_delta_freq', 'f-phase_delta_fft_max2', 'f-phase_delta_freq2',
             'f-pitch_fft_max', 'f-pitch_freq', 'f-pitch_delta_fft_max', 'f-pitch_delta_freq',
             'f-pitch_fft_max2', 'f-pitch_freq2', 'f-pitch_delta_fft_max2', 'f-pitch_delta_freq2',
-            'f-rms_std', 'f-rms_delta_std', 'f-rms_skew', 'f-rms_delta_skew'
+            'f-rms_std', 'f-rms_delta_std', 'f-rms_skew', 'f-rms_delta_skew',
+            'f-onset0', 'f-onset1', 'f-onset2',  'f-onset3', 'f-onset4',
+            'f-activation0', 'f-activation1', 'f-activation2',
+            'f-activation3', 'f-activation4'
             ]
 
 FEAT2APP = ['f-rms_std', 'f-rms_delta_std', 'f-rms_skew', 'f-rms_delta_skew']
@@ -31,6 +35,8 @@ def main(parser):
     out_path = pathlib.Path(args['output_path'])
     out_csv = out_path / (args['name'] + '.csv')
     out_pkl = out_path / (args['name'] + '.pkl')
+    filt = superflux.Filter(2048 // 2 + 1, rate=22050, bands=24, fmin=30, fmax=17000, equal=False)
+    filterbank = filt.filterbank
     if (in_path / "params.csv").exists():
         df = pd.read_csv(in_path / "params.csv")
     else:
@@ -118,6 +124,9 @@ def main(parser):
                                 rms_std.item(), rms_delta_std.item(),
                                 rms_skew.item(), rms_delta_skew.item()
                                 ]
+                    onsets, activations = Ft.onset_detection(audio, rate, filterbank)
+                    features = features + onsets.detach().numpy().tolist()
+                    features = features + activations.detach().numpy().tolist()
                     if 'Unnamed: 0' in df.columns:
                         df.loc[df['Unnamed: 0'] == file.stem,
                                FEATURES] = features
