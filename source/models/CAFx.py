@@ -22,6 +22,7 @@ import data.functional as Fc
 import data.features as Ft
 import torchaudio
 import source.util as util
+from data import superflux
 
 
 class CAFx(pl.LightningModule):
@@ -74,6 +75,8 @@ class CAFx(pl.LightningModule):
                                 pitch_fft_max[:, 1], pitch_freq[:, 1] / 512,
                                 rms_std, rms_delta_std, rms_skew, rms_delta_skew
                                 ), dim=1)
+        onsets, activations = Ft.onset_detection(audio, self.rate, self.filterbank)
+        features = torch.stack((features, onsets, activations), dim=1)
         # print("BEFORE SCALING", features[:, 20])
         out = self.scaler.transform(features)
         # print("OUUUUUUT", out[:, 20])
@@ -103,6 +106,8 @@ class CAFx(pl.LightningModule):
         self.scaler = TorchStandardScaler()
         self.scaler.mean = torch.tensor(scaler_mean, device=torch.device('cuda'))
         self.scaler.std = torch.tensor(scaler_std, device=torch.device('cuda'))
+        filt = superflux.Filter(2048 // 2 + 1, rate=22050, bands=24, fmin=30, fmax=17000, equal=False)
+        self.filterbank = filt.filterbank
         print(self.scaler.mean)
         print(self.scaler.std)
         if reverb:
@@ -335,8 +340,9 @@ class CAFx(pl.LightningModule):
                 #    torch.abs(rec))
             pred_normalized = rec / torch.max(torch.abs(rec), dim=-1, keepdim=True)[0]
             spec_loss = self.spectral_loss(pred_normalized, processed[:, 0, :])
-            features = self.compute_features(pred_normalized)
-            feat_loss = self.loss(features, feat)
+            #features = self.compute_features(pred_normalized)
+            #feat_loss = self.loss(features, feat)
+            feat_loss = 0
             spectral_loss = (spec_loss + 1 * feat_loss) / 2
         else:
             spectral_loss = 0
@@ -368,14 +374,14 @@ class CAFx(pl.LightningModule):
         pred = self.forward(processed.to(self.device), feat.to(self.device), conditioning=conditioning)
         pred = pred.to("cpu")
         rec = torch.zeros(clean.shape[0], clean.shape[-1], device=self.device)  # TODO: fix hardcoded value
-        features = self.compute_features(processed[:, 0, :].to(self.device))
+        # features = self.compute_features(processed[:, 0, :].to(self.device))
         for (i, snd) in enumerate(clean):
             rec[i] = self.mbfx_layer.forward(snd, pred[i])
         for l in range(self.audiologs):
             self.logger.experiment.add_text(f"Audio/{l}/Original_feat",
                                             str(feat[l]), global_step=self.global_step)
-            self.logger.experiment.add_text(f"Audio/{l}/Predicted_feat",
-                                            str(features[l]), global_step=self.global_step)
+            # self.logger.experiment.add_text(f"Audio/{l}/Predicted_feat",
+            #                                 str(features[l]), global_step=self.global_step)
             self.logger.experiment.add_audio(f"Audio/{l}/Original", processed[l] / torch.max(torch.abs(processed[l])),
                                              sample_rate=self.rate, global_step=self.global_step)
             self.logger.experiment.add_audio(f"Audio/{l}/Matched", rec[l] / torch.max(torch.abs(rec[l])),
