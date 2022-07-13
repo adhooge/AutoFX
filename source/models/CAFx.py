@@ -93,7 +93,7 @@ class CAFx(pl.LightningModule):
                  spectro_power: int = 2, mel_spectro: bool = True, mel_num_bands: int = 128,
                  penalty_1: float = 0, penalty_0: float = 0, feat_weight: float = 0.5, mrstft_weight: float = 0.5,
                  loss_stamps: list = None, freeze_layers: list = None,
-                 reverb: bool = False, with_film: bool = False):
+                 reverb: bool = False, with_film: bool = False, disable_features: bool=False):
         super().__init__()
         if isinstance(fx, str):
             fx = [util.str2pdb(fx)]
@@ -139,6 +139,9 @@ class CAFx(pl.LightningModule):
             fcl_size = 4096
         else:
             fcl_size = fft_size * 256 // hop_size
+        self.disable_features = disable_features
+        if disable_features:
+            cond_feat = 0
         self.fcl1 = nn.Linear(fcl_size + cond_feat, fcl_size // 2)
         self.fcl2 = nn.Linear(fcl_size//2, self.num_params)
         # self.fcl = nn.Linear(fcl_size + cond_feat, self.num_params)
@@ -221,7 +224,8 @@ class CAFx(pl.LightningModule):
             alphas, betas = None, None
         out = self.spectro(x)
         out = self.resnet(out, alphas, betas)
-        out = torch.cat((out, feat), dim=-1)
+        if not self.disable_features:
+            out = torch.cat((out, feat), dim=-1)
         out = self.fcl1(out)
         # print("before:", out)
         out = self.relu(out)
@@ -249,6 +253,8 @@ class CAFx(pl.LightningModule):
             else:
                 clean, processed, feat = batch
                 conditioning = None
+        if self.disable_features:
+            feat = None
         batch_size = processed.shape[0]
         pred = self.forward(processed, feat, conditioning=conditioning)
         penalty_0 = torch.mean(-1 * torch.log10(pred*0.99))
@@ -322,6 +328,8 @@ class CAFx(pl.LightningModule):
                 clean, processed, feat = batch
                 conditioning = None
         # clean = clean.to("cpu")
+        if self.disable_features:
+            feat = None
         batch_size = processed.shape[0]
         pred = self.forward(processed, feat, conditioning=conditioning)
         if not self.out_of_domain:
