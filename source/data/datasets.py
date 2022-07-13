@@ -30,8 +30,19 @@ class TorchStandardScaler:
 class FeatureInDomainDataset(Dataset):
     def __init__(self, data_path: str = None, validation: bool = False,
                  clean_path: str = None, processed_path: str = None,
-                 pad_length: int = None, reverb: bool=False,
-                 conditioning: bool=False):
+                 pad_length: int = None, reverb: bool = False,
+                 conditioning: bool = False, classes2keep: list = None):
+        """
+
+        :param data_path:
+        :param validation: Deprecated, to remove.
+        :param clean_path:
+        :param processed_path:
+        :param pad_length:
+        :param reverb:
+        :param conditioning:
+        :param classes2keep: Classes that should be kept for training.
+        """
         if validation and (clean_path is None or processed_path is None):
             raise ValueError("Clean and Processed required for validation dataset.")
         self.data_path = pathlib.Path(data_path)
@@ -65,6 +76,10 @@ class FeatureInDomainDataset(Dataset):
             self.pad_length = pad_length
         self.reverb = reverb
         self.conditioning = conditioning
+        # Keep only relevant classes
+        self.classes2keep = classes2keep
+        if classes2keep is not None:
+            self.data = self.data[self.data["fx_class"].isin(classes2keep)]
 
     def __len__(self):
         return len(self.data)
@@ -94,16 +109,19 @@ class FeatureInDomainDataset(Dataset):
         # print(params)
         features = self.data.iloc[item, self.feat_columns]
         if self.conditioning:
-            conditioning = self.data.iloc[item, -1]
+            conditioning = self.data.iloc[item, -12:-1]
             conditioning = torch.tensor(conditioning, dtype=torch.float)
+            fx_class = self.data.iloc[item, -1]
+            fx_class = torch.tensor(fx_class, dtype=torch.int)
         else:
             conditioning = None
+            fx_class = None
         features = torch.Tensor(features)
         features = self.scaler.transform(features)
         # print(features)
-        if self.validation:
+        if self.validation:         # TODO: remove that
             if self.conditioning:
-                return cln_pad, prc_pad, features, params, conditioning
+                return cln_pad, prc_pad, features, params, conditioning, fx_class
             else:
                 return cln_pad, prc_pad, features, params
         else:
@@ -123,11 +141,13 @@ class FeatureInDomainDataset(Dataset):
             out = torch.tensor(self.data[["conditioning"]].iloc[indices].values)
             return out.float()
 
+
 class FeatureOutDomainDataset(Dataset):
+    # TODO: Update for conditioning
     def __init__(self, data_path: str,
                  clean_path: str = None, processed_path: str = None,
                  pad_length: int = 35000, index_col: int = None,
-                 conditioning: bool = False):
+                 conditioning: bool = False, classes2keep: list = None):
         self.data_path = pathlib.Path(data_path)
         self.clean_path = pathlib.Path(clean_path) if clean_path is not None else clean_path
         self.processed_path = pathlib.Path(processed_path) if processed_path is not None else processed_path

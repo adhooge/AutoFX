@@ -336,6 +336,7 @@ def pitch_curve(audio, rate):
     f0 = torchaudio.functional.detect_pitch_frequency(audio, rate)
     return f0
 
+
 def rms_energy(audio, torch_compat: bool = False):
     if torch_compat:
         # TODO: make util function for better frame splitting
