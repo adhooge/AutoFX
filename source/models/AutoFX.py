@@ -31,6 +31,7 @@ CONDITIONING2FX = {0: 'dry', 0.1: 'delay', 0.2: 'delay', 0.3: 'reverb',
 
 FX_INDEX = {'modulation': 0, 'delay': 1}
 
+
 class AutoFX(pl.LightningModule):
     def compute_features(self, audio):
         audio = audio + torch.randn_like(audio) * 1e-6
@@ -186,8 +187,8 @@ class AutoFX(pl.LightningModule):
                                                                 power=spectro_power, n_mels=mel_num_bands)
         else:
             self.spectro = torchaudio.transforms.Spectrogram(n_fft=fft_size, hop_length=hop_size, power=spectro_power)
-        delay_layer = MBFxLayer(self.board[1], self.rate, self.param_range, fake_num_bands=self.num_bands)
-        modulation_layer = MBFxLayer(self.board[0], self.rate, self.param_range, fake_num_bands=self.num_bands)
+        delay_layer = MBFxLayer(self.board[1], self.rate, self.param_range_delay, fake_num_bands=self.num_bands)
+        modulation_layer = MBFxLayer(self.board[0], self.rate, self.param_range_modulation, fake_num_bands=self.num_bands)
         self.board_layers = [delay_layer, modulation_layer]
         self.inv_spectro = torchaudio.transforms.InverseSpectrogram(n_fft=fft_size, hop_length=hop_size)
         self.audiologs = audiologs
@@ -339,7 +340,6 @@ class AutoFX(pl.LightningModule):
                 conditioning = None
                 fx_class = None
         # clean = clean.to("cpu")
-        fx_index = FX_INDEX[CONDITIONING2FX[torch.argmax(conditioning, dim=-1)]]
         batch_size = processed.shape[0]
         pred = self.forward(processed, feat, conditioning=conditioning)
         if not self.out_of_domain:
