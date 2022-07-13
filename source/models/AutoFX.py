@@ -124,12 +124,12 @@ class AutoFX(pl.LightningModule):
         self.with_film = with_film
         if self.with_film:
             # Film layers for all resnet blocks
-            self.film1_1 = FilmLayer(1, 64)
-            self.film1_2 = FilmLayer(1, 64)
-            self.film2_1 = FilmLayer(1, 128)
-            self.film2_2 = FilmLayer(1, 128)
-            self.film3_1 = FilmLayer(1, 256)
-            self.film3_2 = FilmLayer(1, 256)
+            self.film1_1 = FilmLayer(11, 64)
+            self.film1_2 = FilmLayer(11, 64)
+            self.film2_1 = FilmLayer(11, 128)
+            self.film2_2 = FilmLayer(11, 128)
+            self.film3_1 = FilmLayer(11, 256)
+            self.film3_2 = FilmLayer(11, 256)
             nn.init.normal_(self.film1_1.linear1.weight, mean=1, std=0.1)
             nn.init.normal_(self.film1_1.linear2.weight, mean=0, std=0.1)
             nn.init.normal_(self.film1_2.linear1.weight, mean=1, std=0.1)
