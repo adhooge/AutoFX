@@ -104,8 +104,8 @@ class AutoFX(pl.LightningModule):
         if total_num_bands is None:
             total_num_bands = num_bands
         self.total_num_bands = total_num_bands
-        modulation = MultiBandFX(pdb.Chorus, total_num_bands, device=torch.device('cpu'))
-        delay = MultiBandFX(pdb.Delay, total_num_bands, device=torch.device('cpu'))
+        modulation = MultiBandFX([pdb.Chorus], total_num_bands, device=torch.device('cpu'))
+        delay = MultiBandFX([pdb.Delay], total_num_bands, device=torch.device('cpu'))
         self.board = [modulation, delay]
         # Modulation parameters (5) before Delay parameters (3)
         self.num_params = num_bands * modulation.total_num_params_per_band + num_bands * delay.total_num_params_per_band
