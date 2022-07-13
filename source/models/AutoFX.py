@@ -189,7 +189,7 @@ class AutoFX(pl.LightningModule):
             self.spectro = torchaudio.transforms.Spectrogram(n_fft=fft_size, hop_length=hop_size, power=spectro_power)
         delay_layer = MBFxLayer(self.board[1], self.rate, self.param_range_delay, fake_num_bands=self.num_bands)
         modulation_layer = MBFxLayer(self.board[0], self.rate, self.param_range_modulation, fake_num_bands=self.num_bands)
-        self.board_layers = [delay_layer, modulation_layer]
+        self.board_layers = [modulation_layer, delay_layer]
         self.inv_spectro = torchaudio.transforms.InverseSpectrogram(n_fft=fft_size, hop_length=hop_size)
         self.audiologs = audiologs
         self.tmp = None
@@ -351,9 +351,11 @@ class AutoFX(pl.LightningModule):
             self.logger.experiment.add_scalars("Param_distance/test", scalars, global_step=self.global_step)
         if self.loss_weights[1] != 0 or self.out_of_domain:
             pred = pred.to("cpu")
+            # split pred between fx (First 5 are for modulation, last 3 for delay)
+            pred_per_fx = [pred[:, :5], pred[:, -3:]]
             rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)
             for (i, snd) in enumerate(clean):
-                rec[i] = self.board_layers[fx_class[i]].forward(snd.cpu(), pred[i])
+                rec[i] = self.board_layers[fx_class[i]].forward(snd.cpu(), pred_per_fx[fx_class[i]][i])
                 # target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(
                 #    torch.abs(rec))
             pred_normalized = rec / torch.max(torch.abs(rec), dim=-1, keepdim=True)[0]
@@ -393,10 +395,11 @@ class AutoFX(pl.LightningModule):
             clean, processed, feat = next(iter(self.trainer.val_dataloaders[0]))
         pred = self.forward(processed.to(self.device), feat.to(self.device), conditioning=conditioning)
         pred = pred.to("cpu")
+        pred_per_fx = [pred[:, :5], pred[:, -3:]]
         rec = torch.zeros(clean.shape[0], clean.shape[-1], device=self.device)  # TODO: fix hardcoded value
         # features = self.compute_features(processed[:, 0, :].to(self.device))
         for (i, snd) in enumerate(clean):
-            rec[i] = self.board_layers[fx_class[i]].forward(snd, pred[i])
+            rec[i] = self.board_layers[fx_class[i]].forward(snd, pred_per_fx[fx_class[i]][i])
         for l in range(self.audiologs):
             self.logger.experiment.add_text(f"Audio/{l}/Original_feat",
                                             str(feat[l]), global_step=self.global_step)
