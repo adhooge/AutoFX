@@ -265,9 +265,12 @@ class FeatureExtractor(nn.Module):
         out = torch.hstack([out[:, :52], out[:, 53:]])
         return out
 
-    def __init__(self):
+    def __init__(self, rate: float = 22050, n_mfcc: int = 10):
         super(FeatureExtractor, self).__init__()
         self.spectrogram = torchaudio.transforms.Spectrogram(8192, hop_length=512, power=None)
+        self.n_mfcc = n_mfcc
+        self.mfcc_transform = torchaudio.transforms.MFCC(sample_rate=rate,
+                                                        n_mfcc=n_mfcc)
 
     def forward(self, audio, rate: int = 22050, n_mfcc: int = None, transform = None):
         """
@@ -278,6 +281,10 @@ class FeatureExtractor(nn.Module):
         """
         # add some noise
         # audio = audio + torch.randn_like(audio) * (torch.max(torch.abs(audio)) / 1000)
+        if n_mfcc is None:
+            n_mfcc = self.n_mfcc
+        if transform is None:
+            transform = self.mfcc_transform
         mfcc_means, mfcc_maxs = Ft.mfcc_torch(audio, rate, num_coeff=n_mfcc, transform=transform)
         stft = self.spectrogram(audio)
         mag = torch.abs(stft)
