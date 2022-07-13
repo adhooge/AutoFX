@@ -88,7 +88,7 @@ class AutoFX(pl.LightningModule):
         # print("OUUUUUUT", out[:, 20])
         return out
 
-    def __init__(self, num_bands: int, param_range: list,
+    def __init__(self, num_bands: int, param_range_modulation: list, param_range_delay: list,
                  cond_feat: int, scaler_mean: list, scaler_std: list,
                  tracker: bool = False,
                  rate: int = 22050, total_num_bands: int = None,
@@ -108,7 +108,7 @@ class AutoFX(pl.LightningModule):
         delay = MultiBandFX(pdb.Delay, total_num_bands, device=torch.device('cpu'))
         self.board = [modulation, delay]
         # Modulation parameters (5) before Delay parameters (3)
-        self.num_params = num_bands * self.modulation.total_num_params_per_band + num_bands * self.delay.total_num_params_per_band
+        self.num_params = num_bands * modulation.total_num_params_per_band + num_bands * delay.total_num_params_per_band
         self.reverb = reverb
         self.scaler = TorchStandardScaler()
         self.scaler.mean = torch.tensor(scaler_mean, device=torch.device('cuda'))
@@ -167,9 +167,12 @@ class AutoFX(pl.LightningModule):
                                                             w_sc=0)
         self.spectral_loss = self.mrstft
         self.num_bands = num_bands
-        if isinstance(param_range[0], str):
-            param_range = util.param_range_from_cli(param_range)
-        self.param_range = param_range
+        if isinstance(param_range_modulation[0], str):
+            param_range_modulation = util.param_range_from_cli(param_range_modulation)
+        self.param_range_modulation = param_range_modulation
+        if isinstance(param_range_delay[0], str):
+            param_range_delay = util.param_range_from_cli(param_range_delay)
+        self.param_range_delay = param_range_delay
         self.rate = rate
         self.feature_spectro = torchaudio.transforms.Spectrogram(n_fft=2048, hop_length=256, power=None)
         self.out_of_domain = out_of_domain
