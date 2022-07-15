@@ -7,7 +7,7 @@ import sys
 
 from tqdm import tqdm
 
-import config as c
+import source.config as c
 from soundsample import SoundSample
 import pickle
 
