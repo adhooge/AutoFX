@@ -266,6 +266,13 @@ class AutoFX(pl.LightningModule):
         penalty_0 = torch.mean(-1 * torch.log10(pred*0.99))
         penalty_1 = torch.mean(-1 * torch.log10(1 - 0.99*pred))
         if not self.out_of_domain:
+            # Mask prediction to avoid loss on zeros
+            if fx_class == 0:
+                pred = pred[:, :5]
+                label = label[:, :5]
+            elif fx_class == 1:
+                pred = pred[:, 5:]
+                label = label[:, 5:]
             loss = self.loss(pred, label)
             # loss = 0
             self.logger.experiment.add_scalar("Param_loss/Train", loss, global_step=self.global_step)
@@ -336,10 +343,15 @@ class AutoFX(pl.LightningModule):
                 conditioning = None
                 fx_class = None
         # clean = clean.to("cpu")
-        fx_index = FX_INDEX[CONDITIONING2FX[torch.argmax(conditioning, dim=-1)]]
         batch_size = processed.shape[0]
         pred = self.forward(processed, feat, conditioning=conditioning)
         if not self.out_of_domain:
+            if fx_class == 0:
+                pred = pred[:, :5]
+                label = label[:, :5]
+            elif fx_class == 1:
+                pred = pred[:, 5:]
+                label = label[:, 5:]
             loss = self.loss(pred, label)
             self.logger.experiment.add_scalar("Param_loss/test", loss, global_step=self.global_step)
             scalars = {}
