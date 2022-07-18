@@ -93,7 +93,8 @@ class CAFx(pl.LightningModule):
                  spectro_power: int = 2, mel_spectro: bool = True, mel_num_bands: int = 128,
                  penalty_1: float = 0, penalty_0: float = 0, feat_weight: float = 0.5, mrstft_weight: float = 0.5,
                  loss_stamps: list = None, freeze_layers: list = None,
-                 reverb: bool = False, with_film: bool = False, disable_features: bool=False):
+                 reverb: bool = False, with_film: bool = False, disable_features: bool=False,
+                 monitor_spectral_loss: bool = False):
         super().__init__()
         if isinstance(fx, str):
             fx = [util.str2pdb(fx)]
@@ -194,6 +195,7 @@ class CAFx(pl.LightningModule):
         if freeze_layers is not None:
             for f in freeze_layers:
                 self.resnet.freeze(f)
+        self.monitor_spectral_loss = monitor_spectral_loss
         self.save_hyperparameters()
 
     def forward(self, x, feat, conditioning=None, *args, **kwargs) -> Any:
@@ -277,7 +279,7 @@ class CAFx(pl.LightningModule):
                     self.loss_weights = [1 - weight, weight]
                 elif self.trainer.current_epoch >= self.loss_stamps[1]:
                     self.loss_weights = [0, 1]
-        if self.loss_weights[1] != 0 or self.out_of_domain:
+        if self.loss_weights[1] != 0 or self.out_of_domain or self.monitor_spectral_loss:
             pred = pred.to("cpu")
             self.pred = pred
             self.pred.retain_grad()
@@ -304,6 +306,9 @@ class CAFx(pl.LightningModule):
         self.logger.experiment.add_scalar("Total_Spectral_loss/Train",
                                           spectral_loss, global_step=self.global_step)
         if not self.out_of_domain:
+            if self.monitor_spectral_loss:
+                # set spectral_loss to 0 to block training on it
+                spectral_loss = 0
             total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
         else:
             total_loss = spectral_loss + self.penalty_0*penalty_0 + self.penalty_1*penalty_1
@@ -339,7 +344,7 @@ class CAFx(pl.LightningModule):
             for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
                 scalars[f'{i}'] = val
             self.logger.experiment.add_scalars("Param_distance/test", scalars, global_step=self.global_step)
-        if self.loss_weights[1] != 0 or self.out_of_domain:
+        if self.loss_weights[1] != 0 or self.out_of_domain or self.monitor_spectral_loss:
             pred = pred.to("cpu")
             rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)
             for (i, snd) in enumerate(clean):
@@ -363,6 +368,8 @@ class CAFx(pl.LightningModule):
         self.logger.experiment.add_scalar("Total_Spectral_loss/test",
                                           spectral_loss, global_step=self.global_step)
         if not self.out_of_domain:
+            if self.monitor_spectral_loss:
+                spectral_loss = 0
             total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
         else:
             total_loss = spectral_loss
