@@ -76,7 +76,7 @@ class CAFx(pl.LightningModule):
                                 rms_std, rms_delta_std, rms_skew, rms_delta_skew
                                 ), dim=1)
         onsets, activations = Ft.onset_detection(audio, self.rate, self.filterbank)
-        features = torch.stack((features, onsets, activations), dim=1)
+        features = torch.cat((features, onsets, activations), dim=1)
         # print("BEFORE SCALING", features[:, 20])
         out = self.scaler.transform(features)
         # print("OUUUUUUT", out[:, 20])
@@ -109,6 +109,7 @@ class CAFx(pl.LightningModule):
         self.scaler.std = torch.tensor(scaler_std, device=torch.device('cuda'))
         filt = superflux.Filter(2048 // 2 + 1, rate=22050, bands=24, fmin=30, fmax=17000, equal=False)
         self.filterbank = filt.filterbank
+        self.filterbank = self.filterbank.to(torch.device("cuda"))
         print(self.scaler.mean)
         print(self.scaler.std)
         if reverb:
@@ -255,10 +256,11 @@ class CAFx(pl.LightningModule):
             else:
                 clean, processed, feat = batch
                 conditioning = None
-        if self.disable_features:
-            feat = None
         batch_size = processed.shape[0]
-        pred = self.forward(processed, feat, conditioning=conditioning)
+        if self.disable_features:
+            pred = self.forward(processed, None, conditioning=conditioning)
+        else:
+            pred = self.forward(processed, feat, conditioning=conditioning)
         penalty_0 = torch.mean(-1 * torch.log10(pred*0.99))
         penalty_1 = torch.mean(-1 * torch.log10(1 - 0.99*pred))
         if not self.out_of_domain:
@@ -333,10 +335,11 @@ class CAFx(pl.LightningModule):
                 clean, processed, feat = batch
                 conditioning = None
         # clean = clean.to("cpu")
-        if self.disable_features:
-            feat = None
         batch_size = processed.shape[0]
-        pred = self.forward(processed, feat, conditioning=conditioning)
+        if self.disable_features:
+            pred = self.forward(processed, None, conditioning=conditioning)
+        else:
+            pred = self.forward(processed, feat, conditioning=conditioning)
         if not self.out_of_domain:
             loss = self.loss(pred, label)
             self.logger.experiment.add_scalar("Param_loss/test", loss, global_step=self.global_step)
@@ -353,9 +356,9 @@ class CAFx(pl.LightningModule):
                 #    torch.abs(rec))
             pred_normalized = rec / torch.max(torch.abs(rec), dim=-1, keepdim=True)[0]
             spec_loss = self.spectral_loss(pred_normalized, processed[:, 0, :])
-            #features = self.compute_features(pred_normalized)
-            #feat_loss = self.loss(features, feat)
-            feat_loss = 0
+            features = self.compute_features(pred_normalized)
+            feat_loss = self.loss(features, feat)
+            # feat_loss = 0
             spectral_loss = (spec_loss + 1 * feat_loss) / 2
         else:
             spectral_loss = 0

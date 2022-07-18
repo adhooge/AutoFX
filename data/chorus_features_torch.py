@@ -125,8 +125,8 @@ def main(parser):
                                 rms_skew.item(), rms_delta_skew.item()
                                 ]
                     onsets, activations = Ft.onset_detection(audio, rate, filterbank)
-                    features = features + onsets.detach().numpy().tolist()
-                    features = features + activations.detach().numpy().tolist()
+                    features = features + onsets[0].detach().numpy().tolist()
+                    features = features + activations[0].detach().numpy().tolist()
                     if 'Unnamed: 0' in df.columns:
                         df.loc[df['Unnamed: 0'] == file.stem,
                                FEATURES] = features
