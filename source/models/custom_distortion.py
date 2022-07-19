@@ -23,10 +23,10 @@ class CustomDistortion:
         return self.process(audio, rate, same, args, kwargs)
 
     def __init__(self):
-        pre_filter = pdb.PeakFilter()
-        post_filter = pdb.PeakFilter()
+        hi_filter = pdb.LowShelfFilter()
+        lo_filter = pdb.HighShelfFilter()
         disto = pdb.Distortion()
-        self.fx = pdb.Pedalboard([pre_filter, disto, post_filter])
+        self.fx = pdb.Pedalboard([disto, lo_filter, hi_filter])
 
     def process(self, audio, rate, same: bool = True, *args, **kwargs):
         """
@@ -63,16 +63,16 @@ class CustomDistortion:
         #     raise NotImplementedError(params)
         # else:
         #    for b in range(num_bands):
-        filt0 = _settings_list2dict(params[:3], pdb.PeakFilter())
-        disto = _settings_list2dict(params[3], pdb.Distortion())
-        filt1 = _settings_list2dict(params[4:], pdb.PeakFilter())
-        self.fx[0] = util.set_fx_params(self.fx[0], filt0)
-        self.fx[1] = util.set_fx_params(self.fx[1], disto)
-        self.fx[2] = util.set_fx_params(self.fx[2], filt1)
+        lo_filt = _settings_list2dict(params[1:4], pdb.PeakFilter())
+        disto = _settings_list2dict(params[0], pdb.Distortion())
+        hi_filt = _settings_list2dict(params[4:], pdb.PeakFilter())
+        self.fx[0] = util.set_fx_params(self.fx[0], disto)
+        self.fx[1] = util.set_fx_params(self.fx[1], lo_filt)
+        self.fx[2] = util.set_fx_params(self.fx[2], hi_filt)
 
     def add_perturbation_to_fx_params(self, perturb, param_range):
         settings_list = self.settings_list
-        num_params = [3, 1, 3]
+        num_params = [1, 3, 3]
         for f in range(3):
             for p in range(num_params[f]):
                 eps = perturb[num_params[f] + p]
