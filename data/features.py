@@ -501,21 +501,28 @@ def onset_detection(audio, rate, filterbank=None, num_onset: int = 5,
     sodf = superflux.SpectralODF(s, ratio, max_bins)
     act = sodf.superflux()
     o = superflux.Onset(act, fps, online=False)
-    o.detect(threshold, combine, pre_avg, pre_max, post_avg, post_max)
-    try:
-        onsets = o.detections[0]
-        activations = o.detect_activations[0]
-    except IndexError:
-        onsets = o.detections
-        activations = o.detect_activations
-    if onsets.ndim == 0:
-        onsets = torch.zeros(num_onset)
-        activations = torch.zeros(num_onset)
-    elif len(onsets) < num_onset:
-        zeros = torch.zeros(num_onset - len(onsets))
-        onsets = torch.cat([onsets, zeros], dim=0)
-        activations = torch.cat([activations, zeros], dim=0)
-    else:
-        onsets, indices = torch.topk(onsets, num_onset, sorted=False)
-        activations = activations[indices]
+    o.detect(threshold, combine, pre_avg, pre_max, post_avg, post_max, num_onset=None)
+    # try:
+    #     onsets = o.detections[0]
+    #     activations = o.detect_activations[0]
+    # except IndexError:
+    #     onsets = o.detections
+    #     activations = o.detect_activations
+    # if onsets.ndim == 0:
+    #     onsets = torch.zeros(num_onset)
+    #     activations = torch.zeros(num_onset)
+    # elif len(onsets) < num_onset:
+    #     zeros = torch.zeros((activations.shape[0], num_onset - len(onsets)))
+     #   onsets = torch.cat([onsets, zeros], dim=-1)
+     #   activations = torch.cat([activations, zeros], dim=-1)
+    # else:
+    #    onsets, indices = torch.topk(onsets, num_onset, sorted=False)
+    #    activations = activations[indices]
+    onsets = o.detections
+    activations = o.detect_activations
+    activations, sorting_indices = torch.sort(activations, dim=1, descending=True, stable=True)
+    activations = activations[:, :num_onset]
+    tmp = torch.gather(onsets, 1, sorting_indices)
+    onsets = tmp.clone()
+    onsets = onsets[:, :num_onset]
     return onsets, activations
