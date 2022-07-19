@@ -9,7 +9,7 @@ import numpy as np
 import torch, torchaudio
 
 
-def maximum_filter(input, size, mode: str='constant', origin: list=[0, 0]):
+def maximum_filter(input, size, mode: str = 'constant', origin: list = [0, 0]):
     """
     Apply maximum filtering with kernels of size `size` like
     scipy.ndimage.maximum_filter
@@ -25,8 +25,8 @@ def maximum_filter(input, size, mode: str='constant', origin: list=[0, 0]):
     pad_length_start = origin + tensor_size // 2
     pad_length_end = tensor_size // 2 - origin
     # Prepare tensor
-    padded_input = torch.zeros((1, input.shape[1] + pad_length_start[0] + pad_length_end[0],
-                                input.shape[2] + pad_length_start[1] + pad_length_end[1]))
+    padded_input = torch.zeros((input.shape[0], input.shape[1] + pad_length_start[0] + pad_length_end[0],
+                                input.shape[2] + pad_length_start[1] + pad_length_end[1]), device=input.device)
     # fill values
     if pad_length_start[0] == 0 and pad_length_end[0] == 0:
         padded_input[:, :, pad_length_start[1]:-pad_length_end[1]] = input
@@ -34,7 +34,7 @@ def maximum_filter(input, size, mode: str='constant', origin: list=[0, 0]):
         padded_input[:, pad_length_start[0]:-pad_length_end[0], :] = input
     else:
         padded_input[:, pad_length_start[0]:-pad_length_end[0],
-                     pad_length_start[1]:-pad_length_end[1]] = input
+        pad_length_start[1]:-pad_length_end[1]] = input
     max_input = torch.nn.functional.max_pool2d(padded_input, size, stride=1)
     return max_input
 
@@ -53,7 +53,8 @@ def maximum_filter1d(input, size, mode, origin):
     pad_length_start = origin + size // 2
     pad_length_end = size // 2 - origin
     # Prepare tensor
-    padded_input = torch.zeros((input.shape[0], input.shape[1] + pad_length_start + pad_length_end))
+    padded_input = torch.zeros((input.shape[0], input.shape[1] + pad_length_start + pad_length_end),
+                               device=input.device)
     # fill values
     if pad_length_end == 0:
         padded_input[:, pad_length_start:] = input
@@ -77,7 +78,8 @@ def uniform_filter1d(input, size, mode, origin):
     pad_length_start = origin + size // 2
     pad_length_end = size // 2 - origin
     # Prepare tensor
-    padded_input = torch.zeros((input.shape[0], input.shape[1] + pad_length_start + pad_length_end))
+    padded_input = torch.zeros((input.shape[0], input.shape[1] + pad_length_start + pad_length_end),
+                               device=input.device)
     # fill values
     if pad_length_end == 0:
         padded_input[:, pad_length_start:] = input
@@ -136,10 +138,10 @@ class Filter(object):
         if equal:
             height = 2 / (stop - start)
         triangular_filter = torch.empty((int(stop - start),))
-        rising = torch.linspace(0, height - int(height/(mid-start)),
+        rising = torch.linspace(0, height - int(height / (mid - start)),
                                 int(mid - start))
         triangular_filter[:int(mid - start)] = rising
-        falling = torch.linspace(height, 0 + int(height/(stop - mid)),
+        falling = torch.linspace(height, 0 + int(height / (stop - mid)),
                                  int(stop - mid))
         triangular_filter[int(mid - start):] = falling
         return triangular_filter
@@ -169,7 +171,6 @@ class Filter(object):
         bands = len(frequencies) - 2
         self.filterbank = torch.zeros((num_fft_bins, bands), dtype=torch.float)
         for band in range(bands):
-            # print(frequencies)
             start, mid, stop = frequencies[band:band + 3]
             triangular_filter = self.triangular_filter(start, mid, stop, equal)
             self.filterbank[int(start):int(stop), band] = triangular_filter
@@ -227,16 +228,14 @@ class Spectrogram(object):
         if lgd:
             warnings.warn("Local group delay not implemented yet.", UserWarning)
         self.window = torch.hann_window(frame_size)
-        transform = torchaudio.transforms.Spectrogram(frame_size, frame_size, self.hop_size, power=1)
-        stft = transform(audio.to('cpu'))
+        transform = torchaudio.transforms.Spectrogram(frame_size, frame_size, self.hop_size, power=1,
+                                                      window_fn=lambda size: torch.hann_window(size, device=audio.device))
+        stft = transform(audio)
         stft = torch.abs(stft)
-        # print(stft.shape)
-        # print(filterbank.shape)
-        # print(stft.T.shape)
         if filterbank is None:
             self.spec = stft
         else:
-            self.spec = stft[0].T @ filterbank
+            self.spec = torch.matmul(torch.transpose(stft, 1, 2), filterbank)
         if log:
             self.spec = torch.log10(mul * self.spec + add)
 
@@ -304,9 +303,11 @@ class SpectralODF(object):
         if diff_frames < 1:
             raise ValueError("number of diff_frames must be >= 1")
         # widen the spectrogram in frequency dimension by `max_bins`
-        max_spec = maximum_filter(spec[None, :, :], size=[1, max_bins])
+        if spec.ndim == 2:
+            spec = spec[None, :, :]
+        max_spec = maximum_filter(spec, size=[1, max_bins])
         # calculate the diff
-        diff_spec[diff_frames:] = spec[diff_frames:] - max_spec[0, 0:-diff_frames]
+        diff_spec[:, diff_frames:] = spec[:, diff_frames:] - max_spec[:, 0:-diff_frames]
         # keep only positive values
         diff_spec = torch.nn.functional.relu(diff_spec)
         # return diff spec
@@ -333,6 +334,7 @@ class Onset(object):
     """
     Onset Class.
     """
+
     def __init__(self, activations, fps, online=False, sep=''):
         """
         Creates a new Onset object instance with the given activations of the
@@ -342,10 +344,10 @@ class Onset(object):
         :param online:      work in online mode (i.e. use only past
                             information)
         """
-        self.activations = None     # activations of the ODF
-        self.fps = fps              # frame rate of the activation function
-        self.online = online        # online peak-picking
-        self.detections = []        # list of detected onsets (in seconds)
+        self.activations = None  # activations of the ODF
+        self.fps = fps  # frame rate of the activation function
+        self.online = online  # online peak-picking
+        self.detections = []  # list of detected onsets (in seconds)
         self.detect_activations = []
         # set / load activations
         if isinstance(activations, torch.Tensor):
@@ -355,8 +357,8 @@ class Onset(object):
             # read in the activations from a file
             self.load(activations, sep)
 
-    def detect(self, threshold, combine=0.03, pre_avg=0.15, pre_max=0.01,
-               post_avg=0, post_max=0.05, delay=0):
+    def detect(self, threshold, combine=30, pre_avg=0.15, pre_max=0.01,
+               post_avg=0, post_max=0.05, delay=0, num_onset=None):
         """
         Detects the onsets.
         :param threshold: threshold for peak-picking
@@ -390,34 +392,54 @@ class Onset(object):
         # moving maximum
         max_length = pre_max + post_max + 1
         max_origin = int(math.floor((pre_max - post_max) / 2))
-        mov_max = maximum_filter1d(self.activations[None, :], max_length,
+        if self.activations.ndim == 1:
+            self.activations = self.activations[None, :]
+        mov_max = maximum_filter1d(self.activations, max_length,
                                    mode='constant', origin=max_origin)
         # moving average
         avg_length = pre_avg + post_avg + 1
         avg_origin = int(math.floor((pre_avg - post_avg) / 2))
-        mov_avg = uniform_filter1d(self.activations[None, :], avg_length,
+        mov_avg = uniform_filter1d(self.activations, avg_length,
                                    mode='constant', origin=avg_origin)
         # detections are activation equal to the moving maximum
         detections = self.activations * (self.activations == mov_max)
         # detections must be greater or equal than the mov. average + threshold
         detections *= (detections >= mov_avg + threshold)
+        # onset_activations = self.activations[torch.nonzero(detections, as_tuple=True)]
+        onset_activations = torch.where(detections != 0, self.activations, torch.scalar_tensor(0, device=self.activations.device))
+        # onset_activations, sorting_indices = torch.sort(onset_activations, dim=1, descending=True, stable=True)
+        # if num_onset is not None:
+        #     print("YOOOO", num_onset)
+        #     onset_activations = onset_activations[:, :num_onset])
+        # print("WASSUP", sorting_indices)
+        # onset_activations = onset_activations[:, 0]
+        # detections = torch.nonzero(detections[0]) / self.fps
+        # detections = detections[:, 0]
         # convert detected onsets to a list of timestamps
-        onset_activations = self.activations[torch.nonzero(detections[0])]
-        onset_activations = onset_activations[:, 0]
-        detections = torch.nonzero(detections[0]) / self.fps
-        detections = detections[:, 0]
+        detections = torch.where(detections != 0, detections / self.fps, torch.roll(detections, 1, dims=1) / self.fps)
+        # sort detections like onset_activations
+        # tmp = torch.zeros_like(detections)
+        # tmp = tmp.scatter_(1, sorting_indices, detections)
+        # detections = tmp.clone()
+        # if num_onset is not None:
+        #    detections = detections[:, :num_onset]
         # shift if necessary
         if delay != 0:
             detections += delay
         # always use the first detection and all others if none was reported
         # within the last `combine` seconds
-        if len(detections) > 1:
+        if len(detections[0]) > 1:
             # filter all detections which occur within `combine` seconds
-            combined_detections = detections[1:][torch.diff(detections) > combine]
-            combined_activations = onset_activations[1:][torch.diff(detections) > combine]
+            # combined_detections = detections[:, 1:][torch.diff(detections) > combine]
+            combined_detections = torch.where(torch.diff(detections) > combine,
+                                              detections[:, 1:], torch.scalar_tensor(999, device=detections.device))
+            # combined_activations = onset_activations[:, 1:][torch.diff(detections) > combine]
+            combined_activations = torch.where(torch.diff(detections) > combine,
+                                               onset_activations[:, 1:], torch.scalar_tensor(0, device=onset_activations.device))
             # add them after the first detection
-            self.detections = torch.cat([detections[0][None, None], combined_detections[None, :]], dim=1)
-            self.detect_activations = torch.cat([onset_activations[0][None, None], combined_activations[None, :]], dim=1)
+            self.detections = torch.cat([detections[:, 0][:, None], combined_detections], dim=1)
+            self.detect_activations = torch.cat([onset_activations[:, 0][:, None], combined_activations],
+                                                dim=1)
         else:
             self.detections = detections
             self.detect_activations = onset_activations
