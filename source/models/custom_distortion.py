@@ -44,7 +44,7 @@ class CustomDistortion:
             tmp = torch.zeros_like(audio)
             tmp[:, :, :out.shape[-1]] = out
             out = tmp
-        return out[0]
+        return torch.tensor(out)
 
     def set_fx_params(self, settings: list[dict] or dict or list, flat: bool = False,
                       param_range: List[Tuple] = None) -> None:
@@ -63,12 +63,10 @@ class CustomDistortion:
         #     raise NotImplementedError(params)
         # else:
         #    for b in range(num_bands):
-        lo_filt = _settings_list2dict(params[1:4], pdb.PeakFilter())
-        disto = _settings_list2dict(params[0], pdb.Distortion())
-        hi_filt = _settings_list2dict(params[4:], pdb.PeakFilter())
-        self.fx[0] = util.set_fx_params(self.fx[0], disto)
-        self.fx[1] = util.set_fx_params(self.fx[1], lo_filt)
-        self.fx[2] = util.set_fx_params(self.fx[2], hi_filt)
+        lo_filt = _settings_list2dict(params[1:4], pdb.HighShelfFilter)
+        disto = _settings_list2dict([params[0]], pdb.Distortion)
+        hi_filt = _settings_list2dict(params[4:], pdb.LowShelfFilter)
+        self.fx = util.set_fx_params(self.fx, [disto, lo_filt, hi_filt])
 
     def add_perturbation_to_fx_params(self, perturb, param_range):
         settings_list = self.settings_list
