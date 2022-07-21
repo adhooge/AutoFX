@@ -17,6 +17,7 @@ from source.models.film_layer import FilmLayer
 from source.data.datasets import TorchStandardScaler
 from source.models.mbfx_layer import MBFxLayer
 from source.multiband_fx import MultiBandFX
+from source.models.custom_distortion import CustomDistortion
 from source.models.resnet_layers import ResNet
 import data.functional as Fc
 import data.features as Ft
@@ -27,7 +28,7 @@ from data import superflux
 
 class CAFx(pl.LightningModule):
     def compute_features(self, audio):
-        audio = audio + torch.randn_like(audio) * 1e-6
+        audio = audio + torch.randn_like(audio) * 1e-4
         pitch = Ft.pitch_curve(audio, self.rate, None, None, torch_compat=True)
         phase = Ft.phase_fmax_batch(audio, transform=self.feature_spectro)
         rms = Ft.rms_energy(audio, torch_compat=True)
@@ -96,19 +97,27 @@ class CAFx(pl.LightningModule):
                  reverb: bool = False, with_film: bool = False, disable_features: bool=False,
                  monitor_spectral_loss: bool = False):
         super().__init__()
-        if isinstance(fx, str):
+        if isinstance(fx, str) and fx != "distortion":
             fx = [util.str2pdb(fx)]
+        if fx == "distortion":
+            mbfx = CustomDistortion()
         if total_num_bands is None:
             total_num_bands = num_bands
         self.total_num_bands = total_num_bands
-        self.mbfx = MultiBandFX(fx, total_num_bands, device=torch.device('cpu'))
+        if fx == "distortion":
+            self.mbfx = mbfx
+        else:
+            self.mbfx = MultiBandFX(fx, total_num_bands, device=torch.device('cpu'))
         self.num_params = num_bands * self.mbfx.total_num_params_per_band
         self.reverb = reverb
         self.scaler = TorchStandardScaler()
+        # self.scaler.mean = torch.tensor(scaler_mean, device=self.device)
+        # self.scaler.std = torch.tensor(scaler_std, device=self.device)
         self.scaler.mean = torch.tensor(scaler_mean, device=torch.device('cuda'))
         self.scaler.std = torch.tensor(scaler_std, device=torch.device('cuda'))
         filt = superflux.Filter(2048 // 2 + 1, rate=22050, bands=24, fmin=30, fmax=17000, equal=False)
         self.filterbank = filt.filterbank
+        # self.filterbank = self.filterbank.to(self.device)
         self.filterbank = self.filterbank.to(torch.device("cuda"))
         print(self.scaler.mean)
         print(self.scaler.std)
@@ -145,11 +154,11 @@ class CAFx(pl.LightningModule):
         if disable_features:
             cond_feat = 0
         self.fcl1 = nn.Linear(fcl_size + cond_feat, fcl_size // 2)
-        self.fcl2 = nn.Linear(fcl_size//2, self.num_params)
+        self.fcl2 = nn.Linear(fcl_size // 2, self.num_params)
         # self.fcl = nn.Linear(fcl_size + cond_feat, self.num_params)
         # nn.init.xavier_normal_(self.fcl.weight, gain=math.sqrt(2))
-        nn.init.xavier_normal_(self.fcl1.weight, gain=math.sqrt(2))
-        nn.init.xavier_normal_(self.fcl2.weight, gain=math.sqrt(2))
+        # nn.init.xavier_normal_(self.fcl1.weight, gain=math.sqrt(2))
+        # nn.init.xavier_normal_(self.fcl2.weight, gain=math.sqrt(2))
         self.relu = nn.ReLU(inplace=True)
         self.activation = nn.Sigmoid()
         self.learning_rate = learning_rate
@@ -356,9 +365,9 @@ class CAFx(pl.LightningModule):
                 #    torch.abs(rec))
             pred_normalized = rec / torch.max(torch.abs(rec), dim=-1, keepdim=True)[0]
             spec_loss = self.spectral_loss(pred_normalized, processed[:, 0, :])
-            features = self.compute_features(pred_normalized)
-            feat_loss = self.loss(features, feat)
-            # feat_loss = 0
+            # features = self.compute_features(pred_normalized)
+            # feat_loss = self.loss(features, feat)
+            feat_loss = 0
             spectral_loss = (spec_loss + 1 * feat_loss) / 2
         else:
             spectral_loss = 0
