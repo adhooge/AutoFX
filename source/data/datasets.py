@@ -152,6 +152,22 @@ class FeatureOutDomainDataset(Dataset):
         self.clean_path = pathlib.Path(clean_path) if clean_path is not None else clean_path
         self.processed_path = pathlib.Path(processed_path) if processed_path is not None else processed_path
         self.data = pd.read_csv(self.data_path / "data.csv", index_col=index_col)
+        features_columns = []
+        param_columns = []
+        columns = self.data.columns
+        num_features = 0
+        num_param = 0
+        for (i, c) in enumerate(columns):
+            if 'f-' in c:
+                num_features += 1
+                features_columns.append(i)
+            elif 'p-' in c:
+                num_param += 1
+                param_columns.append(i)
+        self.num_features = num_features
+        self.feat_columns = features_columns
+        self.num_param = num_param
+        self.param_columns = param_columns
         if "conditioning" in self.data.columns:
             self.data = self.data.drop(columns=["conditioning"])
         self.fx2clean = pd.read_csv(self.data_path / "fx2clean.csv")
@@ -207,16 +223,19 @@ class FeatureOutDomainDataset(Dataset):
             prc_pad = torch.zeros((1, self.pad_length))
             prc_pad[0, :len(prc_sound)] = prc_sound
             prc_pad[0, len(prc_sound):] = torch.randn(self.pad_length - len(prc_sound)) / 1e9
-            features = self.data.iloc[item, :]
+            features = self.data.iloc[item, self.feat_columns]
             if self.conditioning:
-                conditioning = features[-1]
-                features = features[:-1]
+                conditioning = self.data.iloc[item, -12:-1]
+                conditioning = torch.tensor(conditioning, dtype=torch.float)
+                fx_class = self.data.iloc[item, -1]
+                fx_class = torch.tensor(fx_class, dtype=torch.int)
             else:
                 conditioning = None
+                fx_class = None
             features = torch.Tensor(features)
             features = self.scaler.transform(features)
             if self.conditioning:
-                return cln_pad, prc_pad, features, conditioning
+                return cln_pad, prc_pad, features, conditioning, fx_class
             else:
                 return cln_pad, prc_pad, features
 
