@@ -271,13 +271,18 @@ class AutoFX(pl.LightningModule):
         penalty_1 = torch.mean(-1 * torch.log10(1 - 0.99*pred))
         if not self.out_of_domain:
             # Mask prediction to avoid loss on zeros
-            if fx_class == 0:
-                pred = pred[:, :5]
-                label = label[:, :5]
-            elif fx_class == 1:
-                pred = pred[:, 5:]
-                label = label[:, 5:]
-            loss = self.loss(pred, label)
+            # if fx_class == 0:
+            #    pred = pred[:, :5]
+            #    label = label[:, :5]
+            # elif fx_class == 1:
+            #    pred = pred[:, 5:]
+            #    label = label[:, 5:]
+            pred_clone = pred.clone()
+            pred_clone[:, :5] *= (fx_class[:, None] == 0)
+            label[:, :5] *= (fx_class[:, None] == 0)
+            pred_clone[:, 5:] *= (fx_class[:, None] == 1)
+            label[:, 5:] *= (fx_class[:, None] == 1)
+            loss = self.loss(pred_clone, label)
             # loss = 0
             self.logger.experiment.add_scalar("Param_loss/Train", loss, global_step=self.global_step)
             scalars = {}
@@ -350,12 +355,16 @@ class AutoFX(pl.LightningModule):
         batch_size = processed.shape[0]
         pred = self.forward(processed, feat, conditioning=conditioning)
         if not self.out_of_domain:
-            if fx_class == 0:
-                pred = pred[:, :5]
-                label = label[:, :5]
-            elif fx_class == 1:
-                pred = pred[:, 5:]
-                label = label[:, 5:]
+            # if fx_class == 0:
+            #    pred = pred[:, :5]
+            #    label = label[:, :5]
+            # elif fx_class == 1:
+            #    pred = pred[:, 5:]
+            #    label = label[:, 5:]
+            pred[:, :5] *= (fx_class[:, None] == 0)
+            label[:, :5] *= (fx_class[:, None] == 0)
+            pred[:, 5:] *= (fx_class[:, None] == 1)
+            label[:, 5:] *= (fx_class[:, None] == 1)
             loss = self.loss(pred, label)
             self.logger.experiment.add_scalar("Param_loss/test", loss, global_step=self.global_step)
             scalars = {}
