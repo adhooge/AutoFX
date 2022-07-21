@@ -23,8 +23,8 @@ class CustomDistortion:
         return self.process(audio, rate, same, args, kwargs)
 
     def __init__(self):
-        hi_filter = pdb.LowShelfFilter()
-        lo_filter = pdb.HighShelfFilter()
+        lo_filter = pdb.LowShelfFilter()
+        hi_filter = pdb.HighShelfFilter()
         disto = pdb.Distortion()
         self.fx = pdb.Pedalboard([disto, lo_filter, hi_filter])
 
@@ -98,3 +98,7 @@ class CustomDistortion:
                 tmp.append(list(dico.values()))
             settings_list.append(tmp)
         return settings_list
+
+    @property
+    def total_num_params_per_band(self):
+        return 7
