@@ -22,6 +22,10 @@ def main(parser):
         df = pd.read_csv((input_path / name).with_suffix('.csv'), index_col=0)
         if 'conditioning' in df.columns:
             df = df.drop(columns=['conditioning'])
+        if 'c-dry' in df.columns and args['force']:
+            df = df.drop(columns=['c-dry', 'c-feedback_delay', 'c-slapback_delay',
+                                      'c-reverb', 'c-chorus', 'c-flanger', 'c-phaser',
+                                      'c-tremolo', 'c-vibrato', 'c-distortion', 'c-overdrive', 'fx_class'])
         columns = list(df.columns) + ['c-dry', 'c-feedback_delay', 'c-slapback_delay',
                                       'c-reverb', 'c-chorus', 'c-flanger', 'c-phaser',
                                       'c-tremolo', 'c-vibrato', 'c-distortion', 'c-overdrive', 'fx_class']
@@ -36,6 +40,7 @@ def main(parser):
         if audio.shape[-1] < 44100 and args['padding']:
             to_pad = 44100 - audio.shape[-1]
             audio = F.pad(audio, (to_pad, 0))
+            audio += torch.randn_like(audio) * 1e-6
         conditioning = clf(audio)
         fx_class = torch.argmax(conditioning)
         conditioning = conditioning.detach().numpy()
@@ -56,4 +61,5 @@ if __name__ == '__main__':
                         help="Name to give to the output file.")
     parser.add_argument('--append', '-a', action='store_true')
     parser.add_argument('--padding', '-p', action='store_true')
+    parser.add_argument('--force', '-f', action='store_true')
     sys.exit(main(parser))
