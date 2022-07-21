@@ -23,10 +23,13 @@ FEATURES = ['f-phase_fft_max', 'f-phase_freq', 'f-rms_fft_max', 'f-rms_freq',
             'f-rms_std', 'f-rms_delta_std', 'f-rms_skew', 'f-rms_delta_skew',
             'f-onset0', 'f-onset1', 'f-onset2',  'f-onset3', 'f-onset4',
             'f-activation0', 'f-activation1', 'f-activation2',
-            'f-activation3', 'f-activation4'
+            'f-activation3', 'f-activation4',
+            'f-mfcc0', 'f-mfcc1', 'f-mfcc2', 'f-mfcc3', 'f-mfcc4',
+            'f-mfcc5', 'f-mfcc6', 'f-mfcc7', 'f-mfcc8', 'f-mfcc9'
             ]
 
-FEAT2APP = ['f-rms_std', 'f-rms_delta_std', 'f-rms_skew', 'f-rms_delta_skew']
+FEAT2APP = ['f-mfcc0', 'f-mfcc1', 'f-mfcc2', 'f-mfcc3', 'f-mfcc4',
+            'f-mfcc5', 'f-mfcc6', 'f-mfcc7', 'f-mfcc8', 'f-mfcc9']
 
 
 def main(parser):
@@ -37,12 +40,13 @@ def main(parser):
     out_pkl = out_path / (args['name'] + '.pkl')
     filt = superflux.Filter(2048 // 2 + 1, rate=22050, bands=24, fmin=30, fmax=17000, equal=False)
     filterbank = filt.filterbank
+    transform = torchaudio.transforms.MFCC(sample_rate=22050, n_mfcc=10)
     if (in_path / "params.csv").exists():
         df = pd.read_csv(in_path / "params.csv")
     else:
         df = pd.DataFrame()
     if args['append']:
-        df = pd.read_csv(out_csv, index_col=0)
+        df = pd.read_csv(out_csv, index_col=None)
         df[FEAT2APP] = np.nan
     else:
         df[FEATURES] = np.nan
@@ -50,7 +54,7 @@ def main(parser):
         in_path = pathlib.Path.cwd() / in_path
     if not out_path.is_absolute():
         out_path = pathlib.Path.cwd() / out_path
-    if not args['force']:
+    if not args['force'] and not args['append']:
         if out_csv.exists() or out_pkl.exists():
             raise FileExistsError("Output directory is not empty. Add --force or -f to overwrite anyway.")
     if not out_path.exists():
@@ -69,14 +73,9 @@ def main(parser):
                 # add some noise
                 audio = audio + torch.randn_like(audio) * 1e-9
                 if args['append']:
-                    rms = Ft.rms_energy(audio, torch_compat=True)
-                    rms_delta = Fc.estim_derivative(rms, torch_compat=True)
-                    rms_std = Fc.f_std(rms, torch_compat=True)
-                    rms_skew = Fc.f_skew(rms, torch_compat=True)
-                    rms_delta_std = Fc.f_std(rms_delta, torch_compat=True)
-                    rms_delta_skew = Fc.f_skew(rms_delta, torch_compat=True)
-                    feat2add = [rms_std, rms_delta_std,
-                                rms_skew, rms_delta_skew]
+                    mfccs = transform(audio)
+                    mfccs = torch.mean(mfccs[0], dim=-1)
+                    feat2add = mfccs.detach().numpy().tolist()
                     df.loc[df['Unnamed: 0'] == file.stem,
                            FEAT2APP] = feat2add
                 else:
@@ -109,6 +108,8 @@ def main(parser):
                     rms_skew = Fc.f_skew(rms[0], torch_compat=True)
                     rms_delta_std = Fc.f_std(rms_delta, torch_compat=True)
                     rms_delta_skew = Fc.f_skew(rms_delta[0], torch_compat=True)
+                    mfccs = transform(audio)
+                    mfccs = torch.mean(mfccs[0], dim=-1)
                     features = [phase_fft_max[0, 0].item(), phase_freq[0, 0].item() / 512,
                                 rms_fft_max[0, 0].item(), rms_freq[0, 0].item() / 512,
                                 phase_fft_max[0, 1].item(), phase_freq[0, 1].item() / 512,
@@ -127,6 +128,7 @@ def main(parser):
                     onsets, activations = Ft.onset_detection(audio, rate, filterbank)
                     features = features + onsets[0].detach().numpy().tolist()
                     features = features + activations[0].detach().numpy().tolist()
+                    features = features + mfccs.detach().numpy().tolist()
                     if 'Unnamed: 0' in df.columns:
                         df.loc[df['Unnamed: 0'] == file.stem,
                                FEATURES] = features
