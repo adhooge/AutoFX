@@ -290,7 +290,7 @@ class AutoFX(pl.LightningModule):
             label[:, :5] *= (fx_class[:, None] == 0)
             pred_clone[:, 5:8] *= (fx_class[:, None] == 1)
             label[:, 5:8] *= (fx_class[:, None] == 1)
-            pred_clone[:, 8:] *= (fx_class[:, None == 2])
+            pred_clone[:, 8:] *= (fx_class[:, None] == 2)
             label[:, 8:] *= (fx_class[:, None] == 2)
             loss = self.loss(pred_clone, label)
             # loss = 0
@@ -376,7 +376,7 @@ class AutoFX(pl.LightningModule):
             label[:, :5] *= (fx_class[:, None] == 0)
             pred[:, 5:8] *= (fx_class[:, None] == 1)
             label[:, 5:8] *= (fx_class[:, None] == 1)
-            pred[:, 8:] *= (fx_class[:, None == 2])
+            pred[:, 8:] *= (fx_class[:, None] == 2)
             label[:, 8:] *= (fx_class[:, None] == 2)
             loss = self.loss(pred, label)
             self.logger.experiment.add_scalar("Param_loss/test", loss, global_step=self.global_step)
