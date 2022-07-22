@@ -23,7 +23,7 @@ import data.features as Ft
 import torchaudio
 import source.util as util
 from data import superflux
-
+from source.models.custom_distortion import CustomDistortion
 
 CONDITIONING2FX = {0: 'dry', 0.1: 'delay', 0.2: 'delay', 0.3: 'reverb',
                    0.4: 'modulation', 0.5: 'modulation', 0.6: 'modulation',
@@ -90,7 +90,7 @@ class AutoFX(pl.LightningModule):
         return out
 
     def __init__(self, num_bands: int, param_range_modulation: list, param_range_delay: list,
-                 cond_feat: int, scaler_mean: list, scaler_std: list,
+                 param_range_disto: list, cond_feat: int, scaler_mean: list, scaler_std: list,
                  tracker: bool = False,
                  rate: int = 22050, total_num_bands: int = None,
                  fft_size: int = 1024, hop_size: int = 256, audiologs: int = 4, loss_weights: list[float] = [1, 1],
@@ -107,9 +107,12 @@ class AutoFX(pl.LightningModule):
         self.total_num_bands = total_num_bands
         modulation = MultiBandFX([pdb.Chorus], total_num_bands, device=torch.device('cpu'))
         delay = MultiBandFX([pdb.Delay], total_num_bands, device=torch.device('cpu'))
-        self.board = [modulation, delay]
-        # Modulation parameters (5) before Delay parameters (3)
-        self.num_params = num_bands * modulation.total_num_params_per_band + num_bands * delay.total_num_params_per_band
+        disto = CustomDistortion()
+        self.board = [modulation, delay, disto]
+        # Modulation parameters (5) before Delay parameters (3) before Disto param (7)
+        self.num_params = num_bands * modulation.total_num_params_per_band \
+                          + num_bands * delay.total_num_params_per_band \
+                          + disto.total_num_params_per_band
         self.reverb = reverb
         self.scaler = TorchStandardScaler()
         self.scaler.mean = torch.tensor(scaler_mean, device=torch.device('cuda'))
@@ -174,6 +177,9 @@ class AutoFX(pl.LightningModule):
         if isinstance(param_range_delay[0], str):
             param_range_delay = util.param_range_from_cli(param_range_delay)
         self.param_range_delay = param_range_delay
+        if isinstance(param_range_disto[0], str):
+            param_range_disto = util.param_range_from_cli(param_range_disto)
+        self.param_range_disto = param_range_disto
         self.rate = rate
         self.feature_spectro = torchaudio.transforms.Spectrogram(n_fft=2048, hop_length=256, power=None)
         self.out_of_domain = out_of_domain
@@ -189,7 +195,8 @@ class AutoFX(pl.LightningModule):
             self.spectro = torchaudio.transforms.Spectrogram(n_fft=fft_size, hop_length=hop_size, power=spectro_power)
         delay_layer = MBFxLayer(self.board[1], self.rate, self.param_range_delay, fake_num_bands=self.num_bands)
         modulation_layer = MBFxLayer(self.board[0], self.rate, self.param_range_modulation, fake_num_bands=self.num_bands)
-        self.board_layers = [modulation_layer, delay_layer]
+        disto_layer = MBFxLayer(self.board[2], self.rate, self.param_range_disto, fake_num_bands=self.num_bands)
+        self.board_layers = [modulation_layer, delay_layer, disto_layer]
         self.inv_spectro = torchaudio.transforms.InverseSpectrogram(n_fft=fft_size, hop_length=hop_size)
         self.audiologs = audiologs
         self.tmp = None
@@ -278,10 +285,13 @@ class AutoFX(pl.LightningModule):
             #    pred = pred[:, 5:]
             #    label = label[:, 5:]
             pred_clone = pred.clone()
+            # mask predictions according to fx_class
             pred_clone[:, :5] *= (fx_class[:, None] == 0)
             label[:, :5] *= (fx_class[:, None] == 0)
-            pred_clone[:, 5:] *= (fx_class[:, None] == 1)
-            label[:, 5:] *= (fx_class[:, None] == 1)
+            pred_clone[:, 5:8] *= (fx_class[:, None] == 1)
+            label[:, 5:8] *= (fx_class[:, None] == 1)
+            pred_clone[:, 8:] *= (fx_class[:, None == 2])
+            label[:, 8:] *= (fx_class[:, None] == 2)
             loss = self.loss(pred_clone, label)
             # loss = 0
             self.logger.experiment.add_scalar("Param_loss/Train", loss, global_step=self.global_step)
@@ -361,10 +371,13 @@ class AutoFX(pl.LightningModule):
             # elif fx_class == 1:
             #    pred = pred[:, 5:]
             #    label = label[:, 5:]
+            # mask predictions according to fx_class
             pred[:, :5] *= (fx_class[:, None] == 0)
             label[:, :5] *= (fx_class[:, None] == 0)
-            pred[:, 5:] *= (fx_class[:, None] == 1)
-            label[:, 5:] *= (fx_class[:, None] == 1)
+            pred[:, 5:8] *= (fx_class[:, None] == 1)
+            label[:, 5:8] *= (fx_class[:, None] == 1)
+            pred[:, 8:] *= (fx_class[:, None == 2])
+            label[:, 8:] *= (fx_class[:, None] == 2)
             loss = self.loss(pred, label)
             self.logger.experiment.add_scalar("Param_loss/test", loss, global_step=self.global_step)
             scalars = {}
@@ -417,7 +430,7 @@ class AutoFX(pl.LightningModule):
             clean, processed, feat = next(iter(self.trainer.val_dataloaders[0]))
         pred = self.forward(processed.to(self.device), feat.to(self.device), conditioning=conditioning)
         pred = pred.to("cpu")
-        pred_per_fx = [pred[:, :5], pred[:, -3:]]
+        pred_per_fx = [pred[:, :5], pred[:, 5:8], pred[:, 8:]]
         rec = torch.zeros(clean.shape[0], clean.shape[-1], device=self.device)  # TODO: fix hardcoded value
         # features = self.compute_features(processed[:, 0, :].to(self.device))
         for (i, snd) in enumerate(clean):
