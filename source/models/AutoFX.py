@@ -296,7 +296,7 @@ class AutoFX(pl.LightningModule):
             # loss = 0
             self.logger.experiment.add_scalar("Param_loss/Train", loss, global_step=self.global_step)
             scalars = {}
-            for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
+            for (i, val) in enumerate(torch .mean(torch.abs(pred - label), 0)):
                 scalars[f'{i}'] = val
             self.logger.experiment.add_scalars("Param_distance/Train", scalars, global_step=self.global_step)
             if self.loss_stamps is not None:
@@ -387,7 +387,7 @@ class AutoFX(pl.LightningModule):
         if self.loss_weights[1] != 0 or self.out_of_domain:
             pred = pred.to("cpu")
             # split pred between fx (First 5 are for modulation, last 3 for delay)
-            pred_per_fx = [pred[:, :5], pred[:, -3:]]
+            pred_per_fx = [pred[:, :5], pred[:, 5:8], pred[:, 8:]]
             rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)
             for (i, snd) in enumerate(clean):
                 rec[i] = self.board_layers[fx_class[i]].forward(snd.cpu(), pred_per_fx[fx_class[i]][i])
