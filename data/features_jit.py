@@ -20,7 +20,7 @@ def _geom_mean(arr, dim: int = -1):
     return torch.exp(torch.mean(torch.log(arr), dim=dim))
 
 
-def spectral_centroid(mag=None, freq=None,
+def spectral_centroid(mag: torch.Tensor,
                       rate: int = 1):
     """
     Spectral centroid of each frame.
@@ -31,15 +31,15 @@ def spectral_centroid(mag=None, freq=None,
     :return: (..., 1, num_frames) spectral centroid of each input frame.
     """
     batch_size, nfft, num_frames = mag.shape
-    if freq is None:
-        freq = torch.linspace(0, rate / 2, nfft)
+    # if freq is None:
+    freq = torch.linspace(0, rate / 2, nfft)
     norm_mag = mag / torch.sum(mag, dim=1, keepdim=True)
     cent = torch.sum(norm_mag * freq[None, :, None].expand(batch_size, nfft, num_frames), dim=1, keepdim=True)
     return cent
 
 
-def spectral_spread(mag=None, stft=None,
-                    cent=None, freq=None, rate: int = 1):
+def spectral_spread(mag: torch.Tensor,
+                    cent: torch.Tensor, rate: int = 1):
     """
     Spectral spread of each frame of the input signal.
 
@@ -52,13 +52,8 @@ def spectral_spread(mag=None, stft=None,
     :param rate: sampling rate of the audio. Only used if freq is None. Default is 1.
     :return spread: (..., 1, num_frames) spectral spread of each input frame.
     """
-    if mag is None:
-        mag = torch.abs(stft)
     batch_size, nfft, num_frames = mag.shape
-    if cent is None:
-        cent = spectral_centroid(mag=mag, freq=freq)
-    if freq is None:
-        freq = torch.linspace(0, rate/2, nfft)
+    freq = torch.linspace(0, rate/2, nfft)
     norm_mag = mag / torch.sum(mag, dim=1, keepdim=True)
     cnt_freq = freq[None, :, None].expand(batch_size, -1, num_frames) - cent
     spread = torch.sum(norm_mag * torch.square(cnt_freq), dim=1, keepdim=True)
@@ -223,10 +218,10 @@ def spectral_flatness(mag, bands: int = 1, rate: float = None):
     return flatness
 
 
-def mfcc_torch(audio, rate, num_coeff, transform: None):
-    if transform is None:
-        transform = torchaudio.transforms.MFCC(sample_rate=rate, n_mfcc=num_coeff)
-    mfcc = transform(audio)
+def mfcc_torch(audio, rate, num_coeff, mfcc_transform):
+    # if transform is None:
+    #    transform = torchaudio.transforms.MFCC(sample_rate=rate, n_mfcc=num_coeff)
+    mfcc = mfcc_transform(audio)
     means = torch.mean(mfcc, dim=-1)
     maxs = torch.max(mfcc, dim=-1)[0]
     return means, maxs
