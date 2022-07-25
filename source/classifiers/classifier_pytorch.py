@@ -104,7 +104,7 @@ class MLPClassifier(pl.LightningModule):
         self.max_iter = max_iter
         self.linear1 = nn.Linear(input_size, hidden_size)
         self.linear2 = nn.Linear(hidden_size, output_size)
-        self.loss = nn.CrossEntropyLoss()
+        self.loss = nn.NLLLoss()
         self.softmax = nn.Softmax(dim=-1)
         self.prec = Precision()
         self.recall = Recall()
@@ -329,7 +329,24 @@ class SilenceRemover(nn.Module):
         self.end_thresh = end_threshold
 
     def forward(self, audio):
+        audio = audio / (torch.max(torch.abs(audio)))
         energy = torch.square(audio)
         start, end = util.find_attack_torch(energy, start_threshold=self.start_thresh, end_threshold=self.end_thresh)
         onset = int((start+end)/2)
         return audio[:, onset:]
+
+    def process_folder(self, in_path: str, out_path: str,
+                       original_rate: int=44100, resampling_rate: int=None):
+        in_path = pathlib.Path(in_path)
+        out_path = pathlib.Path(out_path)
+        if resampling_rate is not None:
+            resampler = torchaudio.transforms.Resample(orig_freq=original_rate, new_freq=resampling_rate)
+        else:
+            resampler = None
+            resampling_rate = original_rate
+        for f in tqdm.tqdm(in_path.rglob('*.wav')):
+            f = pathlib.Path(f)
+            audio, rate = torchaudio.load(f, normalize=True)
+            audio = resampler(audio)
+            audio = self.forward(audio)
+            torchaudio.save(out_path / f.name, audio, resampling_rate)
