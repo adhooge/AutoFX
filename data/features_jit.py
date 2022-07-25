@@ -83,8 +83,8 @@ def spectral_skewness(mag: torch.Tensor,
     return skew
 
 
-def spectral_kurtosis(mag=None, stft=None,
-                      cent=None, freq=None, rate: int = 1):
+def spectral_kurtosis(mag: torch.Tensor,
+                      cent: torch.Tensor, rate: int = 1):
     """
     Spectral kurtosis of each frame of the input signal.
 
@@ -97,13 +97,8 @@ def spectral_kurtosis(mag=None, stft=None,
     :param rate: sampling rate of the audio. Only used if freq is None. Default is 1.
     :return kurt: (..., 1, num_frames) spectral kurtosis of each input frame.
     """
-    if mag is None:
-        mag = torch.abs(stft)
     batch_size, nfft, num_frames = mag.shape
-    if cent is None:
-        cent = spectral_centroid(mag=mag, freq=freq)
-    if freq is None:
-        freq = torch.linspace(0, rate/2, nfft)
+    freq = torch.linspace(0, rate/2, nfft)
     norm_mag = mag / torch.sum(mag, dim=1, keepdim=True)
     cnt_freq = freq[None, :, None].expand(batch_size, -1, num_frames) - cent
     kurt = torch.sum(norm_mag * torch.pow(cnt_freq, 4), dim=1, keepdim=True)
