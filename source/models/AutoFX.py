@@ -25,7 +25,14 @@ import source.util as util
 from data import superflux
 
 
-class CAFx(pl.LightningModule):
+CONDITIONING2FX = {0: 'dry', 0.1: 'delay', 0.2: 'delay', 0.3: 'reverb',
+                   0.4: 'modulation', 0.5: 'modulation', 0.6: 'modulation',
+                   0.7: 'tremolo', 0.8: 'modulation', 0.9: 'distortion', 1: 'distortion'}
+
+FX_INDEX = {'modulation': 0, 'delay': 1}
+
+
+class AutoFX(pl.LightningModule):
     def compute_features(self, audio):
         audio = audio + torch.randn_like(audio) * 1e-6
         pitch = Ft.pitch_curve(audio, self.rate, None, None, torch_compat=True)
@@ -76,13 +83,13 @@ class CAFx(pl.LightningModule):
                                 rms_std, rms_delta_std, rms_skew, rms_delta_skew
                                 ), dim=1)
         onsets, activations = Ft.onset_detection(audio, self.rate, self.filterbank)
-        features = torch.cat((features, onsets, activations), dim=1)
+        features = torch.stack((features, onsets, activations), dim=1)
         # print("BEFORE SCALING", features[:, 20])
         out = self.scaler.transform(features)
         # print("OUUUUUUT", out[:, 20])
         return out
 
-    def __init__(self, fx: str, num_bands: int, param_range: list,
+    def __init__(self, num_bands: int, param_range_modulation: list, param_range_delay: list,
                  cond_feat: int, scaler_mean: list, scaler_std: list,
                  tracker: bool = False,
                  rate: int = 22050, total_num_bands: int = None,
@@ -93,23 +100,22 @@ class CAFx(pl.LightningModule):
                  spectro_power: int = 2, mel_spectro: bool = True, mel_num_bands: int = 128,
                  penalty_1: float = 0, penalty_0: float = 0, feat_weight: float = 0.5, mrstft_weight: float = 0.5,
                  loss_stamps: list = None, freeze_layers: list = None,
-                 reverb: bool = False, with_film: bool = False, disable_features: bool=False,
-                 monitor_spectral_loss: bool = False):
+                 reverb: bool = False, with_film: bool = False):
         super().__init__()
-        if isinstance(fx, str):
-            fx = [util.str2pdb(fx)]
         if total_num_bands is None:
             total_num_bands = num_bands
         self.total_num_bands = total_num_bands
-        self.mbfx = MultiBandFX(fx, total_num_bands, device=torch.device('cpu'))
-        self.num_params = num_bands * self.mbfx.total_num_params_per_band
+        modulation = MultiBandFX([pdb.Chorus], total_num_bands, device=torch.device('cpu'))
+        delay = MultiBandFX([pdb.Delay], total_num_bands, device=torch.device('cpu'))
+        self.board = [modulation, delay]
+        # Modulation parameters (5) before Delay parameters (3)
+        self.num_params = num_bands * modulation.total_num_params_per_band + num_bands * delay.total_num_params_per_band
         self.reverb = reverb
         self.scaler = TorchStandardScaler()
         self.scaler.mean = torch.tensor(scaler_mean, device=torch.device('cuda'))
         self.scaler.std = torch.tensor(scaler_std, device=torch.device('cuda'))
         filt = superflux.Filter(2048 // 2 + 1, rate=22050, bands=24, fmin=30, fmax=17000, equal=False)
         self.filterbank = filt.filterbank
-        self.filterbank = self.filterbank.to(torch.device("cuda"))
         print(self.scaler.mean)
         print(self.scaler.std)
         if reverb:
@@ -117,12 +123,13 @@ class CAFx(pl.LightningModule):
         self.resnet = ResNet(self.num_params, end_with_fcl=False, num_channels=64, with_film=with_film)
         self.with_film = with_film
         if self.with_film:
-            self.film1_1 = FilmLayer(1, 64)
-            self.film1_2 = FilmLayer(1, 64)
-            self.film2_1 = FilmLayer(1, 128)
-            self.film2_2 = FilmLayer(1, 128)
-            self.film3_1 = FilmLayer(1, 256)
-            self.film3_2 = FilmLayer(1, 256)
+            # Film layers for all resnet blocks
+            self.film1_1 = FilmLayer(11, 64)
+            self.film1_2 = FilmLayer(11, 64)
+            self.film2_1 = FilmLayer(11, 128)
+            self.film2_2 = FilmLayer(11, 128)
+            self.film3_1 = FilmLayer(11, 256)
+            self.film3_2 = FilmLayer(11, 256)
             nn.init.normal_(self.film1_1.linear1.weight, mean=1, std=0.1)
             nn.init.normal_(self.film1_1.linear2.weight, mean=0, std=0.1)
             nn.init.normal_(self.film1_2.linear1.weight, mean=1, std=0.1)
@@ -141,9 +148,6 @@ class CAFx(pl.LightningModule):
             fcl_size = 4096
         else:
             fcl_size = fft_size * 256 // hop_size
-        self.disable_features = disable_features
-        if disable_features:
-            cond_feat = 0
         self.fcl1 = nn.Linear(fcl_size + cond_feat, fcl_size // 2)
         self.fcl2 = nn.Linear(fcl_size//2, self.num_params)
         # self.fcl = nn.Linear(fcl_size + cond_feat, self.num_params)
@@ -164,9 +168,12 @@ class CAFx(pl.LightningModule):
                                                             w_sc=0)
         self.spectral_loss = self.mrstft
         self.num_bands = num_bands
-        if isinstance(param_range[0], str):
-            param_range = util.param_range_from_cli(param_range)
-        self.param_range = param_range
+        if isinstance(param_range_modulation[0], str):
+            param_range_modulation = util.param_range_from_cli(param_range_modulation)
+        self.param_range_modulation = param_range_modulation
+        if isinstance(param_range_delay[0], str):
+            param_range_delay = util.param_range_from_cli(param_range_delay)
+        self.param_range_delay = param_range_delay
         self.rate = rate
         self.feature_spectro = torchaudio.transforms.Spectrogram(n_fft=2048, hop_length=256, power=None)
         self.out_of_domain = out_of_domain
@@ -180,7 +187,9 @@ class CAFx(pl.LightningModule):
                                                                 power=spectro_power, n_mels=mel_num_bands)
         else:
             self.spectro = torchaudio.transforms.Spectrogram(n_fft=fft_size, hop_length=hop_size, power=spectro_power)
-        self.mbfx_layer = MBFxLayer(self.mbfx, self.rate, self.param_range, fake_num_bands=self.num_bands)
+        delay_layer = MBFxLayer(self.board[1], self.rate, self.param_range_delay, fake_num_bands=self.num_bands)
+        modulation_layer = MBFxLayer(self.board[0], self.rate, self.param_range_modulation, fake_num_bands=self.num_bands)
+        self.board_layers = [modulation_layer, delay_layer]
         self.inv_spectro = torchaudio.transforms.InverseSpectrogram(n_fft=fft_size, hop_length=hop_size)
         self.audiologs = audiologs
         self.tmp = None
@@ -196,7 +205,6 @@ class CAFx(pl.LightningModule):
         if freeze_layers is not None:
             for f in freeze_layers:
                 self.resnet.freeze(f)
-        self.monitor_spectral_loss = monitor_spectral_loss
         self.save_hyperparameters()
 
     def forward(self, x, feat, conditioning=None, *args, **kwargs) -> Any:
@@ -227,13 +235,12 @@ class CAFx(pl.LightningModule):
             alphas, betas = None, None
         out = self.spectro(x)
         out = self.resnet(out, alphas, betas)
-        if not self.disable_features:
-            out = torch.cat((out, feat), dim=-1)
+        out = torch.cat((out, feat), dim=-1)
         out = self.fcl1(out)
         # print("before:", out)
         out = self.relu(out)
         out = self.fcl2(out)
-        ## out = self.fcl(out)
+        # out = self.fcl(out)
         out = self.activation(out)
         # print("after: ", out)
         if self.reverb:
@@ -246,24 +253,30 @@ class CAFx(pl.LightningModule):
         num_steps_per_epoch = num_steps_per_epoch * self.trainer.num_devices
         if not self.out_of_domain:
             if self.with_film:
-                clean, processed, feat, label, conditioning = batch
+                clean, processed, feat, label, conditioning, fx_class = batch
             else:
                 clean, processed, feat, label = batch
                 conditioning = None
+                fx_class = None
         else:
             if self.with_film:
-                clean, processed, feat, conditioning = batch
+                clean, processed, feat, conditioning, fx_class = batch
             else:
                 clean, processed, feat = batch
                 conditioning = None
+                fx_class = None
         batch_size = processed.shape[0]
-        if self.disable_features:
-            pred = self.forward(processed, None, conditioning=conditioning)
-        else:
-            pred = self.forward(processed, feat, conditioning=conditioning)
+        pred = self.forward(processed, feat, conditioning=conditioning)
         penalty_0 = torch.mean(-1 * torch.log10(pred*0.99))
         penalty_1 = torch.mean(-1 * torch.log10(1 - 0.99*pred))
         if not self.out_of_domain:
+            # Mask prediction to avoid loss on zeros
+            if fx_class == 0:
+                pred = pred[:, :5]
+                label = label[:, :5]
+            elif fx_class == 1:
+                pred = pred[:, 5:]
+                label = label[:, 5:]
             loss = self.loss(pred, label)
             # loss = 0
             self.logger.experiment.add_scalar("Param_loss/Train", loss, global_step=self.global_step)
@@ -281,16 +294,16 @@ class CAFx(pl.LightningModule):
                     self.loss_weights = [1 - weight, weight]
                 elif self.trainer.current_epoch >= self.loss_stamps[1]:
                     self.loss_weights = [0, 1]
-        if self.loss_weights[1] != 0 or self.out_of_domain or self.monitor_spectral_loss:
+        if self.loss_weights[1] != 0 or self.out_of_domain:
             pred = pred.to("cpu")
-            self.pred = pred
-            self.pred.retain_grad()
+            # self.pred = pred
+            # self.pred.retain_grad()
             rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)
             for (i, snd) in enumerate(clean):
                 snd_norm = snd / torch.max(torch.abs(snd))
                 snd_norm = snd_norm + torch.randn_like(snd_norm) * 1e-9
-                tmp = self.mbfx_layer.forward(snd_norm.cpu(), pred[i])
-                rec[i] = tmp.clone()
+                tmp = self.board_layers[fx_class[i]].forward(snd_norm.cpu(), pred[i])
+                rec = tmp.clone()
             target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(
                 torch.abs(rec))
             spec_loss = self.spectral_loss(pred_normalized, target_normalized)
@@ -308,9 +321,6 @@ class CAFx(pl.LightningModule):
         self.logger.experiment.add_scalar("Total_Spectral_loss/Train",
                                           spectral_loss, global_step=self.global_step)
         if not self.out_of_domain:
-            if self.monitor_spectral_loss:
-                # set spectral_loss to 0 to block training on it
-                spectral_loss = 0
             total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
         else:
             total_loss = spectral_loss + self.penalty_0*penalty_0 + self.penalty_1*penalty_1
@@ -324,41 +334,48 @@ class CAFx(pl.LightningModule):
     def validation_step(self, batch, batch_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
         if not self.out_of_domain:
             if self.with_film:
-                clean, processed, feat, label, conditioning = batch
+                clean, processed, feat, label, conditioning, fx_class = batch
             else:
                 clean, processed, feat, label = batch
                 conditioning = None
+                fx_class = None
         else:
             if self.with_film:
-                clean, processed, feat, conditioning = batch
+                clean, processed, feat, conditioning, fx_class = batch
             else:
                 clean, processed, feat = batch
                 conditioning = None
+                fx_class = None
         # clean = clean.to("cpu")
         batch_size = processed.shape[0]
-        if self.disable_features:
-            pred = self.forward(processed, None, conditioning=conditioning)
-        else:
-            pred = self.forward(processed, feat, conditioning=conditioning)
+        pred = self.forward(processed, feat, conditioning=conditioning)
         if not self.out_of_domain:
+            if fx_class == 0:
+                pred = pred[:, :5]
+                label = label[:, :5]
+            elif fx_class == 1:
+                pred = pred[:, 5:]
+                label = label[:, 5:]
             loss = self.loss(pred, label)
             self.logger.experiment.add_scalar("Param_loss/test", loss, global_step=self.global_step)
             scalars = {}
             for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
                 scalars[f'{i}'] = val
             self.logger.experiment.add_scalars("Param_distance/test", scalars, global_step=self.global_step)
-        if self.loss_weights[1] != 0 or self.out_of_domain or self.monitor_spectral_loss:
+        if self.loss_weights[1] != 0 or self.out_of_domain:
             pred = pred.to("cpu")
+            # split pred between fx (First 5 are for modulation, last 3 for delay)
+            pred_per_fx = [pred[:, :5], pred[:, -3:]]
             rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)
             for (i, snd) in enumerate(clean):
-                rec[i] = self.mbfx_layer.forward(snd.cpu(), pred[i])
+                rec[i] = self.board_layers[fx_class[i]].forward(snd.cpu(), pred_per_fx[fx_class[i]][i])
                 # target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(
                 #    torch.abs(rec))
             pred_normalized = rec / torch.max(torch.abs(rec), dim=-1, keepdim=True)[0]
             spec_loss = self.spectral_loss(pred_normalized, processed[:, 0, :])
-            features = self.compute_features(pred_normalized)
-            feat_loss = self.loss(features, feat)
-            # feat_loss = 0
+            #features = self.compute_features(pred_normalized)
+            #feat_loss = self.loss(features, feat)
+            feat_loss = 0
             spectral_loss = (spec_loss + 1 * feat_loss) / 2
         else:
             spectral_loss = 0
@@ -371,8 +388,6 @@ class CAFx(pl.LightningModule):
         self.logger.experiment.add_scalar("Total_Spectral_loss/test",
                                           spectral_loss, global_step=self.global_step)
         if not self.out_of_domain:
-            if self.monitor_spectral_loss:
-                spectral_loss = 0
             total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
         else:
             total_loss = spectral_loss
@@ -382,19 +397,22 @@ class CAFx(pl.LightningModule):
     def on_validation_end(self) -> None:
         if not self.out_of_domain:
             if self.with_film:
-                clean, processed, feat, label, conditioning = next(iter(self.trainer.val_dataloaders[0]))
+                clean, processed, feat, label, conditioning, fx_class = next(iter(self.trainer.val_dataloaders[0]))
                 conditioning = conditioning.to(self.device)
+                fx_class = fx_class.to(self.device)
             else:
                 clean, processed, feat, label = next(iter(self.trainer.val_dataloaders[0]))
                 conditioning = None
+                fx_class = None
         else:
             clean, processed, feat = next(iter(self.trainer.val_dataloaders[0]))
         pred = self.forward(processed.to(self.device), feat.to(self.device), conditioning=conditioning)
         pred = pred.to("cpu")
+        pred_per_fx = [pred[:, :5], pred[:, -3:]]
         rec = torch.zeros(clean.shape[0], clean.shape[-1], device=self.device)  # TODO: fix hardcoded value
         # features = self.compute_features(processed[:, 0, :].to(self.device))
         for (i, snd) in enumerate(clean):
-            rec[i] = self.mbfx_layer.forward(snd, pred[i])
+            rec[i] = self.board_layers[fx_class[i]].forward(snd, pred_per_fx[fx_class[i]][i])
         for l in range(self.audiologs):
             self.logger.experiment.add_text(f"Audio/{l}/Original_feat",
                                             str(feat[l]), global_step=self.global_step)

@@ -223,6 +223,15 @@ def spectral_flatness(mag, bands: int = 1, rate: float = None):
     return flatness
 
 
+def mfcc_torch(audio, rate, num_coeff, transform: None):
+    if transform is None:
+        transform = torchaudio.transforms.MFCC(sample_rate=rate, n_mfcc=num_coeff)
+    mfcc = transform(audio)
+    means = torch.mean(mfcc, dim=-1)
+    maxs = torch.max(mfcc, dim=-1)[0]
+    return means, maxs
+
+
 def get_mfcc(audio, rate, num_coeff):
     mfcc = librosa.feature.mfcc(y=audio, sr=rate)
     return mfcc[:num_coeff]
@@ -326,6 +335,7 @@ def pitch_curve(audio, rate):
     """
     f0 = torchaudio.functional.detect_pitch_frequency(audio, rate)
     return f0
+
 
 def rms_energy(audio, torch_compat: bool = False):
     if torch_compat:

@@ -11,6 +11,7 @@ import torch
 import torchaudio.functional
 from torch import Tensor
 import source.util as util
+from data import superflux
 
 
 def _geom_mean(arr: np.ndarray or Tensor, dim: int = -1):
@@ -78,7 +79,7 @@ def spectral_spread(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or Ten
         if cent is None:
             cent = spectral_centroid(mag=mag, freq=freq, torch_compat=True)
         if freq is None:
-            freq = torch.linspace(0, rate/2, nfft)
+            freq = torch.linspace(0, rate / 2, nfft)
         norm_mag = mag / torch.sum(mag, dim=1, keepdim=True)
         cnt_freq = freq[None, :, None].expand(batch_size, -1, num_frames) - cent
         spread = torch.sum(norm_mag * torch.square(cnt_freq), dim=1, keepdim=True)
@@ -91,7 +92,7 @@ def spectral_spread(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or Ten
         if mag.ndim == 1:
             mag = np.expand_dims(mag, axis=1)
         if freq is None:
-            freq = np.linspace(0, rate/2, mag.shape[0])
+            freq = np.linspace(0, rate / 2, mag.shape[0])
             freq = np.concatenate([freq[:, None]] * mag.shape[1], axis=1)
         norm_mag = mag / np.sum(mag, axis=0)
         cnt_freq = freq - cent
@@ -124,7 +125,7 @@ def spectral_skewness(*, mag: np.ndarray or Tensor = None,
         if cent is None:
             cent = spectral_centroid(mag=mag, freq=freq, torch_compat=True)
         if freq is None:
-            freq = torch.linspace(0, rate/2, nfft)
+            freq = torch.linspace(0, rate / 2, nfft)
         norm_mag = mag / torch.sum(mag, dim=1, keepdim=True)
         cnt_freq = freq[None, :, None].expand(batch_size, -1, num_frames) - cent
         skew = torch.sum(norm_mag * torch.pow(cnt_freq, 3), dim=1, keepdim=True)
@@ -137,7 +138,7 @@ def spectral_skewness(*, mag: np.ndarray or Tensor = None,
         if mag.ndim == 1:
             mag = np.expand_dims(mag, axis=1)
         if freq is None:
-            freq = np.linspace(0, rate/2, mag.shape[0])
+            freq = np.linspace(0, rate / 2, mag.shape[0])
             freq = np.concatenate([freq[:, None]] * mag.shape[1], axis=1)
         norm_mag = mag / np.sum(mag, axis=0)
         cnt_freq = freq - cent
@@ -168,7 +169,7 @@ def spectral_kurtosis(*, mag: np.ndarray or Tensor = None, stft: np.ndarray or T
         if cent is None:
             cent = spectral_centroid(mag=mag, freq=freq, torch_compat=True)
         if freq is None:
-            freq = torch.linspace(0, rate/2, nfft)
+            freq = torch.linspace(0, rate / 2, nfft)
         norm_mag = mag / torch.sum(mag, dim=1, keepdim=True)
         cnt_freq = freq[None, :, None].expand(batch_size, -1, num_frames) - cent
         kurt = torch.sum(norm_mag * torch.pow(cnt_freq, 4), dim=1, keepdim=True)
@@ -205,8 +206,8 @@ def spectral_flux(mag: np.ndarray or Tensor, q_norm: int = 1,
         diff = torch.diff(mag, n=1, dim=-1)
         flux = torch.zeros((batch_size, 1, num_frames))
         flux[:, :, 1:] = torch.pow(torch.sum(torch.pow(torch.abs(diff), q_norm),
-                                   dim=1, keepdim=True),
-                         1 / q_norm)
+                                             dim=1, keepdim=True),
+                                   1 / q_norm)
         return flux
     else:
         if mag.ndim == 1:
@@ -292,7 +293,8 @@ def spectral_slope(mag: np.ndarray or Tensor, freq: np.ndarray = None,
             freq = torch.linspace(0, rate / 2, fft_size)
         if freq is None:
             freq = torch.arange(fft_size)
-        num = fft_size * torch.sum(torch.mul(freq[:, None], mag), dim=1, keepdim=True) - torch.sum(freq) * torch.sum(mag, dim=1, keepdim=True)
+        num = fft_size * torch.sum(torch.mul(freq[:, None], mag), dim=1, keepdim=True) - torch.sum(freq) * torch.sum(
+            mag, dim=1, keepdim=True)
         denom = fft_size * torch.sum(torch.square(freq)) - torch.sum(freq) ** 2
         return num / denom
     else:
@@ -300,7 +302,7 @@ def spectral_slope(mag: np.ndarray or Tensor, freq: np.ndarray = None,
             mag = np.expand_dims(mag, axis=1)
         n_fft, num_frames = mag.shape
         if rate is not None:
-            freq = np.linspace(0, rate/2, mag.shape[-1])
+            freq = np.linspace(0, rate / 2, mag.shape[-1])
         if freq is None:
             freq = np.arange(n_fft)
         slope = np.empty((1, num_frames))
@@ -324,8 +326,10 @@ def spectral_flatness(mag: np.ndarray or Tensor, bands: int or list = 1, rate: f
     :param torch_compat: Should the computation be pytorch-compatible. Default is False.
     :return flatness: (..., bands, num_frames) matrix of the spectral flatness of each frame and frequency band.
     """
+
     def freq2bin(freq, rate, n_fft):
         return int(freq * 2 * n_fft / rate)
+
     if mag.ndim == 1:
         mag = np.expand_dims(mag, axis=1)
     if mag.ndim >= 3:
@@ -353,13 +357,13 @@ def spectral_flatness(mag: np.ndarray or Tensor, bands: int or list = 1, rate: f
         for (b, band) in enumerate(bands):
             arr = mag[:, band[0]:band[1], :]
             flatness[:, b, :] = _geom_mean(arr, dim=1) / torch.mean(arr, dim=1)
-        return flatness # TODO: test
+        return flatness  # TODO: test
     else:
         n_fft, num_frames = mag.shape
         flatness = np.empty((len(bands), num_frames))
         for fr in range(num_frames):
             for (b, band) in enumerate(bands):
-                arr = mag[ band[0]:band[1], fr]
+                arr = mag[band[0]:band[1], fr]
                 flatness[b, fr] = _geom_mean(arr) / np.mean(arr)
         return flatness
 
@@ -482,3 +486,43 @@ def rms_energy(audio, torch_compat: bool = False):
         return torch.sqrt(torch.mean(torch.square(frames), dim=-1))
     else:
         return librosa.feature.rms(y=audio)
+
+
+def onset_detection(audio, rate, filterbank=None, num_onset: int = 5,
+                    frame_size: int = 2048, fps: int = 200, bands: int = 24,
+                    fmin: float = 30, fmax: float = 17000, ratio: float = 0.5,
+                    equal: bool = False, max_bins: int = 3, threshold: float = 1.1,
+                    pre_max: float = 0.3, post_max: float = 0, pre_avg: float = 0.1,
+                    post_avg: float = 0.1, combine: float = 30):
+    if filterbank is None:
+        filt = superflux.Filter(frame_size // 2 + 1, rate, bands, fmin, fmax, equal)
+        filterbank = filt.filterbank
+    s = superflux.Spectrogram(audio, rate, frame_size, fps, filterbank, log=True)
+    sodf = superflux.SpectralODF(s, ratio, max_bins)
+    act = sodf.superflux()
+    o = superflux.Onset(act, fps, online=False)
+    o.detect(threshold, combine, pre_avg, pre_max, post_avg, post_max, num_onset=None)
+    # try:
+    #     onsets = o.detections[0]
+    #     activations = o.detect_activations[0]
+    # except IndexError:
+    #     onsets = o.detections
+    #     activations = o.detect_activations
+    # if onsets.ndim == 0:
+    #     onsets = torch.zeros(num_onset)
+    #     activations = torch.zeros(num_onset)
+    # elif len(onsets) < num_onset:
+    #     zeros = torch.zeros((activations.shape[0], num_onset - len(onsets)))
+     #   onsets = torch.cat([onsets, zeros], dim=-1)
+     #   activations = torch.cat([activations, zeros], dim=-1)
+    # else:
+    #    onsets, indices = torch.topk(onsets, num_onset, sorted=False)
+    #    activations = activations[indices]
+    onsets = o.detections
+    activations = o.detect_activations
+    activations, sorting_indices = torch.sort(activations, dim=1, descending=True, stable=True)
+    activations = activations[:, :num_onset]
+    tmp = torch.gather(onsets, 1, sorting_indices)
+    onsets = tmp.clone()
+    onsets = onsets[:, :num_onset]
+    return onsets, activations

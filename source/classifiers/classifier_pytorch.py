@@ -265,11 +265,14 @@ class FeatureExtractor(nn.Module):
         out = torch.hstack([out[:, :52], out[:, 53:]])
         return out
 
-    def __init__(self):
+    def __init__(self, rate: float = 22050, n_mfcc: int = 10):
         super(FeatureExtractor, self).__init__()
         self.spectrogram = torchaudio.transforms.Spectrogram(8192, hop_length=512, power=None)
+        self.n_mfcc = n_mfcc
+        self.mfcc_transform = torchaudio.transforms.MFCC(sample_rate=rate,
+                                                        n_mfcc=n_mfcc)
 
-    def forward(self, audio, rate: int = 22050):
+    def forward(self, audio, rate: int = 22050, n_mfcc: int = None, transform = None):
         """
 
         :param audio: (batch, num_samples), mono only for now
@@ -277,25 +280,35 @@ class FeatureExtractor(nn.Module):
         :return:
         """
         # add some noise
-        # audio = audio + torch.randn_like(audio) * (torch.max(torch.abs(audio)) / 100000)
+        # audio = audio + torch.randn_like(audio) * (torch.max(torch.abs(audio)) / 1000)
+        if n_mfcc is None:
+            n_mfcc = self.n_mfcc
+        if transform is None:
+            transform = self.mfcc_transform
+        mfcc_means, mfcc_maxs = Ft.mfcc_torch(audio, rate, num_coeff=n_mfcc, transform=transform)
         stft = self.spectrogram(audio)
         mag = torch.abs(stft)
         feat = FeatureExtractor._get_features(mag, rate)
         pitch = Ft.pitch_curve(audio, rate)
         pitch = torch.mean(pitch, dim=-1)
         func = FeatureExtractor._get_functionals(feat, pitch)
+        func = torch.cat([func, mfcc_means, mfcc_maxs], dim=1)
         return func
 
-    def process_folder(self, folder_path: str):
+    def process_folder(self, folder_path: str, n_mfcc: int = 10, add_noise: bool = False):
         folder_path = pathlib.Path(folder_path)
         out = pd.DataFrame([])
         for f in tqdm.tqdm(folder_path.rglob('*.wav')):
             f = pathlib.Path(f)
-            audio, rate = torchaudio.load(f, normalize=True)
+            audio, rate = torchaudio.load(f)
+            if add_noise:
+                audio = audio + torch.randn_like(audio)*1e-6
             fx = f.name.split('-')[2][1:-1]
             fx = util.idmt_fx2class_number(util.idmt_fx(fx))
+            mfcc_transform = torchaudio.transforms.MFCC(sample_rate=rate,
+                                                        n_mfcc=n_mfcc)
             try:
-                func = self.forward(audio, rate)
+                func = self.forward(audio, rate, n_mfcc=n_mfcc, transform=mfcc_transform)
             except ValueError:
                 print(f"One std was zero, this will return NaNs. File was {f}")
             if torch.isnan(func).any():
