@@ -150,6 +150,7 @@ def spectral_rolloff(mag, threshold: float = 0.95,
     # roll_off[indices[0], :, indices[2]] = freq[indices[1]][:, None]
     freq = freq[None, :, None].expand(indices.shape[0], -1, indices.shape[-1])
     roll_off = freq[indices]
+    roll_off = torch.reshape(roll_off, (indices.shape[0], 1, indices.shape[2]))
     return roll_off
 
 
