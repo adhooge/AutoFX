@@ -153,8 +153,8 @@ def spectral_rolloff(mag, threshold: float = 0.95, freq=None,
     return roll_off
 
 
-def spectral_slope(mag, freq=None,
-                   rate: int = None):
+def spectral_slope(mag: torch.Tensor,
+                   rate: int = 1):
     """
     The spectral slope represents the amount of decreasing of the spectral amplitude [1].
 
@@ -165,16 +165,13 @@ def spectral_slope(mag, freq=None,
     :return slope: (..., 1, num_frames) array of the frame-wise spectral slope, in Hz or bins depending on freq.
     """
     batch_size, fft_size, num_frames = mag.shape
-    if rate is not None:
-        freq = torch.linspace(0, rate / 2, fft_size)
-    if freq is None:
-        freq = torch.arange(fft_size)
+    freq = torch.linspace(0, rate / 2, fft_size)
     num = fft_size * torch.sum(torch.mul(freq[:, None], mag), dim=1, keepdim=True) - torch.sum(freq) * torch.sum(mag, dim=1, keepdim=True)
     denom = fft_size * torch.sum(torch.square(freq)) - torch.sum(freq) ** 2
     return num / denom
 
 
-def spectral_flatness(mag, bands: int = 1, rate: float = None):
+def spectral_flatness(mag, bands: int = 1, rate: int = 1):
     """
     The spectral flatness is a measure of the noisiness of a spectrum. [1, 2]
 
@@ -189,19 +186,10 @@ def spectral_flatness(mag, bands: int = 1, rate: float = None):
         n_fft = mag.shape[-2]
     else:
         n_fft = mag.shape[0]
-    if isinstance(bands, int):
-        if bands == 1:
-            bands = [(0, n_fft - 1)]
-        else:
-            tmp = []
-            start = 0
-            band_size = n_fft // bands
-            for band in range(bands):
-                tmp.append((start, start + band_size))
-                start += band_size
+    out_bands = [(0, n_fft - 1)]
     batch_size, n_fft, num_frames = mag.shape
-    flatness = torch.empty((batch_size, len(bands), num_frames))
-    for (b, band) in enumerate(bands):
+    flatness = torch.empty((batch_size, len(out_bands), num_frames))
+    for (b, band) in enumerate(out_bands):
         arr = mag[:, band[0]:band[1], :]
         flatness[:, b, :] = _geom_mean(arr, dim=1) / torch.mean(arr, dim=1)
     return flatness
