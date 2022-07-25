@@ -221,6 +221,8 @@ class FeatureOutDomainDataset(Dataset):
             cln_pad[0, :len(cln_sound)] = cln_sound
             cln_pad[0, len(cln_sound):] = torch.randn(self.pad_length - len(cln_sound)) / 1e9
             prc_pad = torch.zeros((1, self.pad_length))
+            if len(prc_sound > 35000):
+                prc_sound = prc_sound[:35000]
             prc_pad[0, :len(prc_sound)] = prc_sound
             prc_pad[0, len(prc_sound):] = torch.randn(self.pad_length - len(prc_sound)) / 1e9
             features = self.data.iloc[item, self.feat_columns]
