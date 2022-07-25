@@ -206,7 +206,7 @@ class FeatureExtractor(nn.Module):
         return out
 
     @staticmethod
-    def _get_features(mag, rate):
+    def _get_features(mag, rate: int):
         centroid = Ft.spectral_centroid(mag=mag, rate=rate)
         spread = Ft.spectral_spread(mag=mag, cent=centroid, rate=rate)
         skew = Ft.spectral_skewness(mag=mag, cent=centroid, rate=rate)
@@ -269,10 +269,10 @@ class FeatureExtractor(nn.Module):
         super(FeatureExtractor, self).__init__()
         self.spectrogram = torchaudio.transforms.Spectrogram(8192, hop_length=512, power=None)
         self.n_mfcc = n_mfcc
-        self.mfcc_transform = torchaudio.transforms.MFCC(sample_rate=rate,
-                                                        n_mfcc=n_mfcc)
+        self.mfcc_transform = torchaudio.transforms.MFCC(sample_rate=int(rate),
+                                                         n_mfcc=n_mfcc)
 
-    def forward(self, audio, rate: int = 22050, n_mfcc: int = None, transform = None):
+    def forward(self, audio: torch.Tensor, rate: int = 22050):
         """
 
         :param audio: (batch, num_samples), mono only for now
@@ -281,11 +281,14 @@ class FeatureExtractor(nn.Module):
         """
         # add some noise
         # audio = audio + torch.randn_like(audio) * (torch.max(torch.abs(audio)) / 1000)
-        if n_mfcc is None:
-            n_mfcc = self.n_mfcc
-        if transform is None:
-            transform = self.mfcc_transform
-        mfcc_means, mfcc_maxs = Ft.mfcc_torch(audio, rate, num_coeff=n_mfcc, transform=transform)
+        # if n_mfcc is None:
+        #     n_mfcc = self.n_mfcc
+        # if transform is None:
+        #    transform = self.mfcc_transform
+        mfcc = self.mfcc_transform(audio)
+        mfcc_means = torch.mean(mfcc, dim=-1)
+        mfcc_maxs = torch.max(mfcc, dim=-1)[0]
+        # mfcc_means, mfcc_maxs = self.mfcc_torch(audio, rate, num_coeff=self.n_mfcc, mfcc_transform=self.mfcc_transform)
         stft = self.spectrogram(audio)
         mag = torch.abs(stft)
         feat = FeatureExtractor._get_features(mag, rate)
@@ -321,6 +324,13 @@ class FeatureExtractor(nn.Module):
         out.to_csv(folder_path / 'out.csv')
         out.to_pickle(folder_path / 'out.pkl')
 
+    def mfcc_torch(audio, rate, num_coeff, mfcc_transform):
+        # if transform is None:
+        #    transform = torchaudio.transforms.MFCC(sample_rate=rate, n_mfcc=num_coeff)
+        mfcc = mfcc_transform(audio)
+        means = torch.mean(mfcc, dim=-1)
+        maxs = torch.max(mfcc, dim=-1)[0]
+        return means, maxs
 
 class SilenceRemover(nn.Module):
     def __init__(self, start_threshold: float, end_threshold: float):
@@ -333,6 +343,7 @@ class SilenceRemover(nn.Module):
         energy = torch.square(audio)
         start, end = util.find_attack_torch(energy, start_threshold=self.start_thresh, end_threshold=self.end_thresh)
         onset = int((start+end)/2)
+        print(start, end, onset)
         return audio[:, onset:]
 
     def process_folder(self, in_path: str, out_path: str,
