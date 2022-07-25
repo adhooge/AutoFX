@@ -296,7 +296,7 @@ def phase_fmax(sig):
     return linregerr_t
 
 
-def pitch_curve(audio, rate):
+def pitch_curve(audio, rate: int):
     """
     fmin and fmax need to be quite far from one another for the algorithm to work
     :param audio:
