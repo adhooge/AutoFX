@@ -8,12 +8,12 @@ from source.classifiers.classifier_pytorch import MLPClassifier
 
 import source.classifiers.classifier_pytorch as torch_clf
 
-CHECKPOINT = "/home/alexandre/logs/classif/torch/version_0/checkpoints/epoch=999-step=151000.ckpt"
+# CHECKPOINT = "/home/alexandre/logs/classif4july/torch/version_0/checkpoints/epoch=999-step=151000.ckpt"
 
-clf = MLPClassifier.load_from_checkpoint(CHECKPOINT, input_size=143,
-                                         output_size=11, hidden_size=100,
-                                         activation='sigmoid', solver='adam',
-                                         max_iter=1000)
+# clf = MLPClassifier.load_from_checkpoint(CHECKPOINT, input_size=143,
+#                                          output_size=11, hidden_size=100,
+#                                          activation='sigmoid', solver='adam',
+#                                         max_iter=1000)
 
 
 class ClassifierPipeline(nn.Module):
@@ -25,18 +25,20 @@ class ClassifierPipeline(nn.Module):
         self.scaler = scaler
         self.remover = remover
         self.pipeline = nn.Sequential(
-            remover,
-            feat_extractor,
-            scaler,
-            clf
+            self.remover,
+            self.feat_extractor,
+            self.scaler,
+            self.clf
         )
 
     def forward(self, audio):
-        cut_audio = self.remover(audio)
-        feat = self.feat_extractor(cut_audio)
-        scaled_feat = self.scaler(feat)
-        pred = self.clf(scaled_feat)
-        return torch.argmax(pred)
+        # cut_audio = self.remover(audio)
+        # feat = self.feat_extractor(cut_audio)
+        # scaled_feat = self.scaler(feat)
+        # pred = self.clf(scaled_feat)
+        out = self.pipeline(audio)
+        # return torch.argmax(out)
+        return out
 
 
 dataset = pd.read_csv('/home/alexandre/dataset/IDMT_FULL_CUT_22050/out.csv', index_col=0)
