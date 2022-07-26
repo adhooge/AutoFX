@@ -319,7 +319,7 @@ class AutoFX(pl.LightningModule):
                 elif self.trainer.current_epoch >= self.loss_stamps[1]:
                     self.loss_weights = [0, 1]
         if self.loss_weights[1] != 0 or self.out_of_domain or self.monitor_spectral_loss:
-            pred = pred.to("cpu")
+            pred_per_fx = [ppf.to("cpu") for ppf in pred_per_fx]
             # self.pred = pred
             # self.pred.retain_grad()
             rec = torch.zeros(batch_size, clean.shape[-1], device=self.device)
