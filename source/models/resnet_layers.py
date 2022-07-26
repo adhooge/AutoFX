@@ -5,6 +5,7 @@ https://arxiv.org/pdf/1512.03385.pdf
 """
 import math
 import warnings
+from typing import List
 
 import torch
 from torch import nn
@@ -57,7 +58,7 @@ class ResNetBlock(nn.Module):
             beta = beta[:, :, None, None].expand(-1, -1, out.shape[2], out.shape[3])
             out = alpha*out + beta
         out = self.relu(out)
-        if self.downsample:
+        if self.downsample is not None:
             residual = self.downsample(x)
         out = out + residual
         out = self.relu(out)
@@ -101,20 +102,22 @@ class ResNet(nn.Module):
                                     with_film=with_film)
         self.avgpool = nn.AvgPool2d(8)
         self.end_with_fcl = end_with_fcl
-        if end_with_fcl:
-            self.fcl = nn.Linear(256, num_params)
-            nn.init.xavier_normal_(self.fcl.weight, gain=math.sqrt(2))
+        # if end_with_fcl:
+        #    self.fcl = nn.Linear(256, num_params)
+        #    nn.init.xavier_normal_(self.fcl.weight, gain=math.sqrt(2))
         self.with_film = with_film
 
-    def forward(self, x, alphas=None, betas=None):
+    def forward(self, x, alphas: List[torch.Tensor], betas: List[torch.Tensor]):
         # (..., 1, 513, 137)
         out = self.conv1(x)
         # (..., 128, 257, 69)
         out = self.maxpool(out)
         # (..., 128, 129, 35)
         if not self.with_film:
-            alphas = [None] * 6
-            betas = [None] * 6
+            # alphas = [None] * 6
+            # betas = [None] * 6
+            alphas = [torch.tensor([])] * 6
+            betas = [torch.tensor([])] * 6
         out = self.block1_1(out, alpha=alphas[0], beta=betas[0])
         # (..., 128, 129, 35)
         out = self.block1_2(out, alpha=alphas[1], beta=betas[1])
@@ -129,8 +132,8 @@ class ResNet(nn.Module):
         # (..., 512, 33, 9)
         out = self.avgpool(out)
         out = torch.flatten(out, start_dim=1)
-        if self.end_with_fcl:
-            out = self.fcl(out)
+        # if self.end_with_fcl:
+        #    out = self.fcl(out)
         return out
 
     def freeze(self, block: int):
