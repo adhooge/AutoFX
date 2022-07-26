@@ -102,7 +102,7 @@ class AutoFX(pl.LightningModule):
                  spectro_power: int = 2, mel_spectro: bool = True, mel_num_bands: int = 128,
                  penalty_1: float = 0, penalty_0: float = 0, feat_weight: float = 0.5, mrstft_weight: float = 0.5,
                  loss_stamps: list = None, freeze_layers: list = None,
-                 reverb: bool = False, with_film: bool = False):
+                 reverb: bool = False, with_film: bool = False, monitor_spectral_loss: bool = False):
         super().__init__()
         if total_num_bands is None:
             total_num_bands = num_bands
@@ -215,6 +215,7 @@ class AutoFX(pl.LightningModule):
         if freeze_layers is not None:
             for f in freeze_layers:
                 self.resnet.freeze(f)
+        self.monitor_spectral_loss = monitor_spectral_loss
         self.save_hyperparameters()
 
     def forward(self, x, feat, conditioning=None, *args, **kwargs) -> Any:
@@ -312,7 +313,7 @@ class AutoFX(pl.LightningModule):
                     self.loss_weights = [1 - weight, weight]
                 elif self.trainer.current_epoch >= self.loss_stamps[1]:
                     self.loss_weights = [0, 1]
-        if self.loss_weights[1] != 0 or self.out_of_domain:
+        if self.loss_weights[1] != 0 or self.out_of_domain or self.monitor_spectral_loss:
             pred = pred.to("cpu")
             # self.pred = pred
             # self.pred.retain_grad()
@@ -339,6 +340,8 @@ class AutoFX(pl.LightningModule):
         self.logger.experiment.add_scalar("Total_Spectral_loss/Train",
                                           spectral_loss, global_step=self.global_step)
         if not self.out_of_domain:
+            if self.monitor_spectral_loss:
+                spectral_loss = 0
             total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
         else:
             total_loss = spectral_loss + self.penalty_0*penalty_0 + self.penalty_1*penalty_1
@@ -387,7 +390,7 @@ class AutoFX(pl.LightningModule):
             for (i, val) in enumerate(torch.mean(torch.abs(pred - label), 0)):
                 scalars[f'{i}'] = val
             self.logger.experiment.add_scalars("Param_distance/test", scalars, global_step=self.global_step)
-        if self.loss_weights[1] != 0 or self.out_of_domain:
+        if self.loss_weights[1] != 0 or self.out_of_domain or self.monitor_spectral_loss:
             pred = pred.to("cpu")
             # split pred between fx (First 5 are for modulation, last 3 for delay)
             pred_per_fx = [pred[:, :5], pred[:, 5:8], pred[:, 8:]]
@@ -413,6 +416,8 @@ class AutoFX(pl.LightningModule):
         self.logger.experiment.add_scalar("Total_Spectral_loss/test",
                                           spectral_loss, global_step=self.global_step)
         if not self.out_of_domain:
+            if self.monitor_spectral_loss:
+                spectral_loss = 0
             total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
         else:
             total_loss = spectral_loss
