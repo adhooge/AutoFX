@@ -101,7 +101,7 @@ class AutoFX(pl.LightningModule):
                  learning_rate: float = 0.0001, out_of_domain: bool = False,
                  spectro_power: int = 2, mel_spectro: bool = True, mel_num_bands: int = 128,
                  penalty_1: float = 0, penalty_0: float = 0, feat_weight: float = 0.5, mrstft_weight: float = 0.5,
-                 loss_stamps: list = None, freeze_layers: list = None,
+                 loss_stamps: list = None, freeze_layers: list = None, disable_feat: bool = False,
                  reverb: bool = False, with_film: bool = False, monitor_spectral_loss: bool = False):
         super().__init__()
         if total_num_bands is None:
@@ -148,7 +148,10 @@ class AutoFX(pl.LightningModule):
             nn.init.normal_(self.film3_1.linear2.weight, mean=0, std=0.1)
             nn.init.normal_(self.film3_2.linear1.weight, mean=1, std=0.1)
             nn.init.normal_(self.film3_2.linear2.weight, mean=0, std=0.1)
+        self.disable_feat = disable_feat
         self.cond_feat = cond_feat
+        if self.disable_feat:
+            self.cond_feat = 0
         # TODO: Make this cleaner
         if reverb:
             fcl_size = 4096
@@ -246,7 +249,8 @@ class AutoFX(pl.LightningModule):
             alphas, betas = None, None
         out = self.spectro(x)
         out = self.resnet(out, alphas, betas)
-        out = torch.cat((out, feat), dim=-1)
+        if not self.disable_feat:
+            out = torch.cat((out, feat), dim=-1)
         out = self.fcl1(out)
         # print("before:", out)
         out = self.relu(out)
@@ -297,6 +301,7 @@ class AutoFX(pl.LightningModule):
             pred_clone[:, 8:] *= (fx_class[:, None] == 2)
             label[:, 8:] *= (fx_class[:, None] == 2)
             loss = self.loss(pred_clone, label)
+            pred_per_fx = [pred[:, :5], pred[:, 5:8], pred[:, 8:]]
             # loss = 0
             self.logger.experiment.add_scalar("Param_loss/Train", loss, global_step=self.global_step)
             scalars = {}
@@ -321,7 +326,7 @@ class AutoFX(pl.LightningModule):
             for (i, snd) in enumerate(clean):
                 snd_norm = snd / torch.max(torch.abs(snd))
                 snd_norm = snd_norm + torch.randn_like(snd_norm) * 1e-9
-                tmp = self.board_layers[fx_class[i]].forward(snd_norm.cpu(), pred[i])
+                tmp = self.board_layers[fx_class[i]].forward(snd_norm.cpu(), pred_per_fx[fx_class[i]][i])
                 rec = tmp.clone()
             target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(
                 torch.abs(rec))
