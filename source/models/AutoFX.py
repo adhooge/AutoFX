@@ -84,8 +84,8 @@ class AutoFX(pl.LightningModule):
                                 ), dim=1)
         onsets, activations = Ft.onset_detection(audio, self.rate, self.filterbank)
         mfccs = self.mfcc_transform(audio)
-        mfccs = torch.mean(mfccs[0], dim=-1)
-        features = torch.stack((features, onsets, activations, mfccs), dim=1)
+        mfccs = torch.mean(mfccs, dim=-1)
+        features = torch.cat((features, onsets, activations, mfccs), dim=1)
         # print("BEFORE SCALING", features[:, 20])
         out = self.scaler.transform(features)
         # print("OUUUUUUT", out[:, 20])
@@ -120,7 +120,7 @@ class AutoFX(pl.LightningModule):
         self.scaler.mean = torch.tensor(scaler_mean, device=torch.device('cuda'))
         self.scaler.std = torch.tensor(scaler_std, device=torch.device('cuda'))
         filt = superflux.Filter(2048 // 2 + 1, rate=22050, bands=24, fmin=30, fmax=17000, equal=False)
-        self.filterbank = filt.filterbank
+        self.filterbank = filt.filterbank.to('cuda')
         self.mfcc_transform = torchaudio.transforms.MFCC(n_mfcc=10, sample_rate=rate)
         print(self.scaler.mean)
         print(self.scaler.std)
@@ -330,6 +330,7 @@ class AutoFX(pl.LightningModule):
                 rec = tmp.clone()
             target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(
                 torch.abs(rec))
+            pred_normalized = pred_normalized.to(self.device)
             spec_loss = self.spectral_loss(pred_normalized, target_normalized)
             features = self.compute_features(pred_normalized)
             feat_loss = self.feat_loss(features, feat)
