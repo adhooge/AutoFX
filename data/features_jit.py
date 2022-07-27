@@ -141,16 +141,17 @@ def spectral_rolloff(mag, threshold: float = 0.95,
     batch_size, fft_size, num_frames = mag.shape
     tot_energy = torch.sum(energy, dim=1, keepdim=True)  # (batch_size, 1, num_frames)
     cumul_energy = torch.cumsum(energy, dim=1)  # (batch_size, fft_size, num_frames)
-    transition = torch.where(cumul_energy > threshold * tot_energy, 1, 0)
+    transition = torch.where(cumul_energy >= threshold * tot_energy, 1, 0)
     cumul_transition = torch.cumsum(transition, dim=1)  # (batch_size, fft_size, num_frames)
     # indices = (cumul_transition == 1).nonzero(as_tuple=True)
     indices = (cumul_transition - 1) == 0
     # roll_off[indices[0], :, indices[2]] = torch.clone(indices[1]).detach()[:, None].float()
     freq = torch.linspace(0, rate / 2, mag.shape[1])
     # roll_off[indices[0], :, indices[2]] = freq[indices[1]][:, None]
-    freq = freq[None, :, None].expand(indices.shape[0], -1, indices.shape[-1])
+    freq = freq[None, :, None].expand(mag.shape[0], -1, mag.shape[-1])
+    # roll_off = torch.zeros_like(tot_energy)
     roll_off = freq[indices]
-    roll_off = torch.reshape(roll_off, (indices.shape[0], 1, indices.shape[2]))
+    roll_off = torch.reshape(roll_off, (mag.shape[0], 1, mag.shape[-1]))
     return roll_off
 
 
