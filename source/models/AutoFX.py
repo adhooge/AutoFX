@@ -407,9 +407,9 @@ class AutoFX(pl.LightningModule):
                 #    torch.abs(rec))
             pred_normalized = rec / torch.max(torch.abs(rec), dim=-1, keepdim=True)[0]
             spec_loss = self.spectral_loss(pred_normalized, processed[:, 0, :])
-            #features = self.compute_features(pred_normalized)
-            #feat_loss = self.loss(features, feat)
-            feat_loss = 0
+            features = self.compute_features(pred_normalized)
+            feat_loss = self.loss(features, feat)
+            # feat_loss = 0
             spectral_loss = (spec_loss + 1 * feat_loss) / 2
         else:
             spectral_loss = 0
@@ -422,7 +422,7 @@ class AutoFX(pl.LightningModule):
         self.logger.experiment.add_scalar("Total_Spectral_loss/test",
                                           spectral_loss, global_step=self.global_step)
         if not self.out_of_domain:
-            if self.monitor_spectral_loss:
+            if self.monitor_spectral_loss and self.loss_weights[1] == 0:
                 spectral_loss = 0
             total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
         else:
