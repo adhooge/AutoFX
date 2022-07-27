@@ -221,7 +221,7 @@ class AutoFX(pl.LightningModule):
         self.monitor_spectral_loss = monitor_spectral_loss
         self.save_hyperparameters()
 
-    def forward(self, x, feat, conditioning=None, *args, **kwargs) -> Any:
+    def forward(self, x, feat, conditioning=None) -> Any:
         if self.with_film:
             # conditioning = conditioning[None, 0]
             conditioning = conditioning[:, None]
@@ -346,7 +346,7 @@ class AutoFX(pl.LightningModule):
         self.logger.experiment.add_scalar("Total_Spectral_loss/Train",
                                           spectral_loss, global_step=self.global_step)
         if not self.out_of_domain:
-            if self.monitor_spectral_loss:
+            if self.monitor_spectral_loss and self.loss_weights[1] == 0:
                 spectral_loss = 0
             total_loss = 100 * loss * self.loss_weights[0] + spectral_loss * self.loss_weights[1]
         else:
