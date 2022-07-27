@@ -32,8 +32,11 @@ model = AutoFX.load_from_checkpoint(CHECKPOINT, num_bands=1, cond_feat=48,
 
 datamodule = FeaturesDataModule(CLEAN_PATH, IN_DOMAIN_PATH, PROCESSED_PATH, seed=2,
                                 conditioning=True, classes2keep=[0, 1, 2], out_of_domain=OUT_OF_DOMAIN,
-                                out_scaler_std=model.scaler.mean.detach().clone(),
-                                out_scaler_mean=model.scaler.std.detach().clone())
+                                out_scaler_mean=model.scaler.mean.detach().cpu().clone(),
+                                out_scaler_std=model.scaler.std.detach().cpu().clone(),
+                                in_scaler_mean=model.scaler.mean.detach().cpu().clone(),
+                                in_scaler_std=model.scaler.std.detach().cpu().clone()
+                                )
 datamodule.setup()
 
 
@@ -57,7 +60,7 @@ if WRITE_AUDIO:
         elif fx_class[i] == 1:
             rec = model.board_layers[1].forward(clean[i], pred[i, 5:8])
         elif fx_class[i] == 2:
-            rec = model.board_layers[2].forward(clean[i], pred[8:])
+            rec = model.board_layers[2].forward(clean[i], pred[i, 8:])
         toSave[0, (2 * i) * 35000:(2 * i + 1) * 35000] = processed[i]
         toSave[0, (2 * i + 1) * 35000:2 * (i + 1) * 35000] = rec / (torch.max(torch.abs(rec)))
     sf.write("/home/alexandre/Music/dmd_feat_ood_fix.wav", toSave.T, 22050)
