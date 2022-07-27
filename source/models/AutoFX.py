@@ -189,7 +189,7 @@ class AutoFX(pl.LightningModule):
         self.rate = rate
         self.feature_spectro = torchaudio.transforms.Spectrogram(n_fft=2048, hop_length=256, power=None)
         self.out_of_domain = out_of_domain
-        if loss_stamps is None:
+        if loss_weights is None:
             self.loss_weights = [1, 0]
         else:
             self.loss_weights = loss_weights
