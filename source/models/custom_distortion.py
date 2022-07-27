@@ -70,6 +70,7 @@ class CustomDistortion:
 
     def add_perturbation_to_fx_params(self, perturb, param_range):
         settings_list = self.settings_list
+        param_range = [[param_range[0]], param_range[1:4], param_range[4:]]
         num_params = [1, 3, 3]
         for f in range(3):
             for p in range(num_params[f]):
@@ -78,14 +79,18 @@ class CustomDistortion:
                 settings_list[f][p] += scaled_eps
                 settings_list[f][p] = min(param_range[f][p][1], settings_list[f][p])
                 settings_list[f][p] = max(param_range[f][p][0], settings_list[f][p])
-        settings_list = torch.Tensor(settings_list).flatten()
+        settings_list = [item for sublist in settings_list for item in sublist]
+        settings_list = torch.tensor(settings_list).flatten()
         self.set_fx_params(settings_list.tolist(), flat=True)
+
+    def fake_add_perturbation_to_fx_params(self, perturb, param_range, fake_num_bands):
+        self.add_perturbation_to_fx_params(perturb, param_range)
 
     @property
     def settings(self):
-        settings = []
-        for f in self.fx:
-            settings.append(util.get_fx_params(f))
+        settings = [util.get_fx_params(self.fx[0])]
+        settings.append(util.get_params_iirfilter(self.fx[1], 'lo'))
+        settings.append(util.get_params_iirfilter(self.fx[2], 'hi'))
         return settings
 
     @property
@@ -96,7 +101,7 @@ class CustomDistortion:
             tmp = []
             for dico in fx:
                 tmp.append(list(dico.values()))
-            settings_list.append(tmp)
+            settings_list.append(tmp[0])
         return settings_list
 
     @property
