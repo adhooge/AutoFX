@@ -37,6 +37,8 @@ def main(parser):
     clf = torch.jit.load(args['model'])
     for file in tqdm.tqdm(input_path.rglob('*.wav')):
         audio, rate = torchaudio.load(input_path / file)
+        # add noise to avoid NaNs
+        audio += torch.randn_like(audio) * 1e-6
         if audio.shape[-1] < 44100 and args['padding']:
             to_pad = 44100 - audio.shape[-1]
             audio = F.pad(audio, (to_pad, 0))
