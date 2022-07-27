@@ -1,4 +1,6 @@
-## Welcome to GitHub Pages
+# ATIAM Internship Summer 2022
+## Lab: [Sony CSL](https://github.com/SonyCSLParis)
+__Supervisor:__ [Gaëtan Hadjeres](https://github.com/Ghadjeres)
 
 TEST  
 ![test](https://user-images.githubusercontent.com/101201023/167429644-8ea3df9d-9152-454d-8e88-f3c267f9e9c1.mp4)
