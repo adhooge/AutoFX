@@ -40,6 +40,19 @@ def get_fx_params(fx: pdb.Plugin or List[pdb.Plugin] or pdb.Pedalboard):
     return settings
 
 
+def get_params_iirfilter(fx: pdb.Plugin, suffix: str = ''):
+    settings = []
+    fx_settings = {}
+    s = fx.__repr__()
+    s = s.split('=')
+    if suffix != '':
+        suffix = '_' + suffix
+    fx_settings['cutoff_frequency_hz' + suffix] = float(s[1].split(' ')[0])
+    fx_settings['gain_db' + suffix] = float(s[2].split(' ')[0])
+    fx_settings['q' + suffix] = float(s[3].split(' ')[0])
+    settings.append(fx_settings)
+    return settings
+
 def set_fx_params(fx: pdb.Plugin or List[pdb.Plugin] or pdb.Pedalboard, params: dict or List[dict]):
     if isinstance(fx, List | pdb.Pedalboard) and isinstance(params, List | np.ndarray | torch.Tensor):
         if len(fx) != len(params):
