@@ -327,10 +327,9 @@ class AutoFX(pl.LightningModule):
                 snd_norm = snd / torch.max(torch.abs(snd))
                 snd_norm = snd_norm + torch.randn_like(snd_norm) * 1e-9
                 tmp = self.board_layers[fx_class[i]].forward(snd_norm.cpu(), pred_per_fx[fx_class[i]][i])
-                rec[i] = tmp.clone()
-            target_normalized, pred_normalized = processed[:, 0, :] / torch.max(torch.abs(processed)), rec / torch.max(
-                torch.abs(rec))
-            pred_normalized = pred_normalized.to(self.device)
+                rec[i] = tmp.clone() / torch.max(torch.abs(tmp))
+            target_normalized = processed[:, 0, :] / torch.max(torch.abs(processed[:, 0, :]), dim=-1, keepdim=True)[0]
+            pred_normalized = rec.to(self.device)
             spec_loss = self.spectral_loss(pred_normalized, target_normalized)
             features = self.compute_features(pred_normalized)
             feat_loss = self.feat_loss(features, feat)
