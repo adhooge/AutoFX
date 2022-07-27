@@ -311,7 +311,7 @@ class FeatureExtractor(nn.Module):
             mfcc_transform = torchaudio.transforms.MFCC(sample_rate=rate,
                                                         n_mfcc=n_mfcc)
             try:
-                func = self.forward(audio, rate, n_mfcc=n_mfcc, transform=mfcc_transform)
+                func = self.forward(audio, rate)
             except ValueError:
                 print(f"One std was zero, this will return NaNs. File was {f}")
             if torch.isnan(func).any():
