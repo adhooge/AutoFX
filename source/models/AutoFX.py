@@ -305,7 +305,7 @@ class AutoFX(pl.LightningModule):
             # loss = 0
             self.logger.experiment.add_scalar("Param_loss/Train", loss, global_step=self.global_step)
             scalars = {}
-            for (i, val) in enumerate(torch .mean(torch.abs(pred - label), 0)):
+            for (i, val) in enumerate(torch.mean(torch.abs(pred_clone - label), 0)):
                 scalars[f'{i}'] = val
             self.logger.experiment.add_scalars("Param_distance/Train", scalars, global_step=self.global_step)
             if self.loss_stamps is not None:
