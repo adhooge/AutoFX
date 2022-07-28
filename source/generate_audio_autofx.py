@@ -17,11 +17,13 @@ PARAM_RANGE_DISTORTION = [(0, 60),
                           (500, 2000), (-10, 10), (0.5, 2)]
 PARAM_RANGE_DELAY = [(0, 1), (0, 1), (0, 1)]
 PARAM_RANGE_MODULATION = [(0.1, 10), (0, 1), (0, 20), (0, 1), (0, 1)]
-CHECKPOINT = "/home/alexandre/logs/dmd_weekend/lightning_logs/version_0/checkpoints/epoch=24-step=32700.ckpt"
+CHECKPOINT = "/home/alexandre/logs/dmd_26july/lightning_logs/version_1/checkpoints/epoch=19-step=26380.ckpt"
 # CHECKPOINT = "/home/alexandre/logs/resnet_chorus/version_50/checkpoints/epoch=39-step=35000.ckpt"
 CLEAN_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_dry_22050_cut")
 PROCESSED_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_modulation_delay_distortion_22050_cut")
 IN_DOMAIN_PATH = pathlib.Path("/home/alexandre/dataset/modulation_delay_distortion_guitar_mono_cut")
+
+SAVE_PATH = pathlib.Path("/home/alexandre/Music/perceptual_exp/param_no_finetuning")
 
 OUT_OF_DOMAIN = True
 
@@ -35,7 +37,8 @@ datamodule = FeaturesDataModule(CLEAN_PATH, IN_DOMAIN_PATH, PROCESSED_PATH, seed
                                 out_scaler_mean=model.scaler.mean.detach().cpu().clone(),
                                 out_scaler_std=model.scaler.std.detach().cpu().clone(),
                                 in_scaler_mean=model.scaler.mean.detach().cpu().clone(),
-                                in_scaler_std=model.scaler.std.detach().cpu().clone()
+                                in_scaler_std=model.scaler.std.detach().cpu().clone(),
+                                batch_size=128, return_file_name=True
                                 )
 datamodule.setup()
 
@@ -50,17 +53,26 @@ model.freeze()
 if WRITE_AUDIO:
     datamodule.out_of_domain = OUT_OF_DOMAIN
     batch = next(iter(datamodule.val_dataloader()))
-    clean, processed, feat, conditioning, fx_class = batch
+    clean, processed, feat, conditioning, fx_class, filename = batch
     pred = model.forward(processed, feat, conditioning)
     # print(torch.square(pred - label))
-    toSave = torch.zeros((1, 64 * 35000))
-    for i in tqdm.tqdm(range(32)):
-        if fx_class[i] == 0:
+    cnt_disto, cnt_modulation, cnt_delay = 0, 0, 0
+    i = 0
+    while cnt_disto != 10 or cnt_delay != 10 or cnt_modulation != 10:
+        print(i, cnt_modulation, cnt_delay, cnt_disto)
+        if filename[i].split('-')[2][1:3] in ["31", "32", "33", "35"] and cnt_modulation != 10:
             rec = model.board_layers[0].forward(clean[i], pred[i, :5])
-        elif fx_class[i] == 1:
+            cnt_modulation += 1
+            sf.write(SAVE_PATH / f"modulation_ref_{cnt_modulation}.wav", processed[i].T, 22050)
+            sf.write(SAVE_PATH / f"modulation_rec_{cnt_modulation}.wav", rec.T, 22050)
+        elif filename[i].split('-')[2][1:3] in ['21', '22'] and cnt_delay != 10:
             rec = model.board_layers[1].forward(clean[i], pred[i, 5:8])
-        elif fx_class[i] == 2:
+            cnt_delay += 1
+            sf.write(SAVE_PATH / f"delay_ref_{cnt_delay}.wav", processed[i].T, 22050)
+            sf.write(SAVE_PATH / f"delay_rec_{cnt_delay}.wav", rec.T, 22050)
+        elif filename[i].split('-')[2][0] == '4' and cnt_disto != 10:
             rec = model.board_layers[2].forward(clean[i], pred[i, 8:])
-        toSave[0, (2 * i) * 35000:(2 * i + 1) * 35000] = processed[i]
-        toSave[0, (2 * i + 1) * 35000:2 * (i + 1) * 35000] = rec / (torch.max(torch.abs(rec)))
-    sf.write("/home/alexandre/Music/dmd_feat_ood_fix.wav", toSave.T, 22050)
+            cnt_disto += 1
+            sf.write(SAVE_PATH / f"disto_ref_{cnt_disto}.wav", processed[i].T, 22050)
+            sf.write(SAVE_PATH / f"disto_rec_{cnt_disto}.wav", rec.T, 22050)
+        i += 1
