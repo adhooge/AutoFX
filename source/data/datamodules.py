@@ -15,7 +15,8 @@ class FeaturesDataModule(pl.LightningDataModule):
                  in_scaler_mean: list = None, in_scaler_std: list = None,
                  out_scaler_mean: list = None, out_scaler_std: list = None,
                  out_of_domain: bool = False, seed: int = None, reverb: bool = False,
-                 conditioning: bool = False, classes2keep: list = None, *args, **kwargs):
+                 conditioning: bool = False, classes2keep: list = None, return_file_name: bool = False,
+                 *args, **kwargs):
         super(FeaturesDataModule, self).__init__()
         self.clean_dir = clean_dir
         self.processed_dir = processed_dir
@@ -33,16 +34,17 @@ class FeaturesDataModule(pl.LightningDataModule):
         self.out_scaler_std = out_scaler_std
         self.conditioning = conditioning
         self.classes2keep = classes2keep
+        self.return_file_name = return_file_name
         self.save_hyperparameters()
 
     def setup(self, stage: Optional[str] = None) -> None:
         in_domain_full = FeatureInDomainDataset(self.processed_dir, validation=True,
                                                 clean_path=self.clean_dir, processed_path=self.processed_dir,
                                                 reverb=self.reverb, conditioning=self.conditioning,
-                                                classes2keep=self.classes2keep)
+                                                classes2keep=self.classes2keep, return_file_name=self.return_file_name)
         out_domain_full = FeatureOutDomainDataset(self.out_of_domain_dir, self.clean_dir, self.out_of_domain_dir,
                                                   index_col=0, conditioning=self.conditioning,
-                                                  classes2keep=self.classes2keep)
+                                                  classes2keep=self.classes2keep, return_file_name=self.return_file_name)
         if self.classes2keep is None:
             # split can be random if balanced classes is irrelevant
             self.in_train, self.in_val = torch.utils.data.random_split(in_domain_full,

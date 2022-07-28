@@ -31,7 +31,8 @@ class FeatureInDomainDataset(Dataset):
     def __init__(self, data_path: str = None, validation: bool = False,
                  clean_path: str = None, processed_path: str = None,
                  pad_length: int = None, reverb: bool = False,
-                 conditioning: bool = False, classes2keep: list = None):
+                 conditioning: bool = False, classes2keep: list = None,
+                 return_file_name: bool = False):
         """
 
         :param data_path:
@@ -42,6 +43,7 @@ class FeatureInDomainDataset(Dataset):
         :param reverb:
         :param conditioning:
         :param classes2keep: Classes that should be kept for training.
+        :param return_file_name: flag to also return filename
         """
         if validation and (clean_path is None or processed_path is None):
             raise ValueError("Clean and Processed required for validation dataset.")
@@ -78,6 +80,7 @@ class FeatureInDomainDataset(Dataset):
         self.conditioning = conditioning
         # Keep only relevant classes
         self.classes2keep = classes2keep
+        self.return_file_name = return_file_name
         if classes2keep is not None:
             self.data = self.data[self.data["fx_class"].isin(classes2keep)]
 
@@ -121,7 +124,10 @@ class FeatureInDomainDataset(Dataset):
         # print(features)
         if self.validation:         # TODO: remove that
             if self.conditioning:
-                return cln_pad, prc_pad, features, params, conditioning, fx_class
+                if self.return_file_name:
+                    return cln_pad, prc_pad, features, params, conditioning, fx_class, filename
+                else:
+                    return cln_pad, prc_pad, features, params, conditioning, fx_class
             else:
                 return cln_pad, prc_pad, features, params
         else:
@@ -147,7 +153,19 @@ class FeatureOutDomainDataset(Dataset):
     def __init__(self, data_path: str,
                  clean_path: str = None, processed_path: str = None,
                  pad_length: int = 35000, index_col: int = None,
-                 conditioning: bool = False, classes2keep: list = None):
+                 conditioning: bool = False, classes2keep: list = None,
+                 return_file_name: bool = False):
+        """
+
+        :param data_path:
+        :param clean_path:
+        :param processed_path:
+        :param pad_length:
+        :param index_col:
+        :param conditioning:
+        :param classes2keep:
+        :param return_file_name: flag to also return filename. Defaults to False.
+        """
         self.data_path = pathlib.Path(data_path)
         self.clean_path = pathlib.Path(clean_path) if clean_path is not None else clean_path
         self.processed_path = pathlib.Path(processed_path) if processed_path is not None else processed_path
@@ -170,10 +188,14 @@ class FeatureOutDomainDataset(Dataset):
         self.param_columns = param_columns
         if "conditioning" in self.data.columns:
             self.data = self.data.drop(columns=["conditioning"])
-        self.fx2clean = pd.read_csv(self.data_path / "fx2clean.csv")
+        self.fx2clean = pd.read_csv(self.data_path / "fx2clean.csv", index_col=0)
         self.pad_length = pad_length
         self.scaler = TorchStandardScaler()
         self.conditioning = conditioning
+        self.return_file_name = return_file_name
+        self.classes2keep = classes2keep
+        if classes2keep is not None:
+            self.data = self.data[self.data["fx_class"].isin(classes2keep)]
 
     def __len__(self):
         return len(self.data)
@@ -209,9 +231,11 @@ class FeatureOutDomainDataset(Dataset):
                 else:
                     return cln_pad, prc_pad, features
         else:
-            cln_snd_path = self.clean_path / (self.fx2clean.iloc[item, 1] + '.wav')
-            fx_snd_path = self.processed_path / (self.fx2clean.iloc[item, 0] + '.wav')
-            cln_sound, rate = torchaudio.load(cln_snd_path, normalize=True)
+            # cln_snd_path = self.clean_path / (self.fx2clean.iloc[item, 1] + '.wav')
+            # fx_snd_path = self.processed_path / (self.fx2clean.iloc[item, 0] + '.wav')
+            cln_snd_path = self.clean_path / (self.fx2clean.loc[[filename]].values[0] + '.wav')
+            fx_snd_path = self.processed_path / (filename + ".wav")
+            cln_sound, rate = torchaudio.load(cln_snd_path[0], normalize=True)
             prc_sound, rate = torchaudio.load(fx_snd_path, normalize=True)
             cln_sound = cln_sound[0]
             prc_sound = prc_sound[0]
@@ -237,7 +261,10 @@ class FeatureOutDomainDataset(Dataset):
             features = torch.Tensor(features)
             features = self.scaler.transform(features)
             if self.conditioning:
-                return cln_pad, prc_pad, features, conditioning, fx_class
+                if self.return_file_name:
+                    return cln_pad, prc_pad, features, conditioning, fx_class, filename
+                else:
+                    return cln_pad, prc_pad, features, conditioning, fx_class
             else:
                 return cln_pad, prc_pad, features
 
