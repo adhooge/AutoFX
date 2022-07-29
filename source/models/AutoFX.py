@@ -267,12 +267,12 @@ class AutoFX(pl.LightningModule):
         num_steps_per_epoch = len(self.trainer.train_dataloader) / self.trainer.accumulate_grad_batches
         num_steps_per_epoch = num_steps_per_epoch * self.trainer.num_devices
         if not self.out_of_domain:
-            if self.with_film:
-                clean, processed, feat, label, conditioning, fx_class = batch
-            else:
-                clean, processed, feat, label = batch
-                conditioning = None
-                fx_class = None
+            # if self.with_film:
+            clean, processed, feat, label, conditioning, fx_class = batch
+            # else:
+            #    clean, processed, feat, label = batch
+            #    conditioning = None
+            #    fx_class = None
         else:
             if self.with_film:
                 clean, processed, feat, conditioning, fx_class = batch
@@ -355,16 +355,16 @@ class AutoFX(pl.LightningModule):
         return total_loss
 
     def on_after_backward(self) -> None:
-        pass
+        return
 
     def validation_step(self, batch, batch_idx, *args, **kwargs) -> Optional[STEP_OUTPUT]:
         if not self.out_of_domain:
-            if self.with_film:
-                clean, processed, feat, label, conditioning, fx_class = batch
-            else:
-                clean, processed, feat, label = batch
-                conditioning = None
-                fx_class = None
+            #if self.with_film:
+            clean, processed, feat, label, conditioning, fx_class = batch
+            # else:
+            #    clean, processed, feat, label = batch
+            #    conditioning = None
+            #    fx_class = None
         else:
             if self.with_film:
                 clean, processed, feat, conditioning, fx_class = batch
@@ -431,14 +431,14 @@ class AutoFX(pl.LightningModule):
 
     def on_validation_end(self) -> None:
         if not self.out_of_domain:
-            if self.with_film:
-                clean, processed, feat, label, conditioning, fx_class = next(iter(self.trainer.val_dataloaders[0]))
-                conditioning = conditioning.to(self.device)
-                fx_class = fx_class.to(self.device)
-            else:
-                clean, processed, feat, label = next(iter(self.trainer.val_dataloaders[0]))
-                conditioning = None
-                fx_class = None
+            #if self.with_film:
+            clean, processed, feat, label, conditioning, fx_class = next(iter(self.trainer.val_dataloaders[0]))
+            conditioning = conditioning.to(self.device)
+            fx_class = fx_class.to(self.device)
+            #else:
+            #    clean, processed, feat, label = next(iter(self.trainer.val_dataloaders[0]))
+            #    conditioning = None
+            #    fx_class = None
         else:
             clean, processed, feat = next(iter(self.trainer.val_dataloaders[0]))
         pred = self.forward(processed.to(self.device), feat.to(self.device), conditioning=conditioning)
