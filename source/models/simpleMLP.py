@@ -304,11 +304,18 @@ if __name__ == "__main__":
     PARAM_RANGE_DELAY = [(0, 1), (0, 1), (0, 1)]
     PARAM_RANGE_MODULATION = [(0.1, 10), (0, 1), (0, 20), (0, 1), (0, 1)]
     data = pd.read_csv(PROCESSED_PATH / 'data_mlp.csv', index_col=0)
+    sss_in = sklearn.model_selection.StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=2)
+    y_in = data["fx_class"]
+    X_in = data.iloc[:, :-1]
+    train_index, val_index = next(iter(sss_in.split(X_in, y_in)))
+    print(train_index)
+    print(X_in)
+    in_train = X_in.iloc[train_index]
     scaler = sklearn.preprocessing.StandardScaler()
     FEAT_COL = data.columns.str.startswith('f-')
     FEAT_COL = data.columns[FEAT_COL]
     print(FEAT_COL)
-    scaler.fit(data[FEAT_COL])
+    scaler.fit(in_train[FEAT_COL])
     print(scaler.mean_)
 
     datamodule = FeaturesDataModule(CLEAN_PATH, PROCESSED_PATH, OUT_OF_DOMAIN_PATH,
@@ -316,6 +323,7 @@ if __name__ == "__main__":
                                     out_scaler_mean=scaler.mean_, out_scaler_std=np.sqrt(scaler.var_),
                                     seed=2, batch_size=64,
                                     conditioning=True, classes2keep=[0, 1, 2], csv_name='data_mlp.csv')
+    # datamodule.setup()
 
     mlp = SimpleMLP(NUM_FEATURES, HIDDEN_SIZE, NUM_HIDDEN_LAYERS,
                     scaler.mean_, np.sqrt(scaler.var_), PARAM_RANGE_MODULATION,
