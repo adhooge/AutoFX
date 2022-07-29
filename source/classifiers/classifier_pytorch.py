@@ -138,7 +138,7 @@ class MLPClassifier(pl.LightningModule):
         # self.confusion_matrix.update((classes, label))
         precision = self.prec.compute()
         self.logger.experiment.add_scalars("Metrics/Precision_Train",
-                                           dict(zip(util.CLASSES, precision)),
+                                           dict(zip(util.CLASSES_SIMPLE, precision)),
                                            global_step=self.global_step)
         accuracy = self.accuracy.compute()
         self.logger.experiment.add_scalar("Metrics/Accuracy_Train",
@@ -146,7 +146,7 @@ class MLPClassifier(pl.LightningModule):
                                           global_step=self.global_step)
         recall = self.recall.compute()
         self.logger.experiment.add_scalars("Metrics/Recall_Train",
-                                           dict(zip(util.CLASSES, recall)),
+                                           dict(zip(util.CLASSES_SIMPLE, recall)),
                                            global_step=self.global_step)
         # confusion_matrix = self.confusion_matrix.compute()
         # fig = util.make_confusion_matrix(confusion_matrix.numpy(),
@@ -172,7 +172,7 @@ class MLPClassifier(pl.LightningModule):
         # self.confusion_matrix.update((classes, label))
         precision = self.prec.compute()
         self.logger.experiment.add_scalars("Metrics/Precision_test",
-                                           dict(zip(util.CLASSES, precision)),
+                                           dict(zip(util.CLASSES_SIMPLE, precision)),
                                            global_step=self.global_step)
         accuracy = self.accuracy.compute()
         self.logger.experiment.add_scalar("Metrics/Accuracy_test",
@@ -180,7 +180,7 @@ class MLPClassifier(pl.LightningModule):
                                           global_step=self.global_step)
         recall = self.recall.compute()
         self.logger.experiment.add_scalars("Metrics/Recall_test",
-                                           dict(zip(util.CLASSES, recall)),
+                                           dict(zip(util.CLASSES_SIMPLE, recall)),
                                            global_step=self.global_step)
 
     def configure_optimizers(self):

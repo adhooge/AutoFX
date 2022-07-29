@@ -13,11 +13,13 @@ import pytorch_lightning as pl
 from torch.utils.data import Dataset, DataLoader
 import source.classifiers.classifier_pytorch as torch_clf
 
-CLASSES = ['Dry', 'Feedback Delay', 'Slapback Delay', 'Reverb',
-           'Chorus', 'Flanger', 'Phaser',
-           'Tremolo', 'Vibrato', 'Distortion', 'Overdrive']
-OUT_PATH = "/home/alexandre/logs/classif4july"
-dataset = pd.read_csv('/home/alexandre/dataset/IDMT_FULL_CUT_22050/out.csv', index_col=0)
+# CLASSES = ['Dry', 'Feedback Delay', 'Slapback Delay', 'Reverb',
+#           'Chorus', 'Flanger', 'Phaser',
+#           'Tremolo', 'Vibrato', 'Distortion', 'Overdrive']
+CLASSES = ['Modulation', 'Delay', 'Distortion', 'Reverb', 'Tremolo', 'Dry']
+OUT_PATH = "/home/alexandre/logs/classif_simple"
+dataset = pd.read_csv('/home/alexandre/dataset/IDMT_guitar_mono_CUT_22050/out_simple.csv', index_col=0)
+dataset = dataset.drop(columns=['Unnamed: 0'])
 subset = dataset.drop(columns=['file'])
 target = subset['class']
 data = subset.drop(columns=['class'])
@@ -25,7 +27,6 @@ print(data)
 
 X_train, X_test, y_train, y_test = train_test_split(data, target, test_size=0.1, random_state=2,
                                                     stratify=target)
-
 
 sss = StratifiedShuffleSplit(n_splits=1, test_size=1 / 5, random_state=2)
 i = 0

@@ -24,6 +24,7 @@ GUITAR_MIN_FREQUENCY = 80
 GUITAR_MAX_FREQUENCY = 1200
 CLASSES = ['Dry', 'Feedback Delay', 'Slapback Delay', 'Reverb', 'Chorus', 'Flanger', 'Phaser',
            'Tremolo', 'Vibrato', 'Distortion', 'Overdrive']
+CLASSES_SIMPLE = ['Modulation', 'Delay', 'Distortion', 'Reverb', 'Tremolo', 'Dry']
 
 
 def get_fx_params(fx: pdb.Plugin or List[pdb.Plugin] or pdb.Pedalboard):
