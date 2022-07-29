@@ -22,6 +22,8 @@ class TorchStandardScaler:
         if x.device != self.mean.device or x.device != self.std.device:
             # print('YO', x.device, self.mean.device)
             x.to(self.mean.device)
+        # print(x.shape)
+        # print(self.mean.shape)
         x -= self.mean
         x /= (self.std + 1e-7)
         return x
@@ -32,7 +34,7 @@ class FeatureInDomainDataset(Dataset):
                  clean_path: str = None, processed_path: str = None,
                  pad_length: int = None, reverb: bool = False,
                  conditioning: bool = False, classes2keep: list = None,
-                 return_file_name: bool = False):
+                 return_file_name: bool = False, csv_name: str = "data.csv"):
         """
 
         :param data_path:
@@ -44,6 +46,7 @@ class FeatureInDomainDataset(Dataset):
         :param conditioning:
         :param classes2keep: Classes that should be kept for training.
         :param return_file_name: flag to also return filename
+        :param csv_name: Filename of the dataframe in .csv format. Default is 'data.csv'
         """
         if validation and (clean_path is None or processed_path is None):
             raise ValueError("Clean and Processed required for validation dataset.")
@@ -51,7 +54,7 @@ class FeatureInDomainDataset(Dataset):
         self.validation = validation
         self.clean_path = pathlib.Path(clean_path) if clean_path is not None else None
         self.processed_path = pathlib.Path(processed_path) if processed_path is not None else None
-        self.data = pd.read_csv(self.data_path / "data.csv", index_col=0)
+        self.data = pd.read_csv(self.data_path / csv_name, index_col=0)
         columns = list(self.data.columns)
         num_features = 0
         num_param = 0

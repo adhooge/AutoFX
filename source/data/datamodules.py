@@ -16,6 +16,7 @@ class FeaturesDataModule(pl.LightningDataModule):
                  out_scaler_mean: list = None, out_scaler_std: list = None,
                  out_of_domain: bool = False, seed: int = None, reverb: bool = False,
                  conditioning: bool = False, classes2keep: list = None, return_file_name: bool = False,
+                 csv_name: str = "data.csv",
                  *args, **kwargs):
         super(FeaturesDataModule, self).__init__()
         self.clean_dir = clean_dir
@@ -35,13 +36,15 @@ class FeaturesDataModule(pl.LightningDataModule):
         self.conditioning = conditioning
         self.classes2keep = classes2keep
         self.return_file_name = return_file_name
+        self.csv_name = csv_name
         self.save_hyperparameters()
 
     def setup(self, stage: Optional[str] = None) -> None:
         in_domain_full = FeatureInDomainDataset(self.processed_dir, validation=True,
                                                 clean_path=self.clean_dir, processed_path=self.processed_dir,
                                                 reverb=self.reverb, conditioning=self.conditioning,
-                                                classes2keep=self.classes2keep, return_file_name=self.return_file_name)
+                                                classes2keep=self.classes2keep, return_file_name=self.return_file_name,
+                                                csv_name = self.csv_name)
         out_domain_full = FeatureOutDomainDataset(self.out_of_domain_dir, self.clean_dir, self.out_of_domain_dir,
                                                   index_col=0, conditioning=self.conditioning,
                                                   classes2keep=self.classes2keep, return_file_name=self.return_file_name)
