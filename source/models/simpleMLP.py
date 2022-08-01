@@ -4,6 +4,7 @@ from typing import Any, Optional
 import auraloss
 import numpy as np
 import pedalboard as pdb
+import pickle
 import pytorch_lightning as pl
 import sklearn.preprocessing
 import torch
@@ -324,7 +325,8 @@ if __name__ == "__main__":
                                     seed=2, batch_size=64,
                                     conditioning=True, classes2keep=[0, 1, 2], csv_name='data_mlp.csv')
     # datamodule.setup()
-
+    with open("/home/alexandre/logs/SimpleMLP/scaler.pkl", 'wb') as f:
+        pickle.dump(scaler, f)
     mlp = SimpleMLP(NUM_FEATURES, HIDDEN_SIZE, NUM_HIDDEN_LAYERS,
                     scaler.mean_, np.sqrt(scaler.var_), PARAM_RANGE_MODULATION,
                     PARAM_RANGE_DELAY, PARAM_RANGE_DISTORTION,
