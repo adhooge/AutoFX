@@ -67,8 +67,10 @@ class ClassificationDataset(Dataset):
 
     def __init__(self, features, labels):
         super(ClassificationDataset, self).__init__()
-        self.features = features
-        self.labels = labels
+        # self.features = features
+        # self.labels = labels
+        self.features = torch.tensor(features, dtype=torch.float)
+        self.labels = torch.tensor(labels.values)
 
     def __len__(self):
         return self.features.shape[0]
@@ -113,6 +115,7 @@ class MLPClassifier(pl.LightningModule):
         self.learning_rate = learning_rate
         self.tol = tol
         self.n_iter_no_change = n_iter_no_change
+        self.save_hyperparameters()
 
     def forward(self, x) -> Any:
         out = self.linear1(x)
@@ -272,6 +275,7 @@ class FeatureExtractor(nn.Module):
         self.mfcc_transform = torchaudio.transforms.MFCC(sample_rate=int(rate),
                                                          n_mfcc=n_mfcc)
 
+
     def forward(self, audio: torch.Tensor, rate: int = 22050):
         """
 
@@ -306,8 +310,18 @@ class FeatureExtractor(nn.Module):
             audio, rate = torchaudio.load(f)
             if add_noise:
                 audio = audio + torch.randn_like(audio)*1e-6
-            fx = f.name.split('-')[2][1:-1]
-            fx = util.idmt_fx2class_number(util.idmt_fx(fx))
+            if '_' not in f.name:
+                fx = f.name.split('-')[2][1:-1]
+                fx = util.idmt_fx2class_number(util.idmt_fx(fx))
+            else:
+                fx = f.name.split('_')[-1]
+                match fx:
+                    case 'distortion':
+                        fx = 9
+                    case 'modulation':
+                        fx = 4
+                    case 'delay':
+                        fx = 2
             mfcc_transform = torchaudio.transforms.MFCC(sample_rate=rate,
                                                         n_mfcc=n_mfcc)
             try:
