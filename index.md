@@ -21,3 +21,79 @@ and has been created for the purpose of the classification of audio effects on p
 See the [published paper](https://www.aes.org/e-lib/browse.cfm?elib=15310) for more information:
 >Stein, Michael, et al. "Automatic detection of audio effects in guitar and bass recordings." Audio Engineering Society Convention 128. Audio Engineering Society, 2010.
 
+#### Example sounds from the dataset
+
+<table>
+<caption><b> Dataset examples</b></caption>
+    <tr>
+    <td style="text-align: center; vertical-align: middle;"><b>Clean</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Feedback Delay</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Slapback Delay</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Reverb</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Chorus</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Flanger</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Phaser</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Tremolo</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Vibrato</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Overdrive</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Distortion</b></td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/dry.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/fdback_delay.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/slpback_delay.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/reverb.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/chorus.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/flanger.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/phaser.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/tremolo.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/vibrato.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/overdrive.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/distortion.wav">
+</audio>
+</td>
+</tr>
+
+</table>
