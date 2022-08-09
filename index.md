@@ -2,11 +2,12 @@
 ## Lab: [Sony CSL](https://github.com/SonyCSLParis)
 __Supervisor:__ [Gaëtan Hadjeres](https://github.com/Ghadjeres)
 
-<img src="https://adhooge.github.io/AutoFX/logos/sorbonne.jpg">
-<img src="https://adhooge.github.io/AutoFX/logos/telecom.jpg">
-<img src="https://adhooge.github.io/AutoFX/logos/ircam.jpg">
-<img src="https://adhooge.github.io/AutoFX/logos/atiam.jpg">
-<img src="https://adhooge.github.io/AutoFX/logos/csl.png">
+<img src="https://adhooge.github.io/AutoFX/logos/sorbonne.jpg" alt="Logo Sorbonnes universités" width="200">
+<img src="https://adhooge.github.io/AutoFX/logos/telecom.jpg" alt="Logo Télécom Paris" width="100">
+<img src="https://adhooge.github.io/AutoFX/logos/ircam.jpg" alt="Logo IRCAM" width="250">
+<p></p>
+<img src="https://adhooge.github.io/AutoFX/logos/atiam.jpg" alt="Logo Sorbonnes universités" width="200">
+<img src="https://adhooge.github.io/AutoFX/logos/csl.png" alt="Logo Sony CSL" width="250">
 
 
 ### Abstract
