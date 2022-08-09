@@ -1,14 +1,16 @@
 # ATIAM Internship Summer 2022
 ## Lab: [Sony CSL](https://github.com/SonyCSLParis)
 __Supervisor:__ [Gaëtan Hadjeres](https://github.com/Ghadjeres)
-
-<img src="https://adhooge.github.io/AutoFX/logos/sorbonne.jpg" alt="Logo Sorbonnes universités" width="200">
+<div align="center">
+<img src="https://adhooge.github.io/AutoFX/logos/sorbonne.jpg" align="left" alt="Logo Sorbonnes universités" width="200">
 <img src="https://adhooge.github.io/AutoFX/logos/telecom.jpg" alt="Logo Télécom Paris" width="100">
-<img src="https://adhooge.github.io/AutoFX/logos/ircam.jpg" alt="Logo IRCAM" width="250">
-<p></p>
-<img src="https://adhooge.github.io/AutoFX/logos/atiam.jpg" alt="Logo Sorbonnes universités" width="200">
-<img src="https://adhooge.github.io/AutoFX/logos/csl.png" alt="Logo Sony CSL" width="250">
-
+<img src="https://adhooge.github.io/AutoFX/logos/ircam.jpg" align="right" alt="Logo IRCAM" width="250">
+</div>
+<div align="center">
+<img src="https://adhooge.github.io/AutoFX/logos/atiam.jpg" align="left" alt="Logo Sorbonnes universités" width="200">
+<img src="https://adhooge.github.io/AutoFX/logos/csl.png" align="right" alt="Logo Sony CSL" width="250">
+</div>
+<br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>
 
 ### Abstract
 
@@ -81,7 +83,6 @@ See the [published paper](https://www.aes.org/e-lib/browse.cfm?elib=15310) for m
 </td></tr><tr>
     <td style="text-align: center; vertical-align: middle;"><b>Vibrato</b></td>
     <td style="text-align: center; vertical-align: middle;"><b>Overdrive</b></td>
-    <td style="text-align: center; vertical-align: middle;"><b>Distortion</b></td>
 </tr><tr>
 
 
@@ -96,11 +97,15 @@ See the [published paper](https://www.aes.org/e-lib/browse.cfm?elib=15310) for m
 <source src="https://adhooge.github.io/AutoFX/sounds/idmt/overdrive.wav">
 </audio>
 </td>
+<tr>
+
+<td style="text-align: center; vertical-align: middle;"><b>Distortion</b></td>
+</tr>
+<tr>
 <td style="text-align: center; vertical-align: middle;">
 <audio controls>
 <source src="https://adhooge.github.io/AutoFX/sounds/idmt/distortion.wav">
 </audio>
 </td>
 </tr>
-
 </table>
