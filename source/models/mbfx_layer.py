@@ -16,8 +16,6 @@ class MBFxFunction(torch.autograd.Function):
     @staticmethod
     def forward(ctx: Any, cln, settings, mbfx, rate, param_range, fake_num_bands: int = None,
                 eps=0.01, grad_x: bool = False, *args: Any, **kwargs: Any) -> Any:
-        # print("clean", cln.requires_grad)
-        # print("settings", settings.requires_grad)
         if fake_num_bands is None:
             fake_num_bands = mbfx.num_bands
         ctx.fake_num_bands = fake_num_bands
@@ -33,15 +31,12 @@ class MBFxFunction(torch.autograd.Function):
             tmp = tmp[None, :]
         out = torch.zeros_like(tmp)
         for (i, snd) in enumerate(tmp):
-            # print(params)
             mbfx.set_fx_params(params, flat=True, param_range=param_range)
             out[i] = mbfx(snd, rate)
         return out
 
     @staticmethod
     def backward(ctx: Any, *grad_outputs: Any) -> Any:
-        # print(ctx.needs_input_grad)
-        # print("DAFUK", grad_outputs)
         cln, params, = ctx.saved_tensors
         if cln.ndim == 1:
             cln = cln[None, :]
@@ -65,29 +60,14 @@ class MBFxFunction(torch.autograd.Function):
             # Grad wrt to parameters
             Jy = torch.zeros((batch_size, num_settings))
             perturbation = _make_perturbation_vector((num_settings))
-            # print("before: ", mbfx.settings)
-            # print(snd)
             mbfx.fake_add_perturbation_to_fx_params(perturbation * ctx.eps, ctx.param_range, ctx.fake_num_bands)
-            # print("\n after add: ", mbfx.settings)
             J_plus = mbfx(snd.clone(), ctx.rate)
-            # print("Yo")
-            # print("J_plus: ", J_plus)
             mbfx.fake_add_perturbation_to_fx_params(-2 * perturbation * ctx.eps, ctx.param_range, ctx.fake_num_bands)
-            # print("\nafter sub: ", mbfx.settings)
             J_minus = mbfx(torch.clone(snd), ctx.rate)
-            # print("J_minus", J_minus)
-            # print("J_plus again", J_plus)
-            # print("wesh")
-            # print("J_plus: ", J_plus, "\nJ_minus: ", J_minus, "\nJ_plus - J_minus: ", J_plus - J_minus)
             mbfx.fake_add_perturbation_to_fx_params(perturbation * ctx.eps, ctx.param_range, ctx.fake_num_bands)
-            # print("perturbation", perturbation)
             for j in range(num_settings):
-                # print("1", (2 * ctx.eps * perturbation[j]))
                 grady = (J_plus - J_minus) / (2 * ctx.eps * perturbation[j])
                 Jy[i][j] = grad_outputs[0] @ grady.T
-                # print("2", Jy[i][j])
-        # print(Jx, Jy)
-        # print("3", torch.mean(Jx), torch.mean(Jy))
         return None, Jy, None, None, None, None
 
 
