@@ -29,15 +29,6 @@ See the [published paper](https://www.aes.org/e-lib/browse.cfm?elib=15310) for m
     <tr>
     <td style="text-align: center; vertical-align: middle;"><b>Clean</b></td>
     <td style="text-align: center; vertical-align: middle;"><b>Feedback Delay</b></td>
-    <td style="text-align: center; vertical-align: middle;"><b>Slapback Delay</b></td>
-    <td style="text-align: center; vertical-align: middle;"><b>Reverb</b></td>
-    <td style="text-align: center; vertical-align: middle;"><b>Chorus</b></td>
-    <td style="text-align: center; vertical-align: middle;"><b>Flanger</b></td>
-    <td style="text-align: center; vertical-align: middle;"><b>Phaser</b></td>
-    <td style="text-align: center; vertical-align: middle;"><b>Tremolo</b></td>
-    <td style="text-align: center; vertical-align: middle;"><b>Vibrato</b></td>
-    <td style="text-align: center; vertical-align: middle;"><b>Overdrive</b></td>
-    <td style="text-align: center; vertical-align: middle;"><b>Distortion</b></td>
 </tr>
 <tr>
 <td style="text-align: center; vertical-align: middle;">
@@ -50,7 +41,11 @@ See the [published paper](https://www.aes.org/e-lib/browse.cfm?elib=15310) for m
 <source src="https://adhooge.github.io/AutoFX/sounds/idmt/fdback_delay.wav">
 </audio>
 </td>
-<td style="text-align: center; vertical-align: middle;">
+</tr>
+<tr>
+    <td style="text-align: center; vertical-align: middle;"><b>Slapback Delay</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Reverb</b></td>
+<tr><td style="text-align: center; vertical-align: middle;">
 <audio controls>
 <source src="https://adhooge.github.io/AutoFX/sounds/idmt/slpback_delay.wav">
 </audio>
@@ -59,8 +54,10 @@ See the [published paper](https://www.aes.org/e-lib/browse.cfm?elib=15310) for m
 <audio controls>
 <source src="https://adhooge.github.io/AutoFX/sounds/idmt/reverb.wav">
 </audio>
-</td>
-<td style="text-align: center; vertical-align: middle;">
+</td></tr><tr>
+    <td style="text-align: center; vertical-align: middle;"><b>Chorus</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Flanger</b></td>
+<tr><td style="text-align: center; vertical-align: middle;">
 <audio controls>
 <source src="https://adhooge.github.io/AutoFX/sounds/idmt/chorus.wav">
 </audio>
@@ -69,8 +66,10 @@ See the [published paper](https://www.aes.org/e-lib/browse.cfm?elib=15310) for m
 <audio controls>
 <source src="https://adhooge.github.io/AutoFX/sounds/idmt/flanger.wav">
 </audio>
-</td>
-<td style="text-align: center; vertical-align: middle;">
+</td></tr><tr>
+    <td style="text-align: center; vertical-align: middle;"><b>Phaser</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Tremolo</b></td>
+<tr><td style="text-align: center; vertical-align: middle;">
 <audio controls>
 <source src="https://adhooge.github.io/AutoFX/sounds/idmt/phaser.wav">
 </audio>
@@ -79,7 +78,14 @@ See the [published paper](https://www.aes.org/e-lib/browse.cfm?elib=15310) for m
 <audio controls>
 <source src="https://adhooge.github.io/AutoFX/sounds/idmt/tremolo.wav">
 </audio>
-</td>
+</td></tr><tr>
+    <td style="text-align: center; vertical-align: middle;"><b>Vibrato</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Overdrive</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Distortion</b></td>
+</tr><tr>
+
+
+
 <td style="text-align: center; vertical-align: middle;">
 <audio controls>
 <source src="https://adhooge.github.io/AutoFX/sounds/idmt/vibrato.wav">
