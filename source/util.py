@@ -96,6 +96,7 @@ def make_confusion_matrix(cf,
                           sum_stats=True,
                           figsize=None,
                           cmap='Blues',
+                          unbalanced_set=False,
                           title=None):
     """
     This function will make a pretty plot of an sklearn Confusion Matrix cm using a Seaborn heatmap visualization.
@@ -113,7 +114,7 @@ def make_confusion_matrix(cf,
     figsize:       Tuple representing the figure size. Default will be the matplotlib rcParams value.
     cmap:          Colormap of the values displayed from matplotlib.pyplot.cm. Default is 'Blues'
                    See http://matplotlib.org/examples/color/colormaps_reference.html
-
+    unbalanced_set: If True, displayed values are normalized per class instead than by the total dataset size.
     title:         Title for the heatmap. Default is None.
     """
 
@@ -129,9 +130,15 @@ def make_confusion_matrix(cf,
         group_counts = ["{0:0.0f}\n".format(value) for value in cf.flatten()]
     else:
         group_counts = blanks
-
+    print(cf)
+    print(cf / np.sum(cf, axis=1))
+    print(np.sum(cf, axis=1))
+    print(np.sum(cf, axis=0))
     if percent:
-        group_percentages = ["{0:.2%}".format(value) for value in cf.flatten() / np.sum(cf)]
+        if not unbalanced_set:
+            group_percentages = ["{0:.2%}".format(value) for value in cf.flatten() / np.sum(cf)]
+        else:
+            group_percentages = ["{0:.2%}".format(value) for value in (cf / np.sum(cf, axis=1)[:, None]).flatten()]
     else:
         group_percentages = blanks
 
@@ -167,6 +174,8 @@ def make_confusion_matrix(cf,
 
     # MAKE THE HEATMAP VISUALIZATION
     fig = plt.figure(figsize=figsize)
+    if unbalanced_set:
+        cf = cf / np.sum(cf, axis=1)[:, None]
     sns.heatmap(cf, annot=box_labels, fmt="", cmap=cmap, cbar=cbar, xticklabels=categories, yticklabels=categories)
 
     if xyplotlabels:
@@ -637,3 +646,31 @@ def approx_argmax2(arr, beta: int = 100):
     estim = (torch.sum(i * torch.pow(arr, beta), dim=-1, keepdim=True)) / \
             (torch.sum(torch.pow(arr, beta), dim=-1, keepdim=True))
     return estim
+
+
+def aggregated_class(fx):
+    match fx:
+        case 0:
+            return 5
+        case 1:
+            return 1
+        case 2:
+            return 1
+        case 3:
+            return 3
+        case 4:
+            return 0
+        case 5:
+            return 0
+        case 6:
+            return 0
+        case 7:
+            return 4
+        case 8:
+            return 0
+        case 9:
+            return 2
+        case 10:
+            return 2
+        case _:
+            raise ValueError(f"Unknown Fx {fx}")
