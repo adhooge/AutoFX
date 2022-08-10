@@ -16,18 +16,22 @@ import source.classifiers.classifier_pytorch as torch_clf
 CLASSES = ['Dry', 'Feedback Delay', 'Slapback Delay', 'Reverb',
            'Chorus', 'Flanger', 'Phaser',
            'Tremolo', 'Vibrato', 'Distortion', 'Overdrive']
-OUT_PATH = "/home/alexandre/logs/classif4july"
-dataset = pd.read_csv('/home/alexandre/dataset/IDMT_FULL_CUT_22050/out.csv', index_col=0)
+AGGREGATE = True
+OUT_PATH = "/home/alexandre/logs/classif9aout"
+dataset = pd.read_csv('/home/alexandre/dataset/IDMT_guitar_mono_CUT_22050/out.csv', index_col=0)
 subset = dataset.drop(columns=['file'])
+if AGGREGATE:
+    subset['class'] = subset['class'].apply(util.aggregated_class)
 target = subset['class']
 data = subset.drop(columns=['class'])
 print(data)
+
 
 X_train, X_test, y_train, y_test = train_test_split(data, target, test_size=0.1, random_state=2,
                                                     stratify=target)
 
 
-sss = StratifiedShuffleSplit(n_splits=1, test_size=1 / 5, random_state=2)
+sss = StratifiedShuffleSplit(n_splits=1, test_size=1 / 9, random_state=2)
 i = 0
 for train_index, valid_index in sss.split(X_train, y_train):
     print("Working on fold", i)
@@ -52,10 +56,10 @@ for train_index, valid_index in sss.split(X_train, y_train):
                                   num_workers=4)
     valid_dataloader = DataLoader(valid_dataset, batch_size=128, num_workers=4)
 
-    clf = torch_clf.MLPClassifier(len(data.columns), len(CLASSES), 100, activation='sigmoid', solver='adam',
+    clf = torch_clf.MLPClassifier(len(data.columns), 6 if AGGREGATE else 11, 100, activation='sigmoid', solver='adam',
                                   max_iter=200, learning_rate=0.002)
 
-    logger = TensorBoardLogger(OUT_PATH, name="guitar_Mono")
+    logger = TensorBoardLogger(OUT_PATH, name="guitar_mono_aggregated")
     # early_stop_callback = EarlyStopping(monitor="train_loss",
     #                                     min_delta=clf.tol,
     #                                    patience=clf.n_iter_no_change)
