@@ -109,3 +109,107 @@ See the [published paper](https://www.aes.org/e-lib/browse.cfm?elib=15310) for m
 </td>
 </tr>
 </table>
+
+### Synthetic sounds
+
+A synthetic dataset is obtained by processing clean audio from the IDMT Dataset with the [`pedalboard`](https://github.com/spotify/pedalboard) library.
+
+- **Modulation** sounds are obtained with the `pedalboard.Chorus` plugin;
+- **Delay** sounds with the `pedalboard.Delay` plugin;
+- **Distortion** sounds with an effect chain of `pedalboard.Distortion`, `pedalboard.LowShelfFilter` and `pedalboard.HighShelfFilter`.
+
+Example sounds for each of those are available below:
+
+<table>
+<caption><b> Synthetic sound examples</b></caption>
+    <tr>
+    <td style="text-align: center; vertical-align: middle;"><b>Modulation</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Delay</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Distortion</b></td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/synth/0-Modulation.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/0-Delay.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/0-Distortion.wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/synth/1-Modulation.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/1-Delay.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/1-Distortion.wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/synth/2-Modulation.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/2-Delay.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/2-Distortion.wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/synth/3-Modulation.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/3-Delay.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/3-Distortion.wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/synth/4-Modulation.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/4-Delay.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/idmt/4-Distortion.wav">
+</audio>
+</td>
+</tr>
+</table>
