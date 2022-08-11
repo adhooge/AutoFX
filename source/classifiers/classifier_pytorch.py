@@ -18,6 +18,7 @@ import torchaudio
 
 import data.features_jit as Ft
 import data.functional_jit as Fc
+import source.util
 import source.util as util
 
 
@@ -67,10 +68,12 @@ class ClassificationDataset(Dataset):
 
     def __init__(self, features, labels):
         super(ClassificationDataset, self).__init__()
-        # self.features = features
-        # self.labels = labels
-        self.features = torch.tensor(features, dtype=torch.float)
-        self.labels = torch.tensor(labels.values)
+        if isinstance(features, torch.Tensor):
+            self.features = features
+            self.labels = labels
+        else:
+            self.features = torch.tensor(features, dtype=torch.float)
+            self.labels = torch.tensor(labels.values)
 
     def __len__(self):
         return self.features.shape[0]
@@ -310,11 +313,13 @@ class FeatureExtractor(nn.Module):
             audio, rate = torchaudio.load(f)
             if add_noise:
                 audio = audio + torch.randn_like(audio)*1e-6
+            # print(f.name)
             if '_' not in f.name:
                 fx = f.name.split('-')[2][1:-1]
                 fx = util.idmt_fx2class_number(util.idmt_fx(fx))
             else:
-                fx = f.name.split('_')[-1]
+                fx = f.name.split('_')[-1][:-4]
+                # print(fx)
                 match fx:
                     case 'distortion':
                         fx = 9
