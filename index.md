@@ -46,7 +46,7 @@ See the [published paper](https://www.aes.org/e-lib/browse.cfm?elib=15310) for m
 </tr>
 <tr>
     <td style="text-align: center; vertical-align: middle;"><b>Slapback Delay</b></td>
-    <td style="text-align: center; vertical-align: middle;"><b>Reverb</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Reverb</b></td></tr>
 <tr><td style="text-align: center; vertical-align: middle;">
 <audio controls>
 <source src="https://adhooge.github.io/AutoFX/sounds/idmt/slpback_delay.wav">
@@ -58,7 +58,7 @@ See the [published paper](https://www.aes.org/e-lib/browse.cfm?elib=15310) for m
 </audio>
 </td></tr><tr>
     <td style="text-align: center; vertical-align: middle;"><b>Chorus</b></td>
-    <td style="text-align: center; vertical-align: middle;"><b>Flanger</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Flanger</b></td></tr>
 <tr><td style="text-align: center; vertical-align: middle;">
 <audio controls>
 <source src="https://adhooge.github.io/AutoFX/sounds/idmt/chorus.wav">
@@ -70,7 +70,7 @@ See the [published paper](https://www.aes.org/e-lib/browse.cfm?elib=15310) for m
 </audio>
 </td></tr><tr>
     <td style="text-align: center; vertical-align: middle;"><b>Phaser</b></td>
-    <td style="text-align: center; vertical-align: middle;"><b>Tremolo</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Tremolo</b></td></tr>
 <tr><td style="text-align: center; vertical-align: middle;">
 <audio controls>
 <source src="https://adhooge.github.io/AutoFX/sounds/idmt/phaser.wav">
@@ -84,9 +84,6 @@ See the [published paper](https://www.aes.org/e-lib/browse.cfm?elib=15310) for m
     <td style="text-align: center; vertical-align: middle;"><b>Vibrato</b></td>
     <td style="text-align: center; vertical-align: middle;"><b>Overdrive</b></td>
 </tr><tr>
-
-
-
 <td style="text-align: center; vertical-align: middle;">
 <audio controls>
 <source src="https://adhooge.github.io/AutoFX/sounds/idmt/vibrato.wav">
@@ -96,9 +93,8 @@ See the [published paper](https://www.aes.org/e-lib/browse.cfm?elib=15310) for m
 <audio controls>
 <source src="https://adhooge.github.io/AutoFX/sounds/idmt/overdrive.wav">
 </audio>
-</td>
+</td></tr>
 <tr>
-
 <td style="text-align: center; vertical-align: middle;"><b>Distortion</b></td>
 </tr>
 <tr>
