@@ -130,10 +130,6 @@ def make_confusion_matrix(cf,
         group_counts = ["{0:0.0f}\n".format(value) for value in cf.flatten()]
     else:
         group_counts = blanks
-    print(cf)
-    print(cf / np.sum(cf, axis=1))
-    print(np.sum(cf, axis=1))
-    print(np.sum(cf, axis=0))
     if percent:
         if not unbalanced_set:
             group_percentages = ["{0:.2%}".format(value) for value in cf.flatten() / np.sum(cf)]
