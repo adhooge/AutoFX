@@ -131,12 +131,12 @@ Example sounds for each of those are available below:
 </td>
 <td style="text-align: center; vertical-align: middle;">
 <audio controls>
-<source src="https://adhooge.github.io/AutoFX/sounds/idmt/0-Delay.wav">
+<source src="https://adhooge.github.io/AutoFX/sounds/synth/0-Delay.wav">
 </audio>
 </td>
 <td style="text-align: center; vertical-align: middle;">
 <audio controls>
-<source src="https://adhooge.github.io/AutoFX/sounds/idmt/0-Distortion.wav">
+<source src="https://adhooge.github.io/AutoFX/sounds/synth/0-Distortion.wav">
 </audio>
 </td>
 </tr>
@@ -148,12 +148,12 @@ Example sounds for each of those are available below:
 </td>
 <td style="text-align: center; vertical-align: middle;">
 <audio controls>
-<source src="https://adhooge.github.io/AutoFX/sounds/idmt/1-Delay.wav">
+<source src="https://adhooge.github.io/AutoFX/sounds/synth/1-Delay.wav">
 </audio>
 </td>
 <td style="text-align: center; vertical-align: middle;">
 <audio controls>
-<source src="https://adhooge.github.io/AutoFX/sounds/idmt/1-Distortion.wav">
+<source src="https://adhooge.github.io/AutoFX/sounds/synth/1-Distortion.wav">
 </audio>
 </td>
 </tr>
@@ -165,12 +165,12 @@ Example sounds for each of those are available below:
 </td>
 <td style="text-align: center; vertical-align: middle;">
 <audio controls>
-<source src="https://adhooge.github.io/AutoFX/sounds/idmt/2-Delay.wav">
+<source src="https://adhooge.github.io/AutoFX/sounds/synth/2-Delay.wav">
 </audio>
 </td>
 <td style="text-align: center; vertical-align: middle;">
 <audio controls>
-<source src="https://adhooge.github.io/AutoFX/sounds/idmt/2-Distortion.wav">
+<source src="https://adhooge.github.io/AutoFX/sounds/synth/2-Distortion.wav">
 </audio>
 </td>
 </tr>
@@ -182,12 +182,12 @@ Example sounds for each of those are available below:
 </td>
 <td style="text-align: center; vertical-align: middle;">
 <audio controls>
-<source src="https://adhooge.github.io/AutoFX/sounds/idmt/3-Delay.wav">
+<source src="https://adhooge.github.io/AutoFX/sounds/synth/3-Delay.wav">
 </audio>
 </td>
 <td style="text-align: center; vertical-align: middle;">
 <audio controls>
-<source src="https://adhooge.github.io/AutoFX/sounds/idmt/3-Distortion.wav">
+<source src="https://adhooge.github.io/AutoFX/sounds/synth/3-Distortion.wav">
 </audio>
 </td>
 </tr>
@@ -199,12 +199,12 @@ Example sounds for each of those are available below:
 </td>
 <td style="text-align: center; vertical-align: middle;">
 <audio controls>
-<source src="https://adhooge.github.io/AutoFX/sounds/idmt/4-Delay.wav">
+<source src="https://adhooge.github.io/AutoFX/sounds/synth/4-Delay.wav">
 </audio>
 </td>
 <td style="text-align: center; vertical-align: middle;">
 <audio controls>
-<source src="https://adhooge.github.io/AutoFX/sounds/idmt/4-Distortion.wav">
+<source src="https://adhooge.github.io/AutoFX/sounds/synth/4-Distortion.wav">
 </audio>
 </td>
 </tr>
