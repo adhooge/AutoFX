@@ -1,5 +1,6 @@
 import torch
 import pytorch_lightning as pl
+import pickle
 from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
 from sklearn.metrics import confusion_matrix
@@ -10,6 +11,7 @@ from source.classifiers.classifier_pytorch import MLPClassifier
 import source.classifiers.classifier_pytorch as torch_clf
 
 CKPT_PATH = "/home/alexandre/logs/classif9aout/guitar_mono_aggregated/version_0/checkpoints/epoch=61-step=7998.ckpt"
+SCALER_PATH = "/home/alexandre/logs/classif9aout/guitar_mono_aggregated/version_0/scaler.pkl"
 # DATA_PATH = "/home/alexandre/dataset/IDMT_guitar_mono_CUT_22050/out.csv"
 DATA_PATH = "/home/alexandre/dataset/modulation_delay_distortion_guitar_mono_cut/out.csv"
 AGGREGATE = True
@@ -30,28 +32,13 @@ target = subset['class']
 data = subset.drop(columns=['class'])
 print(data)
 
-X_train, X_test, y_train, y_test = train_test_split(data, target, test_size=0.1, random_state=2,
-                                                    stratify=target)
+
+X_test = torch.tensor(data.values, dtype=torch.float)
+y_test = torch.tensor(target.values)
 
 
-X_test = torch.tensor(X_test.values, dtype=torch.float)
-y_test = torch.tensor(y_test.values)
-
-sss = StratifiedShuffleSplit(n_splits=1, test_size=1 / 9, random_state=2)
-i = 0
-for train_index, valid_index in sss.split(X_train, y_train):
-    i += 1
-    X_train_cv = X_train.iloc[train_index]
-    X_valid_cv = X_train.iloc[valid_index]
-    y_train_cv = y_train.iloc[train_index]
-    y_valid_cv = y_train.iloc[valid_index]
-    X_train_cv = torch.tensor(X_train_cv.values, dtype=torch.float)
-    X_valid_cv = torch.tensor(X_valid_cv.values, dtype=torch.float)
-    y_train_cv = torch.tensor(y_train_cv.values)
-    y_valid_cv = torch.tensor(y_valid_cv.values)
-
-    scaler = torch_clf.TorchStandardScaler()
-    scaler.fit(X_train_cv)
+with open(SCALER_PATH, "rb") as f:
+    scaler = pickle.load(f)
 
 X_test = scaler.transform(X_test.clone())
 
@@ -65,8 +52,8 @@ pred = torch.argmax(pred, dim=-1)
 
 cm = confusion_matrix(y_test.numpy(), pred.numpy())
 print(cm)
-fig = util.make_confusion_matrix(cm, group_names=CLASSES, categories=CLASSES, cbar=False, percent=True, count=False,
-                                 unbalanced_set=True)
+fig = util.make_confusion_matrix(cm, group_names=CLASSES, categories=CLASSES, cbar=False, percent=False, count=True,
+                                 unbalanced_set=False)
 fig.show()
 plt.show(block=True)
 
