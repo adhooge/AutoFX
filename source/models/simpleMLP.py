@@ -1,3 +1,4 @@
+import os
 import pathlib
 from typing import Any, Optional
 
@@ -9,6 +10,7 @@ import pytorch_lightning as pl
 import sklearn.preprocessing
 import torch
 import torchaudio
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 import pandas as pd
@@ -67,7 +69,7 @@ class SimpleMLP(pl.LightningModule):
         self.scaler.mean = torch.tensor(scaler_mean, device=torch.device('cuda'))
         print(self.scaler.mean.shape)
         self.scaler.std = torch.tensor(scaler_std, device=torch.device('cuda'))
-        self.fcl_start = nn.Linear(num_features + 11, hidden_size)
+        self.fcl_start = nn.Linear(num_features + 6, hidden_size)
         self.fcl_end = nn.Linear(hidden_size, self.num_params)
         self.batchnorm = nn.BatchNorm1d(hidden_size, affine=False)
         self.relu = nn.ReLU(inplace=True)
@@ -92,7 +94,10 @@ class SimpleMLP(pl.LightningModule):
         self.save_hyperparameters()
 
     def forward(self, feat, conditioning, *args, **kwargs) -> Any:
-        x = torch.cat([feat, conditioning], dim=-1)
+        if conditioning[0] != 'None':
+            x = torch.cat([feat, conditioning], dim=-1)
+        else:
+            x = feat
         out = self.fcl_start(x)
         if self.num_hidden_layers > 1:
             for l in self.hidden_layers:
@@ -107,7 +112,6 @@ class SimpleMLP(pl.LightningModule):
         clean, processed, feat, label, conditioning, fx_class = batch
         batch_size = processed.shape[0]
         pred = self.forward(feat, conditioning)
-        loss = self.loss(pred, label)
         pred_clone = pred.clone()
         # mask predictions according to fx_class
         pred_clone[:, :5] *= (fx_class[:, None] == 0)
@@ -157,6 +161,7 @@ class SimpleMLP(pl.LightningModule):
         clean, processed, feat, label, conditioning, fx_class = batch
         batch_size = processed.shape[0]
         pred = self.forward(feat, conditioning)
+        # print(pred, label)
         loss = self.loss(pred, label)
         pred_clone = pred.clone()
         # mask predictions according to fx_class
@@ -167,6 +172,7 @@ class SimpleMLP(pl.LightningModule):
         pred_clone[:, 8:] *= (fx_class[:, None] == 2)
         label[:, 8:] *= (fx_class[:, None] == 2)
         loss = self.loss(pred_clone, label)
+        self.log("loss/test", loss)
         pred_per_fx = [pred[:, :5], pred[:, 5:8], pred[:, 8:]]
         # loss = 0
         self.logger.experiment.add_scalar("Param_loss/Val", loss, global_step=self.global_step)
@@ -205,7 +211,8 @@ class SimpleMLP(pl.LightningModule):
 
     def on_validation_end(self) -> None:
         clean, processed, feat, label, conditioning, fx_class = next(iter(self.trainer.val_dataloaders[0]))
-        conditioning = conditioning.to(self.device)
+        if conditioning[0] != 'None':
+            conditioning = conditioning.to(self.device)
         fx_class = fx_class.to(self.device)
         pred = self.forward(feat.to(self.device), conditioning=conditioning)
         pred = pred.to("cpu")
@@ -296,7 +303,7 @@ if __name__ == "__main__":
     CLEAN_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_dry_22050_cut")
     PROCESSED_PATH = pathlib.Path("/home/alexandre/dataset/modulation_delay_distortion_guitar_mono_cut")
     OUT_OF_DOMAIN_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_modulation_delay_distortion_22050_cut")
-    NUM_FEATURES = 211
+    NUM_FEATURES = 163
     HIDDEN_SIZE = 100
     NUM_HIDDEN_LAYERS = 10
     PARAM_RANGE_DISTORTION = [(0, 60),
@@ -304,34 +311,41 @@ if __name__ == "__main__":
                               (500, 2000), (-10, 10), (0.5, 2)]
     PARAM_RANGE_DELAY = [(0, 1), (0, 1), (0, 1)]
     PARAM_RANGE_MODULATION = [(0.1, 10), (0, 1), (0, 20), (0, 1), (0, 1)]
-    data = pd.read_csv(PROCESSED_PATH / 'data_mlp.csv', index_col=0)
+    data = pd.read_csv(PROCESSED_PATH / 'data_full.csv', index_col=0)
     sss_in = sklearn.model_selection.StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=2)
     y_in = data["fx_class"]
     X_in = data.iloc[:, :-1]
     train_index, val_index = next(iter(sss_in.split(X_in, y_in)))
-    print(train_index)
-    print(X_in)
     in_train = X_in.iloc[train_index]
-    scaler = sklearn.preprocessing.StandardScaler()
-    FEAT_COL = data.columns.str.startswith('f-')
-    FEAT_COL = data.columns[FEAT_COL]
-    print(FEAT_COL)
-    scaler.fit(in_train[FEAT_COL])
-    print(scaler.mean_)
+    # scaler = sklearn.preprocessing.StandardScaler()
+    # FEAT_COL = data.columns.str.startswith('f-')
+    # FEAT_COL = data.columns[FEAT_COL]
+    # print(FEAT_COL)
+    # scaler.fit(in_train[FEAT_COL])
+    # print(scaler.mean_)
+    with open("/home/alexandre/logs/SimpleMLP11aout/163feat-no_conditioning-10_hidden/scaler.pkl", 'rb') as f:
+        scaler = pickle.load(f)
+
 
     datamodule = FeaturesDataModule(CLEAN_PATH, PROCESSED_PATH, OUT_OF_DOMAIN_PATH,
                                     in_scaler_mean=scaler.mean_, in_scaler_std=np.sqrt(scaler.var_),
                                     out_scaler_mean=scaler.mean_, out_scaler_std=np.sqrt(scaler.var_),
-                                    seed=2, batch_size=64,
-                                    conditioning=True, classes2keep=[0, 1, 2], csv_name='data_mlp.csv')
+                                    seed=2, batch_size=64, fx_feat=False, clf_feat=True,
+                                    conditioning=True, classes2keep=[0, 1, 2], csv_name='data_full.csv')
     # datamodule.setup()
-    with open("/home/alexandre/logs/SimpleMLP/scaler.pkl", 'wb') as f:
+    SAVE_PATH = pathlib.Path("/home/alexandre/logs/SimpleMLP11aout/163feat-conditioning-10_hidden")
+    if not SAVE_PATH.exists():
+        os.mkdir(SAVE_PATH)
+    with open(SAVE_PATH / "scaler.pkl", 'wb') as f:
         pickle.dump(scaler, f)
     mlp = SimpleMLP(NUM_FEATURES, HIDDEN_SIZE, NUM_HIDDEN_LAYERS,
                     scaler.mean_, np.sqrt(scaler.var_), PARAM_RANGE_MODULATION,
                     PARAM_RANGE_DELAY, PARAM_RANGE_DISTORTION,
-                    monitor_spectral_loss=True)
-    logger = TensorBoardLogger("/home/alexandre/logs/SimpleMLP", name="30July")
-    trainer = pl.Trainer(gpus=1, logger=logger, max_epochs=1000, log_every_n_steps=100)
+                    monitor_spectral_loss=False)
+    checkpoint_callback = ModelCheckpoint(save_top_k=3, monitor='loss/test')
+    early_stopping = EarlyStopping(monitor='loss/test', patience=3)
+    logger = TensorBoardLogger("/home/alexandre/logs/SimpleMLP11aout", name="163feat-conditioning-10_hidden")
+    trainer = pl.Trainer(gpus=1, logger=logger, max_epochs=1000, log_every_n_steps=100,
+                         callbacks=[checkpoint_callback, early_stopping])
 
     trainer.fit(mlp, datamodule=datamodule)
