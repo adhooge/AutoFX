@@ -102,7 +102,8 @@ class AutoFX(pl.LightningModule):
                  spectro_power: int = 2, mel_spectro: bool = True, mel_num_bands: int = 128,
                  penalty_1: float = 0, penalty_0: float = 0, feat_weight: float = 0.5, mrstft_weight: float = 0.5,
                  loss_stamps: list = None, freeze_layers: list = None, disable_feat: bool = False,
-                 reverb: bool = False, with_film: bool = False, monitor_spectral_loss: bool = False):
+                 reverb: bool = False, with_film: bool = False, monitor_spectral_loss: bool = False,
+                 aggregated_classes: bool = False):
         super().__init__()
         if total_num_bands is None:
             total_num_bands = num_bands
@@ -128,14 +129,19 @@ class AutoFX(pl.LightningModule):
             self.num_params -= 1
         self.resnet = ResNet(self.num_params, end_with_fcl=False, num_channels=64, with_film=with_film)
         self.with_film = with_film
+        self.aggregated_classes = aggregated_classes
+        if self.aggregated_classes:
+            film_size = 6
+        else:
+            film_size = 11
         if self.with_film:
             # Film layers for all resnet blocks
-            self.film1_1 = FilmLayer(11, 64)
-            self.film1_2 = FilmLayer(11, 64)
-            self.film2_1 = FilmLayer(11, 128)
-            self.film2_2 = FilmLayer(11, 128)
-            self.film3_1 = FilmLayer(11, 256)
-            self.film3_2 = FilmLayer(11, 256)
+            self.film1_1 = FilmLayer(film_size, 64)
+            self.film1_2 = FilmLayer(film_size, 64)
+            self.film2_1 = FilmLayer(film_size, 128)
+            self.film2_2 = FilmLayer(film_size, 128)
+            self.film3_1 = FilmLayer(film_size, 256)
+            self.film3_2 = FilmLayer(film_size, 256)
             nn.init.normal_(self.film1_1.linear1.weight, mean=1, std=0.1)
             nn.init.normal_(self.film1_1.linear2.weight, mean=0, std=0.1)
             nn.init.normal_(self.film1_2.linear1.weight, mean=1, std=0.1)
@@ -157,7 +163,7 @@ class AutoFX(pl.LightningModule):
             fcl_size = 4096
         else:
             fcl_size = fft_size * 256 // hop_size
-        self.fcl1 = nn.Linear(fcl_size + cond_feat, fcl_size // 2)
+        self.fcl1 = nn.Linear(fcl_size + self.cond_feat, fcl_size // 2)
         self.fcl2 = nn.Linear(fcl_size//2, self.num_params)
         # self.fcl = nn.Linear(fcl_size + cond_feat, self.num_params)
         # nn.init.xavier_normal_(self.fcl.weight, gain=math.sqrt(2))
@@ -281,7 +287,9 @@ class AutoFX(pl.LightningModule):
                 conditioning = None
                 fx_class = None
         batch_size = processed.shape[0]
+        # print(conditioning)
         pred = self.forward(processed, feat, conditioning=conditioning)
+        # print(pred, label)
         penalty_0 = torch.mean(-1 * torch.log10(pred*0.99))
         penalty_1 = torch.mean(-1 * torch.log10(1 - 0.99*pred))
         if not self.out_of_domain:
@@ -301,6 +309,7 @@ class AutoFX(pl.LightningModule):
             pred_clone[:, 8:] *= (fx_class[:, None] == 2)
             label[:, 8:] *= (fx_class[:, None] == 2)
             loss = self.loss(pred_clone, label)
+            # print(loss)
             pred_per_fx = [pred[:, :5], pred[:, 5:8], pred[:, 8:]]
             # loss = 0
             self.logger.experiment.add_scalar("Param_loss/Train", loss, global_step=self.global_step)
