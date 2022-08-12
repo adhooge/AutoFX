@@ -34,7 +34,8 @@ class FeatureInDomainDataset(Dataset):
                  clean_path: str = None, processed_path: str = None,
                  pad_length: int = None, reverb: bool = False,
                  conditioning: bool = False, classes2keep: list = None,
-                 return_file_name: bool = False, csv_name: str = "data.csv"):
+                 return_file_name: bool = False, csv_name: str = "data.csv",
+                 aggregated_classes: bool = False, fx_feat: bool = True, clf_feat: bool = False):
         """
 
         :param data_path:
@@ -47,6 +48,9 @@ class FeatureInDomainDataset(Dataset):
         :param classes2keep: Classes that should be kept for training.
         :param return_file_name: flag to also return filename
         :param csv_name: Filename of the dataframe in .csv format. Default is 'data.csv'
+        :param aggregated_classes: is the dataset for aggregated classes?
+        :param fx_feat: Set to True if the Features for fx regression are needed (Onsets etc)
+        :param clf_feat: Set to True if the features used for classification are needed.
         """
         if validation and (clean_path is None or processed_path is None):
             raise ValueError("Clean and Processed required for validation dataset.")
@@ -58,8 +62,10 @@ class FeatureInDomainDataset(Dataset):
         columns = list(self.data.columns)
         num_features = 0
         num_param = 0
+        num_cond = 0
         features_columns = []
         param_columns = []
+        cond_columns = []
         for (i, c) in enumerate(columns):
             if 'f-' in c:
                 num_features += 1
@@ -67,10 +73,21 @@ class FeatureInDomainDataset(Dataset):
             elif 'p-' in c:
                 num_param += 1
                 param_columns.append(i)
+            elif 'c-' in c:
+                num_cond += 1
+                cond_columns.append(i)
+        if fx_feat and not clf_feat:
+            features_columns = features_columns[:-163]
+        elif clf_feat and not fx_feat:
+            features_columns = features_columns[-163:]
         self.num_features = num_features
         self.feat_columns = features_columns
+        self.cond_columns = cond_columns
         self.num_param = num_param
         self.param_columns = param_columns
+        if aggregated_classes and num_cond != 6:
+            raise ValueError(f"6 classes should be in the dataset. {num_cond} have been found.")
+        self.num_cond = num_cond
         self.scaler = TorchStandardScaler()
         if pad_length is None:
             if reverb:
@@ -113,16 +130,20 @@ class FeatureInDomainDataset(Dataset):
         if self.reverb:
             params = torch.hstack([params, torch.zeros(1)])
         # print(params)
+        # print(self.feat_columns)
         features = self.data.iloc[item, self.feat_columns]
         if self.conditioning:
-            conditioning = self.data.iloc[item, -12:-1]
+            conditioning = self.data.iloc[item, self.cond_columns]
             conditioning = torch.tensor(conditioning, dtype=torch.float)
             fx_class = self.data.iloc[item, -1]
             fx_class = torch.tensor(fx_class, dtype=torch.int)
         else:
-            conditioning = None
-            fx_class = None
+            conditioning = 'None'
+            # fx_class = None
+            fx_class = self.data.iloc[item, -1]
+            fx_class = torch.tensor(fx_class, dtype=torch.int)
         features = torch.Tensor(features)
+        # print("DHJSHDHSDHS", features.shape)
         features = self.scaler.transform(features)
         # print(features)
         if self.validation:         # TODO: remove that
@@ -132,7 +153,8 @@ class FeatureInDomainDataset(Dataset):
                 else:
                     return cln_pad, prc_pad, features, params, conditioning, fx_class
             else:
-                return cln_pad, prc_pad, features, params
+                # return cln_pad, prc_pad, features, params
+                return cln_pad, prc_pad, features, params, conditioning, fx_class
         else:
             return features, params
 
@@ -157,7 +179,9 @@ class FeatureOutDomainDataset(Dataset):
                  clean_path: str = None, processed_path: str = None,
                  pad_length: int = 35000, index_col: int = None,
                  conditioning: bool = False, classes2keep: list = None,
-                 return_file_name: bool = False):
+                 return_file_name: bool = False, csv_name: str = "data.csv",
+                 fx_feat: bool = True, clf_feat: bool = False
+                 ):
         """
 
         :param data_path:
@@ -168,16 +192,20 @@ class FeatureOutDomainDataset(Dataset):
         :param conditioning:
         :param classes2keep:
         :param return_file_name: flag to also return filename. Defaults to False.
+        :param fx_feat: Set to True if the Features for fx regression are needed (Onsets etc)
+        :param clf_feat: Set to True if the features used for classification are needed.
         """
         self.data_path = pathlib.Path(data_path)
         self.clean_path = pathlib.Path(clean_path) if clean_path is not None else clean_path
         self.processed_path = pathlib.Path(processed_path) if processed_path is not None else processed_path
-        self.data = pd.read_csv(self.data_path / "data.csv", index_col=index_col)
-        features_columns = []
-        param_columns = []
+        self.data = pd.read_csv(self.data_path / csv_name, index_col=index_col)
         columns = self.data.columns
         num_features = 0
         num_param = 0
+        num_cond = 0
+        features_columns = []
+        param_columns = []
+        cond_columns = []
         for (i, c) in enumerate(columns):
             if 'f-' in c:
                 num_features += 1
@@ -185,10 +213,19 @@ class FeatureOutDomainDataset(Dataset):
             elif 'p-' in c:
                 num_param += 1
                 param_columns.append(i)
+            elif 'c-' in c:
+                num_cond += 1
+                cond_columns.append(i)
+        if fx_feat and not clf_feat:
+            features_columns = features_columns[:-163]
+        elif clf_feat and not fx_feat:
+            features_columns = features_columns[-163:]
         self.num_features = num_features
         self.feat_columns = features_columns
+        self.cond_columns = cond_columns
         self.num_param = num_param
         self.param_columns = param_columns
+        self.num_cond = num_cond
         if "conditioning" in self.data.columns:
             self.data = self.data.drop(columns=["conditioning"])
         self.fx2clean = pd.read_csv(self.data_path / "fx2clean.csv", index_col=0)
@@ -236,6 +273,8 @@ class FeatureOutDomainDataset(Dataset):
         else:
             # cln_snd_path = self.clean_path / (self.fx2clean.iloc[item, 1] + '.wav')
             # fx_snd_path = self.processed_path / (self.fx2clean.iloc[item, 0] + '.wav')
+            # print(filename)
+            # print(self.fx2clean.loc[[filename]].values[0])
             cln_snd_path = self.clean_path / (self.fx2clean.loc[[filename]].values[0] + '.wav')
             fx_snd_path = self.processed_path / (filename + ".wav")
             cln_sound, rate = torchaudio.load(cln_snd_path[0], normalize=True)
@@ -252,9 +291,11 @@ class FeatureOutDomainDataset(Dataset):
                 prc_sound = prc_sound[:35000]
             prc_pad[0, :len(prc_sound)] = prc_sound
             prc_pad[0, len(prc_sound):] = torch.randn(self.pad_length - len(prc_sound)) / 1e9
+            # print("DHCBNHJQSK", self.feat_columns)
             features = self.data.iloc[item, self.feat_columns]
+            # print(features.shape)
             if self.conditioning:
-                conditioning = self.data.iloc[item, -12:-1]
+                conditioning = self.data.iloc[item, self.cond_columns]
                 conditioning = torch.tensor(conditioning, dtype=torch.float)
                 fx_class = self.data.iloc[item, -1]
                 fx_class = torch.tensor(fx_class, dtype=torch.int)
