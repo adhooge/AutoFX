@@ -1,3 +1,5 @@
+import os
+
 import auraloss
 import tqdm
 
@@ -18,15 +20,15 @@ PARAM_RANGE_DISTORTION = [(0, 60),
                           (500, 2000), (-10, 10), (0.5, 2)]
 PARAM_RANGE_DELAY = [(0, 1), (0, 1), (0, 1)]
 PARAM_RANGE_MODULATION = [(0.1, 10), (0, 1), (0, 20), (0, 1), (0, 1)]
-CHECKPOINT = "/home/alexandre/logs/dmd_26july/lightning_logs/version_1/checkpoints/epoch=19-step=26380.ckpt"
+CHECKPOINT = "/home/alexandre/logs/dmd_12aout/lightning_logs/version_5/checkpoints/epoch=14-step=20940.ckpt"
 # CHECKPOINT = "/home/alexandre/logs/resnet_chorus/version_50/checkpoints/epoch=39-step=35000.ckpt"
 CLEAN_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_dry_22050_cut")
 PROCESSED_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_modulation_delay_distortion_22050_cut")
 IN_DOMAIN_PATH = pathlib.Path("/home/alexandre/dataset/modulation_delay_distortion_guitar_mono_cut")
 
-# SAVE_PATH = pathlib.Path("/home/alexandre/Music/perceptual_exp/param_no_finetuning")
-
-SAVE_PATH = pathlib.Path('/tmp')
+SAVE_PATH = pathlib.Path("/home/alexandre/Music/perceptual_exp/param_no_finetuning")
+if not SAVE_PATH.exists():
+    os.mkdir(SAVE_PATH)
 
 mrstft_fft = [64, 128, 256, 512, 1024, 2048]
 mrstft_hop = [16, 32, 64, 128, 256, 512]
@@ -45,15 +47,18 @@ OUT_OF_DOMAIN = True
 model = AutoFX.load_from_checkpoint(CHECKPOINT, num_bands=1, cond_feat=48,
                                     param_range_delay=PARAM_RANGE_DELAY,
                                     param_range_modulation=PARAM_RANGE_MODULATION,
-                                    param_range_disto=PARAM_RANGE_DISTORTION)
+                                    param_range_disto=PARAM_RANGE_DISTORTION, aggregated_classes=True,
+                                    disable_feat=True)
 
-datamodule = FeaturesDataModule(CLEAN_PATH, IN_DOMAIN_PATH, PROCESSED_PATH, seed=2,
+datamodule = FeaturesDataModule(CLEAN_PATH, IN_DOMAIN_PATH, PROCESSED_PATH, seed=25,
                                 conditioning=True, classes2keep=[0, 1, 2], out_of_domain=OUT_OF_DOMAIN,
                                 out_scaler_mean=model.scaler.mean.detach().cpu().clone(),
                                 out_scaler_std=model.scaler.std.detach().cpu().clone(),
                                 in_scaler_mean=model.scaler.mean.detach().cpu().clone(),
                                 in_scaler_std=model.scaler.std.detach().cpu().clone(),
-                                batch_size=128, return_file_name=True
+                                batch_size=128, return_file_name=True, aggregated_classes=True,
+                                out_csv_name="data_full.csv", csv_name="data_simple2.csv",
+                                fx_feat=True, clf_feat=False
                                 )
 datamodule.setup()
 
