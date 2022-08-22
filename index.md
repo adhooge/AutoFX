@@ -209,3 +209,14 @@ Example sounds for each of those are available below:
 </td>
 </tr>
 </table>
+
+### AutoFx
+
+The implemented architecture for the regression of effects' parameters is dubbed AutoFx and trained according to the following procedure:
+
+<img src="https://adhooge.github.io/AutoFX/figures/network_v0.png" alt="Proposed training framework">
+
+The network architecture being:
+
+<img src="https://adhooge.github.io/AutoFX/figures/autofx.png" alt="Network architecture">
+
