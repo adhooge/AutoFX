@@ -221,3 +221,174 @@ The network architecture being:
 
 <img src="https://adhooge.github.io/AutoFX/figures/autofx.png" alt="Network architecture">
 
+Reconstruction of synthetic sounds is proposed below:
+
+
+<table>
+<caption><b> Modulation</b></caption>
+    <tr>
+    <td style="text-align: center; vertical-align: middle;"><b>Original</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Reconstruction</b></td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/orig_1.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/rec_1.wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/orig_14.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/rec_14.wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/orig_19.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/rec_19.wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/orig_27.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/rec_27.wav">
+</audio>
+</td>
+</tr>
+</table>
+
+<table>
+<caption><b> Delay</b></caption>
+    <tr>
+    <td style="text-align: center; vertical-align: middle;"><b>Original</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Reconstruction</b></td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/orig_30.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/rec_30.wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/orig_18.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/rec_18.wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/orig_17.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/rec_17.wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/orig_16.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/rec_16.wav">
+</audio>
+</td>
+</tr>
+</table>
+
+
+<table>
+<caption><b> Distortion</b></caption>
+    <tr>
+    <td style="text-align: center; vertical-align: middle;"><b>Original</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>Reconstruction</b></td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/orig_3.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/rec_3.wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/orig_9.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/rec_9.wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/orig_23.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/rec_23.wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/orig_31.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/in_domain/rec_31.wav">
+</audio>
+</td>
+</tr>
+</table>
