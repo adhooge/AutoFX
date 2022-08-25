@@ -2,4 +2,7 @@
 ---
 
 @import "{{ site.theme }}";
-$content-width: 80%;
+$content-width: 100%;
+.main-content, .toc {
+    max-width: 100rem;
+}
