@@ -1,6 +1,6 @@
 # ATIAM Internship Summer 2022
 ## Lab: [Sony CSL](https://csl.sony.fr/)
-__Supervisor:__ [Gaëtan Hadjeres](https://github.com/Ghadjeres)
+__Supervisor:__ [Gaëtan Hadjeres](https://github.com/Ghadjeres)</br>
 [Report](https://adhooge.github.io/AutoFX/intership_report.pdf)
 <div align="center">
 <img src="https://adhooge.github.io/AutoFX/logos/sorbonne.jpg" align="left" alt="Logo Sorbonnes universités" width="200">
