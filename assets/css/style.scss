@@ -2,5 +2,8 @@
 # Only the main Sass file needs front matter (the dashes are enough)
 ---
 $content-width: 100%;
+.main-content, .toc {
+    max-width: 80rem;
+}
 
 @import "cayman";
