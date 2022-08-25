@@ -392,3 +392,331 @@ Reconstruction of synthetic sounds is proposed below:
 </td>
 </tr>
 </table>
+
+#### Reconstruction of Out-of-domain sounds
+
+The following sounds are taken from the online perceptual experiment that was conducted.
+
+<table>
+<caption><b> Modulation</b></caption>
+    <tr>
+    <td style="text-align: center; vertical-align: middle;"><b>Reference</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>163-NC</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>163-C</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>211-C</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>AutoFX</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>AutoFX-F</b></td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/ref/modulation_ref_1.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/163-NC/modulation_rec_1.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/163-C/modulation_rec_1.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/211/modulation_rec_1.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/autofx/modulation_rec_1.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/autofx-f/modulation_rec_1.wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/ref/modulation_ref_2.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/163-NC/modulation_rec_2.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/163-C/modulation_rec_2.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/211/modulation_rec_2.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/autofx/modulation_rec_2.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/autofx-f/modulation_rec_2.wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/ref/modulation_ref_3.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/163-NC/modulation_rec_3.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/163-C/modulation_rec_3.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/211/modulation_rec_3.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/autofx/modulation_rec_3.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/autofx-f/modulation_rec_3.wav">
+</audio>
+</td>
+</tr>
+</table>
+
+<table>
+<caption><b>Delay</b></caption>
+    <tr>
+    <td style="text-align: center; vertical-align: middle;"><b>Reference</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>163-NC</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>163-C</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>211-C</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>AutoFX</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>AutoFX-F</b></td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/ref/delay_ref_1.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/163-NC/delay_rec_1.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/163-C/delay_rec_1.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/211/delay_rec_1.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/autofx/delay_rec_1.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/autofx-f/delay_rec_1.wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/ref/delay_ref_2.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/163-NC/delay_rec_2.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/163-C/delay_rec_2.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/211/delay_rec_2.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/autofx/delay_rec_2.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/autofx-f/delay_rec_2.wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/ref/delay_ref_3.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/163-NC/delay_rec_3.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/163-C/delay_rec_3.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/211/delay_rec_3.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/autofx/delay_rec_3.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/autofx-f/delay_rec_3.wav">
+</audio>
+</td>
+</tr>
+</table>
+
+<table>
+<caption><b>Distortion</b></caption>
+    <tr>
+    <td style="text-align: center; vertical-align: middle;"><b>Reference</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>163-NC</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>163-C</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>211-C</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>AutoFX</b></td>
+    <td style="text-align: center; vertical-align: middle;"><b>AutoFX-F</b></td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/ref/disto_ref_1.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/163-NC/disto_rec_1.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/163-C/disto_rec_1.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/211/disto_rec_1.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/autofx/disto_rec_1.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/autofx-f/disto_rec_1.wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/ref/disto_ref_2.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/163-NC/disto_rec_2.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/163-C/disto_rec_2.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/211/disto_rec_2.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/autofx/disto_rec_2.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/autofx-f/disto_rec_2.wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/ref/disto_ref_3.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/163-NC/disto_rec_3.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/163-C/disto_rec_3.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/211/disto_rec_3.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/autofx/disto_rec_3.wav">
+</audio>
+</td>
+<td style="text-align: center; vertical-align: middle;">
+<audio controls>
+<source src="https://adhooge.github.io/AutoFX/sounds/autofx/out_domain/autofx-f/disto_rec_3.wav">
+</audio>
+</td>
+</tr>
+</table>
