@@ -42,7 +42,7 @@ ___
 git clone https://github.com/adhooge/AutoFX
 ```
 
-#### Using Conda:
+#### Using Conda
 
 1. Create the environment using the `environment.yml` file:
 ```
@@ -60,6 +60,12 @@ Install `requirements.txt`. Note that this will a system-wide installation.
 ```
 pip install -r requirements.txt
 ```
+
+#### Dataset
+
+The dataset used for this work can be downloaded freely from [here](https://www.idmt.fraunhofer.de/en/publications/datasets/audio_effects.html).
+Installation cannot be automated since a request form has to be submitted.
+The compressed dataset weighs 6.5GB.
 
 ### Process sounds to classify
 
