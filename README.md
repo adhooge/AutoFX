@@ -35,3 +35,31 @@ any audio effect could be reproduced by a correctly configured generic effect.
 
 ___
 
+### Install
+
+0. Clone the repo:
+```
+git clone https://github.com/adhooge/AutoFX
+```
+
+#### Using Conda:
+
+1. Create the environment using the `environment.yml` file:
+```
+conda env create -f environment.yml
+```
+
+2. Activate the environment:
+ ```
+conda activate autofx
+ ```
+
+#### Using Pip
+
+Install `requirements.txt`. Note that this will a system-wide installation.
+```
+pip install -r requirements.txt
+```
+
+### Process sounds to classify
+
