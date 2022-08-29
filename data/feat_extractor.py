@@ -149,14 +149,19 @@ class FeatureExtractor(nn.Module):
         return func
 
     def process_folder(self, folder_path: str, n_mfcc: int = 10, add_noise: bool = False,
-                       file_name: str = 'out'):
+                       rate: int = 22050, file_name: str = 'out'):
         """
         Extract classification features of all files inside a folder and store the results in a .csv file
         :param folder_path: absolute path to the folder
         :param n_mfcc: number of mfcc to compute. Default is 10.
         :param add_noise: Add noise during processing to avoid NaNs if necessary. Default is False.
+        :param rate: Sampling rate of the audio files in Hz. Default is 22050.
         :param file_name: file_name to give to the output .csv file. Default is 'out'
         """
+        if n_mfcc != self.n_mfcc:
+            self.n_mfcc = n_mfcc
+            self.mfcc_transform = torchaudio.transforms.MFCC(sample_rate=int(rate),
+                                                             n_mfcc=n_mfcc)
         folder_path = pathlib.Path(folder_path)
         out = pd.DataFrame([])
         # Only try processing .wav files
@@ -179,3 +184,5 @@ class FeatureExtractor(nn.Module):
             out = pd.concat([out, row], axis=0)
         file_name = pathlib.Path(file_name)
         out.to_csv(folder_path / file_name.with_suffix(".csv"))
+
+
