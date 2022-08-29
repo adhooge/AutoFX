@@ -13,19 +13,19 @@ Audio of a note played with the target Fx. It should be a single note of any dur
 
 - `cls`: `int` representing the  Fx detected according to the following chart:
   
-| `cls` |    Fx Type     |                               Plugin to instanciate                                |
-|:-----:|:--------------:|:----------------------------------------------------------------------------------:|
-|  `0`  |      Dry       |                                        None                                        |
-|  `1`  | Feedback Delay |                                  `dsp::DelayLine`                                  |
-|  `2`  | Slapback Delay |                                  `dsp::DelayLine`                                  |
-|  `3`  |     Reverb     |                                   `dsp::Reverb`                                    |
-|  `4`  |     Chorus     |                                   `dsp::Chorus`                                    |
-|  `5`  |    Flanger     |                                   `dsp::Chorus`                                    |
-|  `6`  |     Phaser     |                                   `dsp::Chorus`                                    |
-|  `7`  |    Tremolo     |                   _probably_ <br/>`[dsp::Oscillator, dsp::Gain]`                   |
-|  `8`  |    Vibrato     |                                   `dsp::Chorus`                                    |
-|  `9`  |   Distortion   | _probably_ <br/>`[dsp::IIR::Filter, dsp::Gain, dsp::WaveShaper, dsp::IIR::Filter]` |
-| `10`  |   Overdrive    |                                       _idem_                                       |
+| `cls` |    Fx Type     |                       Plugin to instanciate                        |
+|:-----:|:--------------:|:------------------------------------------------------------------:|
+|  `0`  |      Dry       |                                None                                |
+|  `1`  | Feedback Delay |                          `dsp::DelayLine`                          |
+|  `2`  | Slapback Delay |                          `dsp::DelayLine`                          |
+|  `3`  |     Reverb     |                           `dsp::Reverb`                            |
+|  `4`  |     Chorus     |                           `dsp::Chorus`                            |
+|  `5`  |    Flanger     |                           `dsp::Chorus`                            |
+|  `6`  |     Phaser     |                           `dsp::Chorus`                            |
+|  `7`  |    Tremolo     |           _probably_ <br/>`[dsp::Oscillator, dsp::Gain]`           |
+|  `8`  |    Vibrato     |                           `dsp::Chorus`                            |
+|  `9`  |   Distortion   | `[dsp::Gain, dsp::WaveShaper, dsp::IIR::Filter, dsp::IIR::Filter]` |
+| `10`  |   Overdrive    |                               _idem_                               |
 
 
 ### References:
