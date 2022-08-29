@@ -56,7 +56,7 @@ conda activate autofx
 
 #### Using Pip
 
-Install `requirements.txt`. Note that this will a system-wide installation.
+Install `requirements.txt`. Note that this is a system-wide installation.
 ```
 pip install -r requirements.txt
 ```
@@ -67,5 +67,8 @@ The dataset used for this work can be downloaded freely from [here](https://www.
 Installation cannot be automated since a request form has to be submitted.
 The compressed dataset weighs 6.5GB.
 
-### Process sounds to classify
+### Audio effects recognition
 
+#### Computation of classification features
+
+To obtain the features required for classification
