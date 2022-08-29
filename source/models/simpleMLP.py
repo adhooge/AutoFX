@@ -10,6 +10,7 @@ import pytorch_lightning as pl
 import sklearn.preprocessing
 import torch
 import torchaudio
+from carbontracker.tracker import CarbonTracker
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.utilities.types import STEP_OUTPUT
@@ -37,11 +38,14 @@ class SimpleMLP(pl.LightningModule):
                  rate: float = 22050, learning_rate: float = 0.001,
                  mrstft_fft: list[int] = [64, 128, 256, 512, 1024, 2048],
                  mrstft_hop: list[int] = [16, 32, 64, 128, 256, 512],
-                 monitor_spectral_loss: bool = False, audiologs: int = 8):
+                 monitor_spectral_loss: bool = False, audiologs: int = 8,
+                 tracker: bool = False):
         super(SimpleMLP, self).__init__()
         num_bands = 1
         total_num_bands = 1
         self.num_bands = 1
+        self.tracker_flag = tracker
+        self.tracker = None
         self.total_num_bands = 1
         self.rate = rate
         self.num_features = num_features
@@ -92,6 +96,17 @@ class SimpleMLP(pl.LightningModule):
         self.out_of_domain = False
         self.learning_rate = learning_rate
         self.save_hyperparameters()
+
+    def on_train_epoch_start(self) -> None:
+        if self.tracker_flag and self.tracker is None:
+            self.tracker = CarbonTracker(epochs=20, epochs_before_pred=1, monitor_epochs=1,
+                                         log_dir=self.logger.log_dir, verbose=2)  # TODO: Remove hardcoded values
+        if self.tracker_flag:
+            self.tracker.epoch_start()
+
+    def on_train_epoch_end(self) -> None:
+        if self.tracker_flag:
+            self.tracker.epoch_end()
 
     def forward(self, feat, conditioning, *args, **kwargs) -> Any:
         if conditioning[0] != 'None':
@@ -303,9 +318,9 @@ if __name__ == "__main__":
     CLEAN_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_dry_22050_cut")
     PROCESSED_PATH = pathlib.Path("/home/alexandre/dataset/modulation_delay_distortion_guitar_mono_cut")
     OUT_OF_DOMAIN_PATH = pathlib.Path("/home/alexandre/dataset/guitar_mono_modulation_delay_distortion_22050_cut")
-    NUM_FEATURES = 163
+    NUM_FEATURES = 211
     HIDDEN_SIZE = 100
-    NUM_HIDDEN_LAYERS = 10
+    NUM_HIDDEN_LAYERS = 5
     PARAM_RANGE_DISTORTION = [(0, 60),
                               (50, 500), (-10, 10), (0.5, 2),
                               (500, 2000), (-10, 10), (0.5, 2)]
@@ -323,24 +338,24 @@ if __name__ == "__main__":
     # print(FEAT_COL)
     # scaler.fit(in_train[FEAT_COL])
     # print(scaler.mean_)
-    with open("/home/alexandre/logs/SimpleMLP11aout/163feat-no_conditioning-10_hidden/scaler.pkl", 'rb') as f:
+    with open("/home/alexandre/logs/SimpleMLP11aout/211feat-conditioning-10_hidden/scaler.pkl", 'rb') as f:
         scaler = pickle.load(f)
 
 
     datamodule = FeaturesDataModule(CLEAN_PATH, PROCESSED_PATH, OUT_OF_DOMAIN_PATH,
                                     in_scaler_mean=scaler.mean_, in_scaler_std=np.sqrt(scaler.var_),
                                     out_scaler_mean=scaler.mean_, out_scaler_std=np.sqrt(scaler.var_),
-                                    seed=2, batch_size=64, fx_feat=False, clf_feat=True,
+                                    seed=2, batch_size=64, fx_feat=True, clf_feat=True,
                                     conditioning=True, classes2keep=[0, 1, 2], csv_name='data_full.csv')
     # datamodule.setup()
-    SAVE_PATH = pathlib.Path("/home/alexandre/logs/SimpleMLP11aout/163feat-conditioning-10_hidden")
+    SAVE_PATH = pathlib.Path("/tmp")
     if not SAVE_PATH.exists():
         os.mkdir(SAVE_PATH)
     with open(SAVE_PATH / "scaler.pkl", 'wb') as f:
         pickle.dump(scaler, f)
     mlp = SimpleMLP(NUM_FEATURES, HIDDEN_SIZE, NUM_HIDDEN_LAYERS,
                     scaler.mean_, np.sqrt(scaler.var_), PARAM_RANGE_MODULATION,
-                    PARAM_RANGE_DELAY, PARAM_RANGE_DISTORTION,
+                    PARAM_RANGE_DELAY, PARAM_RANGE_DISTORTION, tracker=True,
                     monitor_spectral_loss=False)
     checkpoint_callback = ModelCheckpoint(save_top_k=3, monitor='loss/test')
     early_stopping = EarlyStopping(monitor='loss/test', patience=3)
