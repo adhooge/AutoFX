@@ -84,6 +84,7 @@ python3 -m data.feat_extractor -i PATH_TO_GUITAR_MONO
 ```
 This will generate an `out.csv` file containing the features for all input sounds. _Note: This may take a while._
 
+#### Training the model
 To train the classification model on the dataset, you can run:
 ```commandline
 python3 -m source.classifiers.fx_recognition_fit -o PATH/TO/LOG/DIR -d PATH/TO/dataset.csv 
@@ -93,3 +94,29 @@ You can monitor the model's performance during/after training using Tensorboard:
 ```commandline
 tensorboard --logdir PATH/TO/LOG/DIR
 ```
+The trained model is then available in the `checkpoints` directory of the log directory and can be loaded in Python using:
+```python
+from source.classifiers.classifier_pytorch import MLPClassifier
+checkpoint = "PATH/TO/CHECKPOINT"
+model = MLPClassifier.load_from_checkpoint(checkpoint)
+```
+the corresponding scaler can also be loaded using:
+```python
+import pickle
+with open("/PATH/TO/LOG/scaler.pkl", "rb") as f:
+    scaler = pickle.load(f)
+```
+
+### Parameters estimation
+
+#### Data generation
+
+The synthetic data for training parameters estimation models is obtained from clean guitar sounds. To put those sounds in a separate folder, you can do it manually or run:
+```commandline
+python3 -m data.get_clean_sounds -i "PATH/TO/IDMT/DATASET" -o "FOLDER/TO/STORE/CLEAN"
+```
+Add `--cut` or `-c` at the end of the previous command to move instead of copying.
+
+
+____
+UNDER CONSTRUCTION, please come back later
