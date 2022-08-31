@@ -1,3 +1,4 @@
+import argparse
 import pathlib
 
 import pandas as pd
@@ -186,3 +187,19 @@ class FeatureExtractor(nn.Module):
         out.to_csv(folder_path / file_name.with_suffix(".csv"))
 
 
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Extract the classification features from all .wav files of the input folder and write results in a .csv file.")
+    parser.add_argument('--in', '-i', type=str,
+                        help="Path to the sounds to process.")
+    parser.add_argument('--noise', '-N', action='store_true',
+                        help="Flag to add noise during processing to avoid NaNs if necessary.")
+    parser.add_argument('--num-mfcc', '-n', type=int, default=10,
+                        help="Number of MFCCs to compute. Default is 10.")
+    parser.add_argument('--rate', '-r', type=int, default=22050,
+                        help="Sampling rate of the sound files, in Hertz. Default is 22050 Hz.")
+    parser.add_argument('--filename', '-F', type=str, default='out',
+                        help="Name to give to the output .csv file. Default is 'out'.")
+    args = vars(parser.parse_args())
+    extractor = FeatureExtractor()
+    extractor.process_folder(args['in'], n_mfcc=args['num_mfcc'], rate=args['rate'], add_noise=args['noise'],
+                             file_name=args['filename'])

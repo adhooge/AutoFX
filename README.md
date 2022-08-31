@@ -38,26 +38,26 @@ ___
 ### Install
 
 0. Clone the repo:
-```
+```commandline
 git clone https://github.com/adhooge/AutoFX
 ```
 
 #### Using Conda
 
 1. Create the environment using the `environment.yml` file:
-```
+```commandline
 conda env create -f environment.yml
 ```
 
 2. Activate the environment:
- ```
+ ```commandline
 conda activate autofx
  ```
 
 #### Using Pip
 
 Install `requirements.txt`. Note that this is a system-wide installation.
-```
+```commandline
 pip install -r requirements.txt
 ```
 
@@ -71,4 +71,17 @@ The compressed dataset weighs 6.5GB.
 
 #### Computation of classification features
 
-To obtain the features required for classification
+It is easier if all processed sounds are in the same folder. To put all Monophonic Guitar Sounds in the same folder, you can do it manually or run the following script:
+```commandline
+python3 -m data.copy_guitar_mono -i "PATH_TO_DATASET/Gitarre monophon" -o "PATH_TO_STORE_GUITAR_MONO"
+python3 -m data.copy_guitar_mono -i "PATH_TO_DATASET/Gitarre monophon2" -o "PATH_TO_STORE_GUITAR_MONO"
+```
+This will recursively copy the `.wav` files into a new folder. If you do not need to keep the original files, you can add the `--cut` or `-c` argument at the end of each command.
+
+To obtain the features required for classification, you then have to run the `FeatureExtractor` on the containing folder:
+```commandline
+python3 -m data.feat_extractor -i PATH_TO_GUITAR_MONO
+```
+This will generate an `out.csv` file containing the features for all input sounds. _Note: This may take a while._
+
+
