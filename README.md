@@ -117,6 +117,7 @@ python3 -m data.get_clean_sounds -i "PATH/TO/IDMT/DATASET" -o "FOLDER/TO/STORE/C
 ```
 Add `--cut` or `-c` at the end of the previous command to move instead of copying.
 
+To generate synthetic data, run the following script:
 
 ____
 UNDER CONSTRUCTION, please come back later
