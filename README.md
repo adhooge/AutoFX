@@ -84,4 +84,12 @@ python3 -m data.feat_extractor -i PATH_TO_GUITAR_MONO
 ```
 This will generate an `out.csv` file containing the features for all input sounds. _Note: This may take a while._
 
-
+To train the classification model on the dataset, you can run:
+```commandline
+python3 -m source.classifiers.fx_recognition_fit -o PATH/TO/LOG/DIR -d PATH/TO/dataset.csv 
+```
+If you want to train a classifier network on aggregated effect classes, add the `--aggregate` or `-a` argument to the previous command.
+You can monitor the model's performance during/after training using Tensorboard:
+```commandline
+tensorboard --logdir PATH/TO/LOG/DIR
+```
