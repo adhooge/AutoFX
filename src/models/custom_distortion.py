@@ -4,7 +4,7 @@ import numpy as np
 import pedalboard as pdb
 import torch
 
-from source import util
+from src import util
 
 
 def _settings_list2dict(settings_list, fx: pdb.Plugin):

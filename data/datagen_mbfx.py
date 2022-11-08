@@ -7,19 +7,19 @@ import warnings
 import numpy as np
 import torch
 
-import source.util as util
+import src.util as util
 import random
 import pedalboard as pdb
 import pandas as pd
 import soundfile as sf
 from tqdm.auto import tqdm
-from source.models.custom_distortion import CustomDistortion
+from src.models.custom_distortion import CustomDistortion
 
 # warnings.filterwarnings("ignore", category=FutureWarning)
 def main(parser):
     args = vars(parser.parse_args())
-    DATA_PATH = pathlib.Path(args['data-path'])
-    OUT_PATH = pathlib.Path(args['out-path'])
+    DATA_PATH = pathlib.Path(args['data_path'])
+    OUT_PATH = pathlib.Path(args['out_path'])
     if not(args['modulation'] ^ args['distortion'] ^ args['delay']):
         raise argparse.ArgumentError(None, message="One and only one effect must be selected.")
     if args['modulation']:
