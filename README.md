@@ -111,13 +111,16 @@ with open("/PATH/TO/LOG/scaler.pkl", "rb") as f:
 
 #### Data generation
 
-The synthetic data for training parameters estimation models is obtained from clean guitar sounds. To put those sounds in a separate folder, you can do it manually or run:
+The synthetic data for training parameters estimation models is obtained from clean monophonic guitar sounds. To put those sounds in a separate folder, you can do it manually or run:
 ```commandline
 python3 -m data.get_clean_sounds -i "PATH/TO/IDMT/DATASET" -o "FOLDER/TO/STORE/CLEAN"
 ```
 Add `--cut` or `-c` at the end of the previous command to move instead of copying.
 
 To generate synthetic data, run the following script:
+```commandline
+python3 -m data.datagen_mbfx -d "/PATH/TO/CLEAN/DATA" -o "/PATH/TO/OUTPUT/FOLDER" --distortion -D
+```
 
 ____
 UNDER CONSTRUCTION, please come back later
