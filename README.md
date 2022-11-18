@@ -124,5 +124,7 @@ python3 -m data.datagen_mbfx -i "/PATH/TO/CLEAN/DATA" -o "/PATH/TO/OUTPUT/FOLDER
 The argument `-D` tells the script to downsample all audio files to half the original sampling rate. This was done to make the dataset lighter and consequently reduce the size of the models used. 
 
 You can call this script for the three different effects `--distortion`, `--modulation` and `--delay`. A `.json` file with the parameters' ranges used is created and put in the output folder for later use. 
+
+To merge the resulting `.csv` files, you can use the helper script `data/merge_csv.py`.
 ____
 UNDER CONSTRUCTION, please come back later
