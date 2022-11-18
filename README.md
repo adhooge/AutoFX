@@ -119,8 +119,10 @@ Add `--cut` or `-c` at the end of the previous command to move instead of copyin
 
 To generate synthetic data, run the following script:
 ```commandline
-python3 -m data.datagen_mbfx -d "/PATH/TO/CLEAN/DATA" -o "/PATH/TO/OUTPUT/FOLDER" --distortion -D
+python3 -m data.datagen_mbfx -i "/PATH/TO/CLEAN/DATA" -o "/PATH/TO/OUTPUT/FOLDER" --distortion -D
 ```
+The argument `-D` tells the script to downsample all audio files to half the original sampling rate. This was done to make the dataset lighter and consequently reduce the size of the models used. 
 
+You can call this script for the three different effects `--distortion`, `--modulation` and `--delay`. A `.json` file with the parameters' ranges used is created and put in the output folder for later use. 
 ____
 UNDER CONSTRUCTION, please come back later
